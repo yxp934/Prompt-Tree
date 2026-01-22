@@ -1,26 +1,251 @@
 @import "tailwindcss";
 
+/* ========== CSS Variables - Cortex Design System ========== */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Warm neutral palette */
+  --ink: #1a1816;
+  --charcoal: #2d2926;
+  --stone: #3d3835;
+  --clay: #5c5550;
+  --sand: #8a8279;
+  --parchment: #c4bdb4;
+  --cream: #f5f2ed;
+  --paper: #faf9f7;
+
+  /* Accent: Oxidized copper */
+  --copper: #b87333;
+  --copper-light: #d4956a;
+  --copper-glow: rgba(184, 115, 51, 0.15);
+
+  /* Semantic node colors */
+  --human: #6b5b4f;
+  --machine: #4a6741;
+  --system: #4f5b6b;
+
+  /* Typography */
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-body: "DM Sans", -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
 }
 
+/* ========== Tailwind Theme Integration ========== */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Colors */
+  --color-ink: var(--ink);
+  --color-charcoal: var(--charcoal);
+  --color-stone: var(--stone);
+  --color-clay: var(--clay);
+  --color-sand: var(--sand);
+  --color-parchment: var(--parchment);
+  --color-cream: var(--cream);
+  --color-paper: var(--paper);
+
+  --color-copper: var(--copper);
+  --color-copper-light: var(--copper-light);
+  --color-copper-glow: var(--copper-glow);
+
+  --color-human: var(--human);
+  --color-machine: var(--machine);
+  --color-system: var(--system);
+
+  /* Fonts */
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ========== Base Styles ========== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
+  background: var(--paper);
+  color: var(--ink);
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ========== Custom Scrollbar ========== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--parchment);
+  border-radius: 4px;
+  border: 2px solid var(--paper);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sand);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--parchment) transparent;
+}
+
+/* ========== Animations ========== */
+@keyframes messageIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+.animate-message-in {
+  animation: messageIn 0.4s ease;
+}
+
+.animate-typing {
+  animation: typing 1.4s infinite;
+}
+
+.animate-typing-delay-1 {
+  animation-delay: 0.2s;
+}
+
+.animate-typing-delay-2 {
+  animation-delay: 0.4s;
+}
+
+/* ========== Node Styles ========== */
+.node-transition {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.node-transition:hover {
+  transform: scale(1.04) translateY(-2px);
+}
+
+/* ========== Thread Item Active Indicator ========== */
+.thread-indicator {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  background: var(--copper);
+  border-radius: 0 2px 2px 0;
+  transition: height 0.2s ease;
+}
+
+.thread-item-active .thread-indicator {
+  height: 24px;
+}
+
+/* ========== Tree Canvas Background ========== */
+.tree-canvas-bg {
+  background: radial-gradient(
+      circle at 20% 30%,
+      var(--copper-glow) 0%,
+      transparent 50%
+    ),
+    linear-gradient(180deg, var(--cream) 0%, var(--paper) 100%);
+}
+
+.tree-canvas-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    circle at center,
+    var(--parchment) 1px,
+    transparent 1px
+  );
+  background-size: 48px 48px;
+  opacity: 0.5;
+}
+
+/* ========== Input Area Gradient ========== */
+.input-area-gradient {
+  background: linear-gradient(180deg, transparent 0%, var(--cream) 100%);
+}
+
+/* ========== Context Card Hover ========== */
+.context-card-hover:hover {
+  border-color: var(--copper);
+  transform: translateX(4px);
+}
+
+.context-card-hover:hover .context-card-remove {
+  opacity: 1;
+}
+
+/* ========== Drop Zone Active ========== */
+.drop-zone-active {
+  border-color: var(--copper);
+  background: var(--copper-glow);
+}
+
+/* ========== Code Block Styles ========== */
+.prose-cortex code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--cream);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--copper);
+}
+
+.prose-cortex pre {
+  background: var(--ink);
+  color: var(--cream);
+  padding: 20px 24px;
+  border-radius: 12px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  margin: 16px 0;
+}
+
+.prose-cortex pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+/* ========== Brand Dot ========== */
+.brand-dot::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--copper);
+  border-radius: 50%;
+  margin-bottom: 2px;
 }

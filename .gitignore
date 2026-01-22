@@ -1,0 +1,14 @@
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Local tooling / caches
+.eslintcache
+.turbo
+
+# Ignore common generated artifacts in subprojects (defensive)
+ai-chat-client/node_modules/
+ai-chat-client/.next/
+ai-chat-client/out/
+ai-chat-client/build/

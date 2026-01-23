@@ -4,6 +4,7 @@ import { useStore as useZustandStore } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
 import { ContextBoxService } from "@/lib/services/contextBoxService";
+import { LLMService, type ILLMService } from "@/lib/services/llmService";
 import { NodeService } from "@/lib/services/nodeService";
 import { TreeService } from "@/lib/services/treeService";
 
@@ -17,6 +18,7 @@ export interface AppStoreDeps {
   nodeService: NodeService;
   treeService: TreeService;
   contextBoxService: ContextBoxService;
+  llmService: ILLMService;
 }
 
 export interface BaseSlice {
@@ -40,6 +42,7 @@ export function createAppStore(
     nodeService: deps?.nodeService ?? new NodeService(),
     treeService: deps?.treeService ?? new TreeService(),
     contextBoxService: deps?.contextBoxService ?? new ContextBoxService(),
+    llmService: deps?.llmService ?? new LLMService(),
   };
 
   return createStore<AppStoreState>()((set, get, ...api) => ({
@@ -88,4 +91,3 @@ export function useAppStore<T>(selector: (state: AppStoreState) => T): T;
 export function useAppStore<T>(selector?: (state: AppStoreState) => T): T {
   return useZustandStore(appStore, selector!);
 }
-

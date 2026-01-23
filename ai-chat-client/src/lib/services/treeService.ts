@@ -100,6 +100,22 @@ export class TreeService {
     return next;
   }
 
+  async touch(id: string): Promise<ConversationTree> {
+    const existing = await this.read(id);
+    if (!existing) throw new Error(`Tree ${id} not found`);
+
+    const next: ConversationTree = {
+      ...existing,
+      updatedAt: Date.now(),
+    };
+
+    const db = await getDB();
+    const tx = db.transaction([DB_CONFIG.stores.trees.name], "readwrite");
+    tx.objectStore(DB_CONFIG.stores.trees.name).put(next);
+    await transactionToPromise(tx);
+    return next;
+  }
+
   async delete(id: string): Promise<void> {
     const tree = await this.read(id);
     if (!tree) return;
@@ -164,4 +180,3 @@ export class TreeService {
     return { tree, nodes: result };
   }
 }
-

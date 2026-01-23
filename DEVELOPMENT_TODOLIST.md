@@ -49,31 +49,63 @@
 
 ---
 
-### ⏳ 阶段 1：数据层实现 (待开始)
-**预计任务**:
-- [ ] 创建TypeScript类型定义 (node.ts, tree.ts, context.ts)
-- [ ] 实现IndexedDB封装
-- [ ] 实现节点数据访问层
-- [ ] 实现树数据访问层
-- [ ] 编写单元测试
+### ✅ 阶段 1：数据层实现 (已完成)
+**完成日期**: 2026-01-23
+
+#### 已完成任务
+- [x] 创建完整类型定义
+  - `ai-chat-client/src/types/`：`node.ts`, `tree.ts`, `context.ts`, `chat.ts`, `index.ts`
+- [x] 实现IndexedDB封装（类型安全）
+  - `ai-chat-client/src/lib/db/schema.ts`
+  - `ai-chat-client/src/lib/db/indexedDB.ts`
+  - `ai-chat-client/src/lib/db/objectStore.ts`
+- [x] 实现核心服务层（CRUD/查询/加载）
+  - `ai-chat-client/src/lib/services/nodeService.ts`
+  - `ai-chat-client/src/lib/services/treeService.ts`
+  - `ai-chat-client/src/lib/services/contextBoxService.ts`
+  - `ai-chat-client/src/lib/services/tokenService.ts`
+- [x] 单元测试 + 覆盖率门槛（core services）
+  - `ai-chat-client/src/__tests__/db/`
+  - `ai-chat-client/src/__tests__/services/`
 
 ---
 
-### ⏳ 阶段 2：状态管理实现 (待开始)
-**预计任务**:
-- [ ] 创建Zustand Store
-- [ ] 实现状态持久化
-- [ ] 实现React Hooks
+### ✅ 阶段 2：状态管理实现 (已完成)
+**完成日期**: 2026-01-23
+
+#### 已完成任务
+- [x] Zustand Store（Slices）+ 初始化加载
+  - `ai-chat-client/src/store/`：`nodeSlice.ts`, `treeSlice.ts`, `contextSlice.ts`, `uiSlice.ts`, `llmSlice.ts`, `useStore.ts`
+- [x] Store <-> IndexedDB 同步（加载/写入）
+- [x] Hooks封装
+  - `ai-chat-client/src/lib/hooks/`：`useTree.ts`, `useNode.ts`, `useContext.ts`, `useStore.ts`
+- [x] 集成测试
+  - `ai-chat-client/src/__tests__/store/`
 
 ---
 
-### ⏳ 阶段 3：单分支对话 (待开始)
-**预计任务**:
-- [ ] 创建基础UI组件
-- [ ] 实现ChatView组件
-- [ ] 实现OpenAI API集成
-- [ ] 实现消息发送流程
-- [ ] 实现Token计算
+### ✅ 阶段 3：单分支对话 (已完成)
+**完成日期**: 2026-01-23
+
+#### 已完成任务
+- [x] Chat UI组件（单分支路径渲染 + 输入）
+  - `ai-chat-client/src/components/chat/ChatView.tsx`
+  - `ai-chat-client/src/components/chat/MessageList.tsx`
+  - `ai-chat-client/src/components/chat/MessageItem.tsx`
+  - `ai-chat-client/src/components/chat/InputArea.tsx`
+- [x] OpenAI 集成（通过 Next.js API Route 代理）
+  - `ai-chat-client/src/app/api/chat/route.ts`
+  - `ai-chat-client/src/lib/services/openaiClient.ts`
+  - `ai-chat-client/src/lib/services/llmService.ts`
+- [x] API Key 管理（localStorage + Settings UI）
+  - `ai-chat-client/src/lib/services/apiKeyService.ts`
+  - `ai-chat-client/src/components/layout/Sidebar.tsx`
+- [x] 发送流程（创建 user/assistant 节点，更新 activeNode）
+  - `ai-chat-client/src/store/llmSlice.ts`
+- [x] 布局替换为真实数据（threads/context/tokens）
+  - `ai-chat-client/src/components/layout/MainLayout.tsx`
+  - `ai-chat-client/src/components/layout/ContextPanel.tsx`
+  - `ai-chat-client/src/components/layout/Sidebar.tsx`
 
 ---
 
@@ -88,6 +120,13 @@
 |------|---------|------|
 | 2025-01-23 | `chore: initial scaffold` | 阶段0 |
 | 2025-01-23 | `feat: implement Phase 0 foundation - three-column layout with Cortex design system` | 阶段0 |
+| 2026-01-23 | `feat: add indexeddb schema and wrapper` | 阶段1 |
+| 2026-01-23 | `feat: add node/tree services with tests` | 阶段1 |
+| 2026-01-23 | `feat: implement zustand store slices` | 阶段2 |
+| 2026-01-23 | `feat: add OpenAI chat proxy API` | 阶段3 |
+| 2026-01-23 | `feat: implement sendMessage in store` | 阶段3 |
+| 2026-01-23 | `feat: wire layout to zustand store` | 阶段3 |
+| 2026-01-23 | `test: improve coverage for db services and store` | 阶段1-3 |
 
 ---
 

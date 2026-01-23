@@ -22,8 +22,10 @@ App code lives in `ai-chat-client/` and should follow this layout:
 
 Run commands from `ai-chat-client/`:
 - `npm run dev`: Run locally (default: http://localhost:3000).
-- `npm run build`: Production build.
+- `npm run build`: Production build (uses Webpack via `next build --webpack`).
 - `npm run start`: Run the production server after build.
+- `npm run test`: Run unit/integration tests (Vitest).
+- `npm run test:coverage`: Run tests with coverage (thresholds enforced in `ai-chat-client/vitest.config.ts`).
 - `npm run lint`: Lint checks (ESLint).
 - `npm run format`: Format with Prettier.
 - `npm run typecheck`: TypeScript typecheck.

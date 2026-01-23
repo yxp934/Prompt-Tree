@@ -1,3 +1,4 @@
+export type { ChatMessage, ChatRole } from "./chat";
 export type { ContextBox } from "./context";
 export type { ConversationTree } from "./tree";
 export type {
@@ -7,4 +8,3 @@ export type {
   NodePosition,
 } from "./node";
 export { NodeType } from "./node";
-

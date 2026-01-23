@@ -1,43 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { useMemo, useState } from "react";
 
-// 线程数据类型
-interface Thread {
-  id: string;
-  title: string;
-  timeAgo: string;
-  nodeCount: number;
-}
+import { Button } from "@/components/common/Button";
+import { Input } from "@/components/common/Input";
+import { Modal } from "@/components/common/Modal";
+import { getOpenAIApiKey, setOpenAIApiKey } from "@/lib/services/apiKeyService";
+import { useAppStore } from "@/store/useStore";
+import type { ConversationTree } from "@/types";
 
-// 模拟线程数据
-const recentThreads: Thread[] = [
-  {
-    id: "1",
-    title: "React Flow Integration",
-    timeAgo: "2m ago",
-    nodeCount: 12,
-  },
-  {
-    id: "2",
-    title: "IndexedDB Schema Design",
-    timeAgo: "1h ago",
-    nodeCount: 8,
-  },
-  {
-    id: "3",
-    title: "Token Optimization Strategy",
-    timeAgo: "3h ago",
-    nodeCount: 15,
-  },
-];
-
-const yesterdayThreads: Thread[] = [
-  { id: "4", title: "Zustand State Architecture", timeAgo: "Yesterday", nodeCount: 6 },
-  { id: "5", title: "Project Initialization", timeAgo: "Yesterday", nodeCount: 4 },
-];
-
-// 时钟图标组件
 function ClockIcon() {
   return (
     <svg
@@ -53,10 +25,14 @@ function ClockIcon() {
   );
 }
 
-// 加号图标组件
 function PlusIcon() {
   return (
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="h-4 w-4">
+    <svg
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -67,7 +43,6 @@ function PlusIcon() {
   );
 }
 
-// 设置图标组件
 function SettingsIcon() {
   return (
     <svg
@@ -88,14 +63,19 @@ function SettingsIcon() {
   );
 }
 
-// 线程项组件
 interface ThreadItemProps {
-  thread: Thread;
+  tree: ConversationTree;
   isActive: boolean;
+  nodeCount: number | null;
   onClick: () => void;
 }
 
-function ThreadItem({ thread, isActive, onClick }: ThreadItemProps) {
+function ThreadItem({ tree, isActive, nodeCount, onClick }: ThreadItemProps) {
+  const timeAgo = useMemo(
+    () => formatDistanceToNow(new Date(tree.updatedAt), { addSuffix: true }),
+    [tree.updatedAt],
+  );
+
   return (
     <div
       className={`relative mb-1 cursor-pointer rounded-[10px] p-4 transition-all duration-150 ${
@@ -103,37 +83,45 @@ function ThreadItem({ thread, isActive, onClick }: ThreadItemProps) {
       }`}
       onClick={onClick}
     >
-      {/* 左侧激活指示器 */}
       <div
         className={`absolute left-0 top-1/2 w-[3px] -translate-y-1/2 rounded-r-sm bg-copper transition-all duration-200 ${
           isActive ? "h-6" : "h-0"
         }`}
       />
 
-      {/* 标题 */}
       <div className="mb-1.5 text-[0.9rem] font-medium leading-tight text-ink">
-        {thread.title}
+        {tree.title}
       </div>
 
-      {/* 元信息 */}
       <div className="flex items-center gap-3 font-mono text-[0.7rem] text-sand">
         <span className="flex items-center gap-1">
           <ClockIcon />
-          {thread.timeAgo}
+          {timeAgo}
         </span>
-        <span>{thread.nodeCount} nodes</span>
+        <span>{nodeCount ?? "—"} nodes</span>
       </div>
     </div>
   );
 }
 
-// 侧边栏主组件
 export default function Sidebar() {
-  const [activeThreadId, setActiveThreadId] = useState("1");
+  const trees = useAppStore((s) => Array.from(s.trees.values()));
+  const currentTreeId = useAppStore((s) => s.currentTreeId);
+  const currentNodesCount = useAppStore((s) => s.nodes.size);
+
+  const createTree = useAppStore((s) => s.createTree);
+  const loadTree = useAppStore((s) => s.loadTree);
+
+  const sortedTrees = useMemo(
+    () => trees.slice().sort((a, b) => b.updatedAt - a.updatedAt),
+    [trees],
+  );
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [apiKey, setApiKeyState] = useState("");
 
   return (
     <aside className="flex h-full flex-col border-r border-parchment bg-cream">
-      {/* 品牌区域 */}
       <div className="border-b border-parchment px-7 pb-6 pt-8">
         <h1 className="brand-dot flex items-baseline gap-2 font-display text-[1.75rem] font-normal tracking-tight text-ink">
           Cortex
@@ -143,48 +131,87 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* 新建线程按钮 */}
-      <button className="mx-5 mt-5 flex items-center gap-2.5 rounded-lg bg-ink px-5 py-3.5 font-body text-[0.9rem] font-medium text-cream transition-all duration-200 hover:-translate-y-px hover:bg-charcoal">
+      <button
+        className="mx-5 mt-5 flex items-center gap-2.5 rounded-lg bg-ink px-5 py-3.5 font-body text-[0.9rem] font-medium text-cream transition-all duration-200 hover:-translate-y-px hover:bg-charcoal"
+        onClick={() => void createTree()}
+      >
         <PlusIcon />
         New Thread
       </button>
 
-      {/* 线程列表 */}
       <div className="flex-1 overflow-y-auto px-3 py-5">
-        {/* 最近 */}
         <div className="mb-3 px-4 font-mono text-[0.65rem] uppercase tracking-[0.15em] text-sand">
-          Recent
+          Threads
         </div>
-        {recentThreads.map((thread) => (
-          <ThreadItem
-            key={thread.id}
-            thread={thread}
-            isActive={activeThreadId === thread.id}
-            onClick={() => setActiveThreadId(thread.id)}
-          />
-        ))}
 
-        {/* 昨天 */}
-        <div className="mb-3 mt-6 px-4 font-mono text-[0.65rem] uppercase tracking-[0.15em] text-sand">
-          Yesterday
-        </div>
-        {yesterdayThreads.map((thread) => (
+        {sortedTrees.map((tree) => (
           <ThreadItem
-            key={thread.id}
-            thread={thread}
-            isActive={activeThreadId === thread.id}
-            onClick={() => setActiveThreadId(thread.id)}
+            key={tree.id}
+            tree={tree}
+            isActive={currentTreeId === tree.id}
+            nodeCount={currentTreeId === tree.id ? currentNodesCount : null}
+            onClick={() => void loadTree(tree.id)}
           />
         ))}
       </div>
 
-      {/* 底部设置 */}
       <div className="border-t border-parchment p-5">
-        <button className="flex w-full items-center gap-2.5 rounded-lg border border-parchment bg-transparent px-4 py-3 font-body text-[0.85rem] text-clay transition-all duration-150 hover:border-sand hover:text-ink">
+        <button
+          className="flex w-full items-center gap-2.5 rounded-lg border border-parchment bg-transparent px-4 py-3 font-body text-[0.85rem] text-clay transition-all duration-150 hover:border-sand hover:text-ink"
+          onClick={() => {
+            setApiKeyState(getOpenAIApiKey() ?? "");
+            setSettingsOpen(true);
+          }}
+        >
           <SettingsIcon />
           Settings
         </button>
       </div>
+
+      <Modal
+        open={settingsOpen}
+        title="Settings"
+        onClose={() => setSettingsOpen(false)}
+      >
+        <div className="space-y-4">
+          <div>
+            <div className="mb-2 font-mono text-[0.7rem] uppercase tracking-widest text-sand">
+              OpenAI API Key
+            </div>
+            <Input
+              value={apiKey}
+              onChange={(e) => setApiKeyState(e.target.value)}
+              placeholder="sk-..."
+              type="password"
+              autoComplete="off"
+            />
+            <div className="mt-2 text-[0.75rem] text-sand">
+              Stored locally in your browser. Used to call OpenAI via `/api/chat`.
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setOpenAIApiKey("");
+                setApiKeyState("");
+              }}
+            >
+              Clear
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setOpenAIApiKey(apiKey);
+                setSettingsOpen(false);
+              }}
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </aside>
   );
 }

@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-// 上下文卡片类型
+import { Button } from "@/components/common/Button";
+import { Modal } from "@/components/common/Modal";
+import { useAppStore } from "@/store/useStore";
+import { NodeType, type Node } from "@/types";
+
 type ContextType = "system" | "human" | "machine" | "compressed";
 
 interface ContextCard {
@@ -13,42 +17,6 @@ interface ContextCard {
   tokens: number;
 }
 
-// 模拟上下文数据
-const contextCards: ContextCard[] = [
-  {
-    id: "1",
-    type: "system",
-    title: "System Prompt",
-    preview:
-      "You are a professional frontend development assistant with expertise in React, Next.js...",
-    tokens: 512,
-  },
-  {
-    id: "2",
-    type: "human",
-    title: "User Message",
-    preview: "How do I integrate React Flow into a Next.js project?",
-    tokens: 128,
-  },
-  {
-    id: "3",
-    type: "machine",
-    title: "AI Response",
-    preview:
-      "Here's how to integrate React Flow with Next.js: First, install the package...",
-    tokens: 1247,
-  },
-  {
-    id: "4",
-    type: "compressed",
-    title: "Compressed",
-    preview:
-      "Summary of 5 previous exchanges about project setup and configuration...",
-    tokens: 960,
-  },
-];
-
-// 图标组件
 function SystemIcon() {
   return (
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -164,7 +132,6 @@ function ChevronRightIcon() {
   );
 }
 
-// 获取图标
 function getIcon(type: ContextType) {
   switch (type) {
     case "system":
@@ -178,7 +145,6 @@ function getIcon(type: ContextType) {
   }
 }
 
-// 获取图标背景色
 function getIconBgClass(type: ContextType) {
   switch (type) {
     case "system":
@@ -192,7 +158,37 @@ function getIconBgClass(type: ContextType) {
   }
 }
 
-// 上下文卡片组件
+function nodeToCard(node: Node): ContextCard {
+  const type: ContextType =
+    node.type === NodeType.SYSTEM
+      ? "system"
+      : node.type === NodeType.USER
+        ? "human"
+        : node.type === NodeType.ASSISTANT
+          ? "machine"
+          : "compressed";
+
+  const title =
+    type === "system"
+      ? "System Prompt"
+      : type === "human"
+        ? "User Message"
+        : type === "machine"
+          ? "AI Response"
+          : "Compressed";
+
+  const preview =
+    node.type === NodeType.COMPRESSED ? node.summary ?? node.content : node.content;
+
+  return {
+    id: node.id,
+    type,
+    title,
+    preview,
+    tokens: node.tokenCount,
+  };
+}
+
 interface ContextCardItemProps {
   card: ContextCard;
   onRemove: (id: string) => void;
@@ -209,15 +205,14 @@ function ContextCardItem({ card, onRemove }: ContextCardItemProps) {
           : "border-parchment bg-paper"
       }`}
     >
-      {/* 删除按钮 */}
       <button
         className="context-card-remove absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-cream opacity-0 text-sand transition-all duration-150 hover:bg-[#e74c3c] hover:text-white"
         onClick={() => onRemove(card.id)}
+        aria-label="Remove from context"
       >
         <CloseIcon />
       </button>
 
-      {/* 头部 */}
       <div className="mb-2 flex items-center gap-2.5">
         <div
           className={`flex h-6 w-6 items-center justify-center rounded-md text-cream ${getIconBgClass(card.type)}`}
@@ -230,7 +225,6 @@ function ContextCardItem({ card, onRemove }: ContextCardItemProps) {
         <span className="font-mono text-[0.7rem] text-sand">{card.tokens}</span>
       </div>
 
-      {/* 预览 */}
       <div className="line-clamp-2 text-[0.8rem] leading-snug text-clay">
         {card.preview}
       </div>
@@ -238,29 +232,42 @@ function ContextCardItem({ card, onRemove }: ContextCardItemProps) {
   );
 }
 
-// 右侧面板主组件
 export default function ContextPanel() {
-  const [cards, setCards] = useState(contextCards);
+  const nodes = useAppStore((s) => s.nodes);
+  const contextBox = useAppStore((s) => s.contextBox);
+  const removeFromContext = useAppStore((s) => s.removeFromContext);
+  const clearContext = useAppStore((s) => s.clearContext);
+  const buildContextContent = useAppStore((s) => s.buildContextContent);
+
+  const cards = useMemo(() => {
+    if (!contextBox) return [];
+    return contextBox.nodeIds
+      .map((id) => nodes.get(id))
+      .filter((n): n is Node => Boolean(n))
+      .map(nodeToCard);
+  }, [contextBox, nodes]);
+
+  const totalTokens = contextBox?.totalTokens ?? 0;
+  const maxTokens = contextBox?.maxTokens ?? 8192;
+  const usagePercent = maxTokens > 0 ? (totalTokens / maxTokens) * 100 : 0;
+
   const [isDragOver, setIsDragOver] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewText, setPreviewText] = useState<string | null>(null);
 
-  // 计算总 token 数
-  const totalTokens = cards.reduce((sum, card) => sum + card.tokens, 0);
-  const maxTokens = 8192;
-  const usagePercent = (totalTokens / maxTokens) * 100;
-
-  // 删除卡片
-  const handleRemove = (id: string) => {
-    setCards(cards.filter((card) => card.id !== id));
-  };
-
-  // 清除所有
-  const handleClearAll = () => {
-    setCards([]);
+  const openPreview = async () => {
+    setPreviewOpen(true);
+    setPreviewText(null);
+    try {
+      const text = await buildContextContent();
+      setPreviewText(text);
+    } catch (err) {
+      setPreviewText(err instanceof Error ? err.message : "Failed to build context.");
+    }
   };
 
   return (
     <aside className="flex h-full flex-col border-l border-parchment bg-cream">
-      {/* 头部 */}
       <div className="border-b border-parchment px-6 pb-5 pt-7">
         <div className="font-display text-[1.1rem] text-ink">
           Context Assembly
@@ -270,7 +277,6 @@ export default function ContextPanel() {
         </div>
       </div>
 
-      {/* Token 使用量 */}
       <div className="border-b border-parchment p-6">
         <div className="mb-4 flex items-baseline justify-between">
           <span className="font-mono text-[0.7rem] uppercase tracking-widest text-sand">
@@ -284,15 +290,13 @@ export default function ContextPanel() {
           </span>
         </div>
 
-        {/* 进度条 */}
         <div className="h-1.5 overflow-hidden rounded-sm bg-paper">
           <div
             className="h-full rounded-sm bg-gradient-to-r from-copper to-copper-light transition-all duration-500"
-            style={{ width: `${usagePercent}%` }}
+            style={{ width: `${Math.min(100, usagePercent)}%` }}
           />
         </div>
 
-        {/* 刻度 */}
         <div className="mt-2 flex justify-between font-mono text-[0.65rem] text-sand">
           <span>0</span>
           <span>4K</span>
@@ -300,25 +304,25 @@ export default function ContextPanel() {
         </div>
       </div>
 
-      {/* 上下文列表 */}
       <div className="flex-1 overflow-y-auto p-5">
-        {/* 标签 */}
         <div className="mb-3 flex items-center justify-between font-mono text-[0.65rem] uppercase tracking-[0.15em] text-sand">
           <span>Active Nodes</span>
           <button
             className="border-none bg-transparent font-body text-[0.75rem] normal-case tracking-normal text-copper hover:underline"
-            onClick={handleClearAll}
+            onClick={clearContext}
           >
             Clear all
           </button>
         </div>
 
-        {/* 卡片列表 */}
         {cards.map((card) => (
-          <ContextCardItem key={card.id} card={card} onRemove={handleRemove} />
+          <ContextCardItem
+            key={card.id}
+            card={card}
+            onRemove={removeFromContext}
+          />
         ))}
 
-        {/* 拖放区域 */}
         <div
           className={`mt-4 rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200 ${
             isDragOver
@@ -344,15 +348,20 @@ export default function ContextPanel() {
         </div>
       </div>
 
-      {/* 操作按钮 */}
       <div className="flex flex-col gap-2.5 border-t border-parchment p-5">
-        <button className="flex w-full items-center gap-3 rounded-[10px] border border-parchment bg-paper px-5 py-3.5 font-body text-[0.85rem] text-ink transition-all duration-150 hover:border-copper hover:bg-copper-glow">
+        <button
+          className="flex w-full items-center gap-3 rounded-[10px] border border-parchment bg-paper px-5 py-3.5 font-body text-[0.85rem] text-ink opacity-60 transition-all duration-150"
+          disabled
+        >
           <div className="h-[18px] w-[18px] text-copper">
             <CompressedIcon />
           </div>
           Compress Selected
         </button>
-        <button className="flex w-full items-center gap-3 rounded-[10px] border border-parchment bg-paper px-5 py-3.5 font-body text-[0.85rem] text-ink transition-all duration-150 hover:border-copper hover:bg-copper-glow">
+        <button
+          className="flex w-full items-center gap-3 rounded-[10px] border border-parchment bg-paper px-5 py-3.5 font-body text-[0.85rem] text-ink opacity-60 transition-all duration-150"
+          disabled
+        >
           <div className="h-[18px] w-[18px] text-copper">
             <LightbulbIcon />
           </div>
@@ -360,11 +369,31 @@ export default function ContextPanel() {
         </button>
       </div>
 
-      {/* 预览按钮 */}
-      <button className="flex items-center justify-between border-t border-parchment bg-transparent px-5 py-4 font-body text-[0.85rem] text-clay transition-all duration-150 hover:bg-paper hover:text-ink">
+      <button
+        className="flex items-center justify-between border-t border-parchment bg-transparent px-5 py-4 font-body text-[0.85rem] text-clay transition-all duration-150 hover:bg-paper hover:text-ink"
+        onClick={() => void openPreview()}
+      >
         <span>Preview Full Context</span>
         <ChevronRightIcon />
       </button>
+
+      <Modal
+        open={previewOpen}
+        title="Full Context Preview"
+        onClose={() => setPreviewOpen(false)}
+      >
+        <div className="space-y-4">
+          <div className="max-h-[50vh] overflow-auto rounded-xl border border-parchment bg-paper p-4 font-mono text-[0.75rem] leading-relaxed text-ink">
+            {previewText ?? "Building context..."}
+          </div>
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={() => setPreviewOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </aside>
   );
 }
+

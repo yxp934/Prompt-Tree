@@ -1,69 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import Sidebar from "./Sidebar";
+import { useEffect, type CSSProperties } from "react";
+
+import { ChatView } from "@/components/chat/ChatView";
+import { useAppStore } from "@/store/useStore";
+
 import ContextPanel from "./ContextPanel";
+import Sidebar from "./Sidebar";
 
-// 消息类型
-interface Message {
-  id: string;
-  role: "human" | "machine";
-  author: string;
-  avatar: string;
-  time: string;
-  content: React.ReactNode;
-}
-
-// 模拟消息数据
-const messages: Message[] = [
-  {
-    id: "1",
-    role: "human",
-    author: "You",
-    avatar: "Y",
-    time: "14:32",
-    content: (
-      <p>
-        How do I integrate React Flow into a Next.js project? I need to build a
-        visual dialogue tree structure.
-      </p>
-    ),
-  },
-  {
-    id: "2",
-    role: "machine",
-    author: "Cortex",
-    avatar: "C",
-    time: "14:32",
-    content: (
-      <>
-        <p>Here&apos;s how to integrate React Flow with Next.js:</p>
-        <p>
-          <strong>1. Install the package</strong>
-        </p>
-        <pre>
-          <code>npm install reactflow</code>
-        </pre>
-        <p>
-          <strong>2. Create a dynamic import</strong>
-        </p>
-        <p>
-          Since React Flow uses browser APIs, you&apos;ll need dynamic imports:
-        </p>
-        <pre>
-          <code>{`import dynamic from 'next/dynamic';
-
-const Flow = dynamic(
-  () => import('./FlowComponent'),
-  { ssr: false }
-);`}</code>
-        </pre>
-      </>
-    ),
-  },
-];
-
-// 图标组件
 function MinusIcon() {
   return (
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,90 +47,11 @@ function ExpandIcon() {
   );
 }
 
-function AttachIcon() {
-  return (
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.5"
-        d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-      />
-    </svg>
-  );
-}
-
-function SendIcon() {
-  return (
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-        d="M5 12h14M12 5l7 7-7 7"
-      />
-    </svg>
-  );
-}
-
-// 消息组件
-interface MessageItemProps {
-  message: Message;
-}
-
-function MessageItem({ message }: MessageItemProps) {
-  return (
-    <div className="animate-message-in mb-8 max-w-[680px]">
-      {/* 头部 */}
-      <div className="mb-3 flex items-center gap-3">
-        <div
-          className={`flex h-8 w-8 items-center justify-center rounded-full font-display text-[0.9rem] italic text-cream ${
-            message.role === "human" ? "bg-human" : "bg-machine"
-          }`}
-        >
-          {message.avatar}
-        </div>
-        <span className="text-[0.9rem] font-medium text-ink">
-          {message.author}
-        </span>
-        <span className="font-mono text-[0.7rem] text-sand">{message.time}</span>
-      </div>
-
-      {/* 内容 */}
-      <div className="prose-cortex pl-11 text-[0.95rem] leading-relaxed text-charcoal [&_p]:mb-4 [&_strong]:font-medium [&_strong]:text-ink">
-        {message.content}
-      </div>
-    </div>
-  );
-}
-
-// 打字指示器
-function TypingIndicator() {
-  return (
-    <div className="mb-8 max-w-[680px]">
-      <div className="mb-3 flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-machine font-display text-[0.9rem] italic text-cream">
-          C
-        </div>
-      </div>
-      <div className="flex items-center gap-3 pl-11 text-[0.85rem] text-sand">
-        <div className="flex gap-1">
-          <span className="animate-typing h-1.5 w-1.5 rounded-full bg-copper" />
-          <span className="animate-typing animate-typing-delay-1 h-1.5 w-1.5 rounded-full bg-copper" />
-          <span className="animate-typing animate-typing-delay-2 h-1.5 w-1.5 rounded-full bg-copper" />
-        </div>
-        <span>Thinking...</span>
-      </div>
-    </div>
-  );
-}
-
-// 节点组件
 interface NodeProps {
   type: "system" | "human" | "machine" | "add";
   label?: string;
   text: string;
-  style: React.CSSProperties;
+  style: CSSProperties;
   isActive?: boolean;
   opacity?: number;
 }
@@ -248,47 +113,39 @@ function Node({ type, label, text, style, isActive, opacity = 1 }: NodeProps) {
   );
 }
 
-// 主布局组件
 export default function MainLayout() {
-  const [inputValue, setInputValue] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const initialize = useAppStore((s) => s.initialize);
+  const currentTree = useAppStore((s) => s.getCurrentTree());
+  const nodesCount = useAppStore((s) => s.nodes.size);
+  const model = useAppStore((s) => s.model);
 
-  // 自动调整文本框高度
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
-    }
-  }, [inputValue]);
+    void initialize();
+  }, [initialize]);
 
   return (
     <div className="grid h-screen grid-cols-[280px_1fr_340px]">
-      {/* 左侧边栏 */}
       <Sidebar />
 
-      {/* 主区域 */}
       <main className="relative flex flex-col bg-paper">
-        {/* 头部 */}
         <header className="flex items-center justify-between border-b border-parchment bg-paper px-8 py-5">
           <h2 className="font-display text-[1.35rem] font-normal text-ink">
-            React Flow Integration
+            {currentTree?.title ?? "Loading..."}
           </h2>
           <div className="flex gap-6 font-mono text-[0.75rem] text-sand">
             <div className="flex items-center gap-1.5">
-              <span className="font-medium text-ink">12</span> nodes
+              <span className="font-medium text-ink">{nodesCount}</span> nodes
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="font-medium text-ink">3</span> branches
+              <span className="font-medium text-ink">1</span> branch
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="font-medium text-ink">GPT-4</span>
+              <span className="font-medium text-ink">{model}</span>
             </div>
           </div>
         </header>
 
-        {/* 树形画布 */}
         <div className="tree-canvas-bg tree-canvas-grid relative h-[45%] overflow-hidden border-b border-parchment">
-          {/* SVG 连接线 */}
           <svg
             className="pointer-events-none absolute inset-0 z-[1]"
             width="100%"
@@ -314,36 +171,34 @@ export default function MainLayout() {
             />
           </svg>
 
-          {/* 节点 */}
           <Node
             type="system"
             label="System"
-            text="Frontend expert prompt"
+            text="System prompt (Stage 4: React Flow tree)"
             style={{ left: 80, top: 60 }}
           />
           <Node
             type="human"
             label="Human"
-            text="How to integrate React Flow?"
+            text="Single-branch chat MVP"
             style={{ left: 300, top: 60 }}
           />
           <Node
             type="machine"
             label="Machine"
-            text="Install dependencies first..."
+            text="Tree visualization coming next"
             style={{ left: 540, top: 60 }}
             isActive
           />
           <Node
             type="human"
             label="Human"
-            text="Alternative approach?"
+            text="(placeholder)"
             style={{ left: 300, top: 150 }}
             opacity={0.5}
           />
           <Node type="add" text="Continue" style={{ left: 760, top: 60 }} />
 
-          {/* 控制按钮 */}
           <div className="absolute bottom-5 left-8 z-20 flex gap-2">
             <button className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-parchment bg-paper text-clay transition-all duration-150 hover:border-copper hover:text-copper">
               <div className="h-[18px] w-[18px]">
@@ -366,49 +221,9 @@ export default function MainLayout() {
           </div>
         </div>
 
-        {/* 聊天区域 */}
-        <div className="flex min-h-0 flex-1 flex-col">
-          {/* 消息列表 */}
-          <div className="flex-1 overflow-y-auto p-8">
-            {messages.map((message) => (
-              <MessageItem key={message.id} message={message} />
-            ))}
-            <TypingIndicator />
-          </div>
-
-          {/* 输入区域 */}
-          <div className="input-area-gradient px-8 pb-8 pt-6">
-            <div className="relative max-w-[680px]">
-              <textarea
-                ref={textareaRef}
-                className="min-h-[60px] max-h-[180px] w-full resize-none rounded-2xl border border-parchment bg-paper px-6 py-[18px] pr-[100px] font-body text-[0.95rem] text-ink outline-none transition-all duration-200 placeholder:text-sand focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
-                placeholder="Type your message..."
-                rows={1}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-              />
-              <div className="absolute bottom-3 right-3 flex gap-2">
-                <button className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-transparent text-sand transition-all duration-150 hover:bg-cream hover:text-ink">
-                  <div className="h-[18px] w-[18px]">
-                    <AttachIcon />
-                  </div>
-                </button>
-                <button className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-copper text-cream transition-all duration-150 hover:scale-105 hover:bg-copper-light">
-                  <div className="h-[18px] w-[18px]">
-                    <SendIcon />
-                  </div>
-                </button>
-              </div>
-            </div>
-            <div className="mt-3 flex max-w-[680px] justify-between px-1 font-mono text-[0.7rem] text-sand">
-              <span>Model: GPT-4 - Temp: 0.7</span>
-              <span>Context: 2,847 / 8,192</span>
-            </div>
-          </div>
-        </div>
+        <ChatView />
       </main>
 
-      {/* 右侧上下文面板 */}
       <ContextPanel />
     </div>
   );

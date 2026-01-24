@@ -105,13 +105,14 @@ function ThreadItem({ tree, isActive, nodeCount, onClick }: ThreadItemProps) {
 }
 
 export default function Sidebar() {
-  const trees = useAppStore((s) => Array.from(s.trees.values()));
+  const treesMap = useAppStore((s) => s.trees);
   const currentTreeId = useAppStore((s) => s.currentTreeId);
   const currentNodesCount = useAppStore((s) => s.nodes.size);
 
   const createTree = useAppStore((s) => s.createTree);
   const loadTree = useAppStore((s) => s.loadTree);
 
+  const trees = useMemo(() => Array.from(treesMap.values()), [treesMap]);
   const sortedTrees = useMemo(
     () => trees.slice().sort((a, b) => b.updatedAt - a.updatedAt),
     [trees],

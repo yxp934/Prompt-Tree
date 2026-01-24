@@ -1,13 +1,16 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { useAppStore } from "@/store/useStore";
+import type { Node } from "@/types";
 
 export function useNode() {
   const nodes = useAppStore((s) => s.nodes);
-  const activeNode = useAppStore((s) => s.getActiveNode());
-  const selectedNodes = useAppStore((s) => s.getSelectedNodes());
+  const activeNodeId = useAppStore((s) => s.activeNodeId);
+  const selectedNodeIds = useAppStore((s) => s.selectedNodeIds);
   const isLoading = useAppStore((s) => s.isLoading);
-  const error = useAppStore((s) => s.error);
+  const errorMessage = useAppStore((s) => s.error);
 
   const createNode = useAppStore((s) => s.createNode);
   const updateNode = useAppStore((s) => s.updateNode);
@@ -20,12 +23,30 @@ export function useNode() {
   const getNodePath = useAppStore((s) => s.getNodePath);
   const getChildren = useAppStore((s) => s.getChildren);
 
+  const activeNode = useMemo(() => {
+    if (!activeNodeId) return null;
+    return nodes.get(activeNodeId) ?? null;
+  }, [activeNodeId, nodes]);
+
+  const selectedNodes = useMemo(
+    () =>
+      selectedNodeIds
+        .map((id) => nodes.get(id))
+        .filter((n): n is Node => Boolean(n)),
+    [nodes, selectedNodeIds],
+  );
+
+  const error = useMemo(
+    () => (errorMessage ? new Error(errorMessage) : null),
+    [errorMessage],
+  );
+
   return {
     nodes,
     activeNode,
     selectedNodes,
     isLoading,
-    error: error ? new Error(error) : null,
+    error,
     createNode,
     updateNode,
     deleteNode,
@@ -36,4 +57,3 @@ export function useNode() {
     getChildren,
   };
 }
-

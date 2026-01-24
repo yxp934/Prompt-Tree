@@ -24,6 +24,7 @@ describe("LLMService", () => {
   beforeEach(() => {
     const { localStorageMock, store } = createLocalStorageMock();
     store.set("new-chat.openai_api_key", "sk-test");
+    store.set("new-chat.openai_base_url", "https://example.com/openai/v1");
 
     vi.stubGlobal("window", { localStorage: localStorageMock } as unknown as Window);
     vi.stubGlobal("localStorage", localStorageMock);
@@ -55,8 +56,13 @@ describe("LLMService", () => {
     const args = fetchMock.mock.calls[0];
     expect(args?.[0]).toBe("/api/chat");
     const init = args?.[1] as { body?: string };
-    const body = JSON.parse(init.body ?? "{}") as { apiKey?: string; model?: string };
+    const body = JSON.parse(init.body ?? "{}") as {
+      apiKey?: string;
+      baseUrl?: string;
+      model?: string;
+    };
     expect(body.apiKey).toBe("sk-test");
+    expect(body.baseUrl).toBe("https://example.com/openai/v1");
     expect(body.model).toBe("gpt-test");
   });
 
@@ -100,4 +106,3 @@ describe("LLMService", () => {
     ).rejects.toThrow(/Invalid LLM response/);
   });
 });
-

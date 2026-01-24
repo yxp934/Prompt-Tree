@@ -1,6 +1,7 @@
 import type { ChatMessage } from "@/types";
 
 import { getOpenAIApiKey } from "./apiKeyService";
+import { getOpenAIBaseUrlOrDefault } from "./apiUrlService";
 
 export interface ChatParams {
   messages: ChatMessage[];
@@ -24,10 +25,11 @@ export class LLMService implements ILLMService {
       throw new Error("Missing OpenAI API key. Add it in Settings.");
     }
 
+    const baseUrl = getOpenAIBaseUrlOrDefault();
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apiKey, ...params }),
+      body: JSON.stringify({ apiKey, baseUrl, ...params }),
     });
 
     if (!response.ok) {
@@ -48,4 +50,3 @@ export class LLMService implements ILLMService {
     throw new Error("Invalid LLM response payload.");
   }
 }
-

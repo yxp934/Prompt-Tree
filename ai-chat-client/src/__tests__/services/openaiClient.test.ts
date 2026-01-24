@@ -22,12 +22,16 @@ describe("openAIChatCompletion", () => {
 
     const content = await openAIChatCompletion({
       apiKey: "sk-test",
+      baseUrl: "https://example.com/openai/v1/",
       messages: [{ role: "user", content: "hi" }],
       model: "gpt-test",
     });
 
     expect(content).toBe("hello from openai");
     expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://example.com/openai/v1/chat/completions",
+    );
   });
 
   it("throws on non-2xx responses", async () => {

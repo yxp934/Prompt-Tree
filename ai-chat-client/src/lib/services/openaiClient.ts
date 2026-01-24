@@ -1,7 +1,10 @@
 import type { ChatMessage } from "@/types";
 
+import { DEFAULT_OPENAI_BASE_URL } from "./apiUrlService";
+
 export interface OpenAIChatParams {
   apiKey: string;
+  baseUrl?: string;
   messages: ChatMessage[];
   model?: string;
   temperature?: number;
@@ -14,22 +17,32 @@ type OpenAIChatCompletionResponse = {
   }>;
 };
 
+function buildChatCompletionsUrl(baseUrl: string): string {
+  const normalized = baseUrl.trim().replace(/\/+$/, "");
+  if (!normalized) return `${DEFAULT_OPENAI_BASE_URL}/chat/completions`;
+  if (normalized.endsWith("/chat/completions")) return normalized;
+  return `${normalized}/chat/completions`;
+}
+
 export async function openAIChatCompletion(
   params: OpenAIChatParams,
 ): Promise<string> {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${params.apiKey}`,
+  const response = await fetch(
+    buildChatCompletionsUrl(params.baseUrl ?? DEFAULT_OPENAI_BASE_URL),
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${params.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: params.model ?? "gpt-4o-mini",
+        messages: params.messages,
+        temperature: params.temperature ?? 0.7,
+        max_tokens: params.maxTokens,
+      }),
     },
-    body: JSON.stringify({
-      model: params.model ?? "gpt-4o-mini",
-      messages: params.messages,
-      temperature: params.temperature ?? 0.7,
-      max_tokens: params.maxTokens,
-    }),
-  });
+  );
 
   if (!response.ok) {
     const text = await response.text().catch(() => "");
@@ -43,4 +56,3 @@ export async function openAIChatCompletion(
   if (!content) throw new Error("OpenAI returned empty content.");
   return content;
 }
-

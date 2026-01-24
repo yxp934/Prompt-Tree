@@ -7,6 +7,11 @@ import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
 import { getOpenAIApiKey, setOpenAIApiKey } from "@/lib/services/apiKeyService";
+import {
+  DEFAULT_OPENAI_BASE_URL,
+  getOpenAIBaseUrl,
+  setOpenAIBaseUrl,
+} from "@/lib/services/apiUrlService";
 import { useAppStore } from "@/store/useStore";
 import type { ConversationTree } from "@/types";
 
@@ -120,6 +125,7 @@ export default function Sidebar() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [apiKey, setApiKeyState] = useState("");
+  const [baseUrl, setBaseUrlState] = useState(DEFAULT_OPENAI_BASE_URL);
 
   return (
     <aside className="flex h-full flex-col border-r border-parchment bg-cream">
@@ -161,6 +167,7 @@ export default function Sidebar() {
           className="flex w-full items-center gap-2.5 rounded-lg border border-parchment bg-transparent px-4 py-3 font-body text-[0.85rem] text-clay transition-all duration-150 hover:border-sand hover:text-ink"
           onClick={() => {
             setApiKeyState(getOpenAIApiKey() ?? "");
+            setBaseUrlState(getOpenAIBaseUrl() ?? DEFAULT_OPENAI_BASE_URL);
             setSettingsOpen(true);
           }}
         >
@@ -191,12 +198,30 @@ export default function Sidebar() {
             </div>
           </div>
 
+          <div>
+            <div className="mb-2 font-mono text-[0.7rem] uppercase tracking-widest text-sand">
+              OpenAI Base URL
+            </div>
+            <Input
+              value={baseUrl}
+              onChange={(e) => setBaseUrlState(e.target.value)}
+              placeholder={DEFAULT_OPENAI_BASE_URL}
+              autoComplete="off"
+            />
+            <div className="mt-2 text-[0.75rem] text-sand">
+              OpenAI-compatible endpoint (include `/v1`). Default:{" "}
+              {DEFAULT_OPENAI_BASE_URL}
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2">
             <Button
               variant="ghost"
               onClick={() => {
                 setOpenAIApiKey("");
                 setApiKeyState("");
+                setOpenAIBaseUrl("");
+                setBaseUrlState(DEFAULT_OPENAI_BASE_URL);
               }}
             >
               Clear
@@ -205,6 +230,7 @@ export default function Sidebar() {
               variant="primary"
               onClick={() => {
                 setOpenAIApiKey(apiKey);
+                setOpenAIBaseUrl(baseUrl);
                 setSettingsOpen(false);
               }}
             >

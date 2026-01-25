@@ -11,6 +11,7 @@ function normalizeMetadata(metadata: Partial<NodeMetadata> | undefined): NodeMet
     metaInstructions: metadata?.metaInstructions ?? {},
     compressedNodeIds: metadata?.compressedNodeIds,
     collapsed: metadata?.collapsed,
+    branchLabel: metadata?.branchLabel,
   };
 }
 

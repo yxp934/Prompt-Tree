@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 
 import { ChatView } from "@/components/chat/ChatView";
+import { BranchList } from "@/components/tree/BranchList";
 import { TreeView } from "@/components/tree/TreeView";
 import { countLeafBranches } from "@/lib/services/dagService";
 import { useAppStore } from "@/store/useStore";
@@ -49,7 +50,9 @@ export default function MainLayout() {
           </div>
         </header>
 
-        <div className="tree-canvas-bg tree-canvas-grid relative h-[45%] overflow-hidden border-b border-parchment">
+        <BranchList />
+
+        <div className="tree-canvas-bg tree-canvas-grid relative h-[42%] overflow-hidden border-b border-parchment">
           <TreeView />
         </div>
 

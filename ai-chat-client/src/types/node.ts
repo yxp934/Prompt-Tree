@@ -19,6 +19,7 @@ export interface NodeMetadata {
   metaInstructions: NodeMetaInstructions;
   compressedNodeIds?: string[];
   collapsed?: boolean;
+  branchLabel?: string;
 }
 
 export interface NodePosition {

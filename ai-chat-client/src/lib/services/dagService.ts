@@ -139,6 +139,22 @@ export function countLeafBranches(
   return walk(rootId);
 }
 
+export function getLeafNodes(
+  nodes: Iterable<ConversationNode>,
+  rootId: string,
+): ConversationNode[] {
+  const { byId, childrenByParent } = buildIndex(filterCollapsedNodes(nodes));
+  if (!byId.has(rootId)) return [];
+
+  const leaves: ConversationNode[] = [];
+  for (const node of byId.values()) {
+    const children = childrenByParent.get(node.id) ?? [];
+    if (children.length === 0) leaves.push(node);
+  }
+
+  return leaves.sort((a, b) => a.createdAt - b.createdAt);
+}
+
 export function computeAutoLayout(
   nodes: Iterable<ConversationNode>,
   rootId: string,

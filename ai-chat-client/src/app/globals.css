@@ -1,8 +1,22 @@
+/* 字体导入 - 必须在最前面 */
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap");
+
 @import "tailwindcss";
 
-/* ========== CSS Variables - Cortex Design System ========== */
+/* ========== CSS Variables - Zen Serenity Design System ========== */
 :root {
-  /* Warm neutral palette */
+  /* 和风色彩系统 - Zen Palette */
+  --shoji-white: #FAFAF8;
+  --washi-cream: #F5F3EF;
+  --matcha-green: #7A8B6E;
+  --bamboo-light: #A8B5A0;
+  --stone-gray: #8B8680;
+  --ink-black: #2C2C2C;
+  --kintsugi-gold: #C9A962;
+  --sakura-pink: #E8D5D0;
+  --shadow-soft: rgba(44, 44, 44, 0.06);
+
+  /* Original warm neutral palette (for main app) */
   --ink: #1a1816;
   --charcoal: #2d2926;
   --stone: #3d3835;
@@ -26,6 +40,10 @@
   --font-display: "Instrument Serif", Georgia, serif;
   --font-body: "DM Sans", -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
+
+  /* Zen Typography (for settings) */
+  --font-zen-display: "Cormorant Garamond", serif;
+  --font-zen-body: "Inter", -apple-system, sans-serif;
 }
 
 :root[data-theme="dark"] {
@@ -49,7 +67,17 @@
 
 /* ========== Tailwind Theme Integration ========== */
 @theme inline {
-  /* Colors */
+  /* Zen Colors */
+  --color-shoji-white: var(--shoji-white);
+  --color-washi-cream: var(--washi-cream);
+  --color-matcha-green: var(--matcha-green);
+  --color-bamboo-light: var(--bamboo-light);
+  --color-stone-gray: var(--stone-gray);
+  --color-ink-black: var(--ink-black);
+  --color-kintsugi-gold: var(--kintsugi-gold);
+  --color-sakura-pink: var(--sakura-pink);
+
+  /* Original Colors */
   --color-ink: var(--ink);
   --color-charcoal: var(--charcoal);
   --color-stone: var(--stone);
@@ -71,6 +99,8 @@
   --font-display: var(--font-display);
   --font-body: var(--font-body);
   --font-mono: var(--font-mono);
+  --font-zen-display: var(--font-zen-display);
+  --font-zen-body: var(--font-zen-body);
 }
 
 /* ========== Base Styles ========== */
@@ -121,6 +151,22 @@ body {
 }
 
 /* ========== Animations ========== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes messageIn {
   from {
     opacity: 0;

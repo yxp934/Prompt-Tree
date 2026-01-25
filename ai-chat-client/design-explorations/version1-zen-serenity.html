@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设置 - 宁静禅意 | Settings - Zen Serenity</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Noto+Serif+JP:wght@200;300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* 和风色彩系统 */
+      --shoji-white: #FAFAF8;
+      --washi-cream: #F5F3EF;
+      --matcha-green: #7A8B6E;
+      --bamboo-light: #A8B5A0;
+      --stone-gray: #8B8680;
+      --ink-black: #2C2C2C;
+      --kintsugi-gold: #C9A962;
+      --sakura-pink: #E8D5D0;
+      --shadow-soft: rgba(44, 44, 44, 0.06);
+
+      /* 间距系统 */
+      --space-xs: 0.5rem;
+      --space-sm: 1rem;
+      --space-md: 1.5rem;
+      --space-lg: 2rem;
+      --space-xl: 3rem;
+      --space-2xl: 4rem;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--washi-cream);
+      color: var(--ink-black);
+      line-height: 1.6;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* 纹理背景 */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.015) 2px,
+          rgba(0, 0, 0, 0.015) 4px
+        );
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* 左侧导航 */
+    .sidebar {
+      width: 240px;
+      background: var(--shoji-white);
+      border-right: 1px solid rgba(0, 0, 0, 0.06);
+      padding: var(--space-xl) var(--space-lg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand {
+      margin-bottom: var(--space-2xl);
+      animation: fadeInDown 0.8s ease-out;
+    }
+
+    .brand h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      color: var(--ink-black);
+      margin-bottom: 0.25rem;
+    }
+
+    .brand p {
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      color: var(--stone-gray);
+      font-weight: 300;
+    }
+
+    .nav-section {
+      margin-bottom: var(--space-xl);
+      animation: fadeIn 0.8s ease-out 0.15s backwards;
+    }
+
+    .nav-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.25em;
+      color: var(--stone-gray);
+      text-transform: uppercase;
+      margin-bottom: var(--space-sm);
+      padding-left: var(--space-sm);
+      font-weight: 400;
+    }
+
+    .nav-items {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      font-size: 0.85rem;
+      font-weight: 300;
+      color: var(--stone-gray);
+      border: 1px solid transparent;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .nav-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 3px;
+      height: 100%;
+      background: var(--matcha-green);
+      transform: scaleY(0);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .nav-item:hover {
+      background: var(--washi-cream);
+      color: var(--ink-black);
+    }
+
+    .nav-item.active {
+      background: rgba(122, 139, 110, 0.08);
+      color: var(--matcha-green);
+      border-color: rgba(122, 139, 110, 0.15);
+    }
+
+    .nav-item.active::before {
+      transform: scaleY(1);
+    }
+
+    .nav-item svg {
+      width: 18px;
+      height: 18px;
+      opacity: 0.7;
+      transition: opacity 0.3s ease;
+    }
+
+    .nav-item:hover svg,
+    .nav-item.active svg {
+      opacity: 1;
+    }
+
+    /* 主内容区 */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .providers-panel {
+      width: 320px;
+      background: rgba(245, 243, 239, 0.5);
+      border-right: 1px solid rgba(0, 0, 0, 0.06);
+      display: flex;
+      flex-direction: column;
+      animation: fadeInRight 0.8s ease-out 0.3s backwards;
+    }
+
+    .panel-header {
+      padding: var(--space-lg);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .panel-header h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.35rem;
+      font-weight: 400;
+      color: var(--ink-black);
+      letter-spacing: 0.05em;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-lg);
+    }
+
+    .provider-card {
+      background: var(--shoji-white);
+      border-radius: 12px;
+      padding: var(--space-md);
+      margin-bottom: var(--space-sm);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      animation: slideInUp 0.5s ease-out backwards;
+    }
+
+    .provider-card:nth-child(1) { animation-delay: 0.1s; }
+    .provider-card:nth-child(2) { animation-delay: 0.15s; }
+    .provider-card:nth-child(3) { animation-delay: 0.2s; }
+
+    .provider-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px var(--shadow-soft);
+      border-color: rgba(122, 139, 110, 0.2);
+    }
+
+    .provider-card.active {
+      background: rgba(122, 139, 110, 0.06);
+      border-color: var(--matcha-green);
+      box-shadow: 0 2px 12px rgba(122, 139, 110, 0.15);
+    }
+
+    .provider-card-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-xs);
+    }
+
+    .provider-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: var(--matcha-green);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    .provider-name {
+      font-weight: 400;
+      font-size: 0.9rem;
+      color: var(--ink-black);
+    }
+
+    .provider-status {
+      margin-left: auto;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--bamboo-light);
+    }
+
+    .provider-status.healthy {
+      background: var(--matcha-green);
+      box-shadow: 0 0 8px rgba(122, 139, 110, 0.4);
+    }
+
+    .add-provider {
+      background: transparent;
+      border: 1.5px dashed rgba(139, 134, 128, 0.3);
+      border-radius: 12px;
+      padding: var(--space-md);
+      color: var(--stone-gray);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-xs);
+      font-weight: 300;
+      margin-top: var(--space-md);
+    }
+
+    .add-provider:hover {
+      border-color: var(--matcha-green);
+      color: var(--matcha-green);
+      background: rgba(122, 139, 110, 0.04);
+    }
+
+    /* 配置面板 */
+    .config-panel {
+      flex: 1;
+      background: var(--shoji-white);
+      overflow-y: auto;
+      padding: var(--space-2xl);
+      animation: fadeIn 0.8s ease-out 0.45s backwards;
+    }
+
+    .config-header {
+      margin-bottom: var(--space-2xl);
+    }
+
+    .config-title-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+
+    .config-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      background: var(--matcha-green);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.75rem;
+      font-weight: 400;
+    }
+
+    .config-title h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      font-weight: 300;
+      letter-spacing: 0.05em;
+      color: var(--ink-black);
+    }
+
+    .test-btn {
+      margin-left: auto;
+      padding: var(--space-sm) var(--space-lg);
+      background: var(--matcha-green);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 400;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .test-btn:hover {
+      background: var(--bamboo-light);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(122, 139, 110, 0.3);
+    }
+
+    .section {
+      margin-bottom: var(--space-2xl);
+      animation: fadeIn 0.6s ease-out backwards;
+    }
+
+    .section:nth-child(1) { animation-delay: 0.55s; }
+    .section:nth-child(2) { animation-delay: 0.6s; }
+    .section:nth-child(3) { animation-delay: 0.65s; }
+
+    .section-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.35rem;
+      font-weight: 400;
+      color: var(--ink-black);
+      margin-bottom: var(--space-md);
+      letter-spacing: 0.05em;
+    }
+
+    .api-key-card {
+      background: var(--washi-cream);
+      border-radius: 12px;
+      padding: var(--space-lg);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      margin-bottom: var(--space-sm);
+      transition: all 0.3s ease;
+    }
+
+    .api-key-card:hover {
+      box-shadow: 0 4px 20px var(--shadow-soft);
+    }
+
+    .api-key-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-sm);
+    }
+
+    .api-key-name {
+      font-weight: 400;
+      font-size: 0.9rem;
+      color: var(--ink-black);
+    }
+
+    .api-key-badge {
+      padding: 4px 10px;
+      background: var(--kintsugi-gold);
+      color: white;
+      font-size: 0.7rem;
+      border-radius: 6px;
+      letter-spacing: 0.05em;
+      font-weight: 400;
+    }
+
+    .api-key-input {
+      width: 100%;
+      background: var(--shoji-white);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 8px;
+      padding: var(--space-sm) var(--space-md);
+      font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+      font-size: 0.85rem;
+      color: var(--ink-black);
+      transition: all 0.3s ease;
+    }
+
+    .api-key-input:focus {
+      outline: none;
+      border-color: var(--matcha-green);
+      box-shadow: 0 0 0 3px rgba(122, 139, 110, 0.1);
+    }
+
+    .add-key-btn {
+      width: 100%;
+      background: transparent;
+      border: 1.5px dashed rgba(139, 134, 128, 0.3);
+      border-radius: 12px;
+      padding: var(--space-md);
+      color: var(--stone-gray);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 300;
+      margin-top: var(--space-sm);
+    }
+
+    .add-key-btn:hover {
+      border-color: var(--matcha-green);
+      color: var(--matcha-green);
+      background: rgba(122, 139, 110, 0.04);
+    }
+
+    .input-group {
+      margin-bottom: var(--space-lg);
+    }
+
+    .input-label {
+      display: block;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      color: var(--stone-gray);
+      text-transform: uppercase;
+      margin-bottom: var(--space-xs);
+      font-weight: 400;
+    }
+
+    .input-field {
+      width: 100%;
+      background: var(--washi-cream);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 8px;
+      padding: var(--space-sm) var(--space-md);
+      font-size: 0.9rem;
+      color: var(--ink-black);
+      font-weight: 300;
+      transition: all 0.3s ease;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--matcha-green);
+      box-shadow: 0 0 0 3px rgba(122, 139, 110, 0.1);
+      background: var(--shoji-white);
+    }
+
+    .input-hint {
+      margin-top: var(--space-xs);
+      font-size: 0.8rem;
+      color: var(--stone-gray);
+      font-weight: 300;
+    }
+
+    /* 模型卡片 */
+    .model-card {
+      background: var(--washi-cream);
+      border-radius: 12px;
+      padding: var(--space-md);
+      margin-bottom: var(--space-sm);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      transition: all 0.3s ease;
+    }
+
+    .model-card:hover {
+      border-color: rgba(122, 139, 110, 0.2);
+    }
+
+    .model-toggle {
+      width: 44px;
+      height: 24px;
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .model-toggle.active {
+      background: var(--matcha-green);
+    }
+
+    .model-toggle::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background: white;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: all 0.3s ease;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .model-toggle.active::after {
+      left: 23px;
+    }
+
+    .model-info {
+      flex: 1;
+    }
+
+    .model-name {
+      font-weight: 400;
+      font-size: 0.9rem;
+      color: var(--ink-black);
+      margin-bottom: 2px;
+    }
+
+    .model-id {
+      font-size: 0.8rem;
+      color: var(--stone-gray);
+      font-weight: 300;
+    }
+
+    /* 动画 */
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInRight {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* 滚动条样式 */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(139, 134, 128, 0.2);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(139, 134, 128, 0.3);
+    }
+
+    /* 版本信息 */
+    .version {
+      margin-top: auto;
+      padding-top: var(--space-lg);
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+      animation: fadeIn 0.8s ease-out 0.6s backwards;
+    }
+
+    .version-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.85rem;
+      color: var(--stone-gray);
+      font-weight: 300;
+      letter-spacing: 0.1em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 左侧导航 -->
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>設定</h1>
+        <p>SETTINGS</p>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Configuration</div>
+        <div class="nav-items">
+          <div class="nav-item active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M17.5 19c0-1.7-1.3-3-3-3h-11c-1.7 0-3 1.3-3 3s1.3 3 3 3h11c1.7 0 3-1.3 3-3z"/>
+              <path d="M19 16c2.8 0 5-2.2 5-5s-2.2-5-5-5c-.5 0-1 .1-1.4.2"/>
+              <path d="M6.5 6C8.4 3.7 11.5 2.5 14.5 3c2.3.4 4.3 1.9 5.5 4"/>
+            </svg>
+            <span>模型服务</span>
+          </div>
+          <div class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="4" y="4" width="16" height="16" rx="2"/>
+              <rect x="9" y="9" width="6" height="6"/>
+            </svg>
+            <span>默认模型</span>
+          </div>
+          <div class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            <span>常规设置</span>
+          </div>
+          <div class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+            <span>显示设置</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Data</div>
+        <div class="nav-items">
+          <div class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <ellipse cx="12" cy="5" rx="9" ry="3"/>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+            </svg>
+            <span>数据设置</span>
+          </div>
+          <div class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <span>关于</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="version">
+        <p class="version-text">Cortex v1.0.0</p>
+      </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main">
+      <!-- 提供商列表 -->
+      <div class="providers-panel">
+        <div class="panel-header">
+          <h2>服务提供商</h2>
+        </div>
+        <div class="panel-content">
+          <div class="provider-card active">
+            <div class="provider-card-header">
+              <div class="provider-icon">O</div>
+              <span class="provider-name">OpenAI</span>
+              <div class="provider-status healthy"></div>
+            </div>
+          </div>
+
+          <div class="provider-card">
+            <div class="provider-card-header">
+              <div class="provider-icon" style="background: var(--kintsugi-gold);">A</div>
+              <span class="provider-name">Anthropic</span>
+              <div class="provider-status healthy"></div>
+            </div>
+          </div>
+
+          <div class="provider-card">
+            <div class="provider-card-header">
+              <div class="provider-icon" style="background: var(--stone-gray);">D</div>
+              <span class="provider-name">DeepSeek</span>
+              <div class="provider-status"></div>
+            </div>
+          </div>
+
+          <button class="add-provider">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            添加提供商
+          </button>
+        </div>
+      </div>
+
+      <!-- 配置面板 -->
+      <div class="config-panel">
+        <div class="config-header">
+          <div class="config-title-row">
+            <div class="config-icon">O</div>
+            <div class="config-title">
+              <h1>OpenAI</h1>
+            </div>
+            <button class="test-btn">检测连接</button>
+          </div>
+        </div>
+
+        <!-- API 密钥 -->
+        <div class="section">
+          <h2 class="section-title">API 密钥</h2>
+
+          <div class="api-key-card">
+            <div class="api-key-header">
+              <span class="api-key-name">主密钥</span>
+              <span class="api-key-badge">PRIMARY</span>
+            </div>
+            <input type="password" class="api-key-input" value="sk-••••••••••••••••" readonly>
+          </div>
+
+          <div class="api-key-card">
+            <div class="api-key-header">
+              <span class="api-key-name">备用密钥</span>
+            </div>
+            <input type="password" class="api-key-input" value="sk-••••••••••••••••" readonly>
+          </div>
+
+          <button class="add-key-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            添加新密钥
+          </button>
+        </div>
+
+        <!-- API 地址 -->
+        <div class="section">
+          <h2 class="section-title">API 地址</h2>
+          <div class="input-group">
+            <label class="input-label">Base URL</label>
+            <input type="text" class="input-field" value="https://api.openai.com/v1" placeholder="https://api.openai.com/v1">
+            <p class="input-hint">预览: https://api.openai.com/v1/chat/completions</p>
+          </div>
+        </div>
+
+        <!-- 模型列表 -->
+        <div class="section">
+          <h2 class="section-title">模型</h2>
+
+          <div class="model-card">
+            <div class="model-toggle active"></div>
+            <div class="model-info">
+              <div class="model-name">GPT-4 Turbo</div>
+              <div class="model-id">gpt-4-turbo-preview</div>
+            </div>
+          </div>
+
+          <div class="model-card">
+            <div class="model-toggle active"></div>
+            <div class="model-info">
+              <div class="model-name">GPT-4</div>
+              <div class="model-id">gpt-4</div>
+            </div>
+          </div>
+
+          <div class="model-card">
+            <div class="model-toggle"></div>
+            <div class="model-info">
+              <div class="model-name">GPT-3.5 Turbo</div>
+              <div class="model-id">gpt-3.5-turbo</div>
+            </div>
+          </div>
+
+          <button class="add-key-btn" style="margin-top: var(--space-md);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            选择更多模型
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

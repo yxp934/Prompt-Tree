@@ -1,12 +1,13 @@
 /**
  * 设置页面 - 主组件
  * 三栏布局：导航菜单 | 提供商列表 | 配置面板
+ * 使用 100dvh 确保全屏布局，添加 flex-1 确保内容正确填充
  */
 
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { appStore, useAppStore } from "@/store/useStore";
 
@@ -22,30 +23,34 @@ function BackButton() {
   return (
     <Link
       href="/"
-      className="flex items-center gap-2 rounded-lg border border-parchment bg-cream px-3 py-2 font-body text-[0.85rem] text-clay transition-all duration-150 hover:border-copper hover:text-copper"
+      className="fixed bottom-8 left-8 z-50 flex items-center gap-3 rounded-2xl border border-parchment bg-cream/95 backdrop-blur-sm px-5 py-3 font-body text-sm text-clay shadow-lg transition-all duration-200 hover:border-copper hover:text-copper hover:shadow-xl"
     >
       <svg
-        width="14"
-        height="14"
+        width="16"
+        height="16"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       >
         <path d="M19 12H5M12 19l-7-7 7-7" />
       </svg>
-      返回
+      返回主页
     </Link>
   );
 }
 
 /**
  * 设置页面容器
+ * 使用固定定位确保独立于主布局
  */
 export function SettingsPage() {
   const providers = useAppStore((s) => s.providers);
   const selectedProviderId = useAppStore((s) => s.selectedProviderId);
   const loadProviders = useAppStore((s) => s.loadProviders);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // 初始化时加载提供商列表
   useEffect(() => {
@@ -60,7 +65,11 @@ export function SettingsPage() {
   }, [selectedProviderId, providers]);
 
   return (
-    <div className="flex h-screen w-full bg-paper">
+    <div
+      ref={containerRef}
+      className="fixed inset-0 z-[100] flex bg-paper"
+      style={{ height: '100dvh', maxHeight: '100dvh' }}
+    >
       {/* 左侧导航菜单 */}
       <SettingsSidebar />
 
@@ -74,9 +83,7 @@ export function SettingsPage() {
       <ConnectedModelSelector />
 
       {/* 浮动返回按钮 */}
-      <div className="fixed bottom-6 left-6 z-10">
-        <BackButton />
-      </div>
+      <BackButton />
     </div>
   );
 }

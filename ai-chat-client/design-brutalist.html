@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - BRUTALIST RAW</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --black: #000000;
+      --white: #ffffff;
+      --neon-green: #00ff41;
+      --alert-red: #ff0d0d;
+      --terminal-gray: #1a1a1a;
+      --border-thick: 4px;
+      --border-thin: 2px;
+    }
+
+    body {
+      font-family: 'IBM Plex Mono', 'Courier Prime', monospace;
+      background: var(--white);
+      color: var(--black);
+      overflow: hidden;
+      height: 100vh;
+      -webkit-font-smoothing: none;
+      font-size: 14px;
+      letter-spacing: -0.02em;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      width: 100%;
+    }
+
+    /* LEFT SIDEBAR - Navigation */
+    .sidebar-nav {
+      width: 220px;
+      border-right: var(--border-thick) solid var(--black);
+      display: flex;
+      flex-direction: column;
+      background: var(--white);
+    }
+
+    .nav-header {
+      padding: 32px 24px;
+      border-bottom: var(--border-thick) solid var(--black);
+    }
+
+    .nav-title {
+      font-size: 32px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: -0.05em;
+      line-height: 1;
+    }
+
+    .nav-subtitle {
+      font-size: 11px;
+      text-transform: uppercase;
+      margin-top: 8px;
+      opacity: 0.6;
+    }
+
+    .nav-items {
+      flex: 1;
+      padding: 24px 0;
+      overflow-y: auto;
+    }
+
+    .nav-section-label {
+      padding: 12px 24px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.5;
+      border-bottom: var(--border-thin) solid var(--black);
+      margin-bottom: 12px;
+    }
+
+    .nav-item {
+      padding: 16px 24px;
+      border-left: var(--border-thick) solid transparent;
+      cursor: pointer;
+      transition: all 0.1s step-end;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      position: relative;
+    }
+
+    .nav-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0;
+      background: var(--neon-green);
+      transition: width 0.1s step-end;
+    }
+
+    .nav-item:hover::before {
+      width: var(--border-thick);
+    }
+
+    .nav-item.active {
+      border-left-color: var(--black);
+      background: var(--black);
+      color: var(--white);
+      font-weight: 600;
+    }
+
+    .nav-item.active::before {
+      width: var(--border-thick);
+      background: var(--neon-green);
+    }
+
+    .nav-footer {
+      padding: 24px;
+      border-top: var(--border-thick) solid var(--black);
+    }
+
+    .version-info {
+      font-size: 11px;
+      text-transform: uppercase;
+      opacity: 0.6;
+    }
+
+    /* MIDDLE COLUMN - Provider List */
+    .provider-list {
+      width: 320px;
+      border-right: var(--border-thick) solid var(--black);
+      display: flex;
+      flex-direction: column;
+      background: var(--white);
+    }
+
+    .provider-header {
+      padding: 32px 24px;
+      border-bottom: var(--border-thick) solid var(--black);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .provider-title {
+      font-size: 24px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .provider-count {
+      width: 40px;
+      height: 40px;
+      border: var(--border-thin) solid var(--black);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      background: var(--terminal-gray);
+      color: var(--neon-green);
+    }
+
+    .provider-items {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .provider-item {
+      border: var(--border-thick) solid var(--black);
+      padding: 20px;
+      margin-bottom: 16px;
+      cursor: pointer;
+      transition: all 0.15s step-end;
+      position: relative;
+      background: var(--white);
+    }
+
+    .provider-item:hover {
+      transform: translate(-4px, -4px);
+      box-shadow: 8px 8px 0 var(--black);
+    }
+
+    .provider-item.active {
+      background: var(--black);
+      color: var(--white);
+    }
+
+    .provider-item.active .provider-icon {
+      background: var(--white);
+      color: var(--black);
+    }
+
+    .provider-item-top {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .provider-icon {
+      width: 48px;
+      height: 48px;
+      border: var(--border-thin) solid var(--black);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
+      background: var(--terminal-gray);
+      color: var(--neon-green);
+    }
+
+    .provider-name {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .provider-toggle {
+      width: 44px;
+      height: 24px;
+      border: var(--border-thin) solid var(--black);
+      position: relative;
+      cursor: pointer;
+      transition: all 0.1s step-end;
+    }
+
+    .provider-toggle.on {
+      background: var(--neon-green);
+    }
+
+    .provider-toggle-handle {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border: var(--border-thin) solid var(--black);
+      background: var(--white);
+      transition: left 0.1s step-end;
+    }
+
+    .provider-toggle.on .provider-toggle-handle {
+      left: 22px;
+    }
+
+    .provider-delete {
+      display: none;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 32px;
+      height: 32px;
+      border: var(--border-thin) solid var(--alert-red);
+      background: var(--white);
+      color: var(--alert-red);
+      cursor: pointer;
+      font-size: 18px;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s step-end;
+    }
+
+    .provider-item:hover .provider-delete {
+      display: flex;
+    }
+
+    .provider-delete:hover {
+      background: var(--alert-red);
+      color: var(--white);
+    }
+
+    .add-provider-btn {
+      margin: 24px;
+      padding: 20px;
+      border: var(--border-thick) dashed var(--black);
+      background: var(--white);
+      cursor: pointer;
+      text-transform: uppercase;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.15s step-end;
+    }
+
+    .add-provider-btn:hover {
+      border-color: var(--neon-green);
+      color: var(--neon-green);
+      background: var(--terminal-gray);
+    }
+
+    /* RIGHT PANEL - Configuration */
+    .config-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--white);
+    }
+
+    .config-header {
+      padding: 32px 40px;
+      border-bottom: var(--border-thick) solid var(--black);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .config-title-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .config-icon {
+      width: 64px;
+      height: 64px;
+      border: var(--border-thick) solid var(--black);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 700;
+      background: var(--terminal-gray);
+      color: var(--neon-green);
+    }
+
+    .config-title {
+      font-size: 36px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+    }
+
+    .check-connection-btn {
+      padding: 16px 32px;
+      border: var(--border-thick) solid var(--black);
+      background: var(--white);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      transition: all 0.15s step-end;
+    }
+
+    .check-connection-btn:hover {
+      background: var(--neon-green);
+      color: var(--black);
+    }
+
+    .config-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px;
+    }
+
+    .config-section {
+      margin-bottom: 48px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: var(--border-thick) solid var(--black);
+    }
+
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      border: var(--border-thin) solid var(--black);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--terminal-gray);
+      color: var(--neon-green);
+      font-size: 20px;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .api-key-card {
+      border: var(--border-thick) solid var(--black);
+      padding: 24px;
+      margin-bottom: 16px;
+      background: var(--white);
+      position: relative;
+    }
+
+    .api-key-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .api-key-name {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      background: transparent;
+      border: none;
+      outline: none;
+      width: 200px;
+    }
+
+    .api-key-name::placeholder {
+      opacity: 0.4;
+    }
+
+    .api-key-badge {
+      padding: 6px 12px;
+      border: var(--border-thin) solid var(--black);
+      font-size: 10px;
+      text-transform: uppercase;
+      background: var(--neon-green);
+      color: var(--black);
+      font-weight: 600;
+    }
+
+    .api-key-input-wrapper {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .api-key-input {
+      width: 100%;
+      padding: 16px;
+      padding-right: 60px;
+      border: var(--border-thick) solid var(--black);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      background: var(--terminal-gray);
+      color: var(--neon-green);
+      outline: none;
+    }
+
+    .api-key-input::placeholder {
+      color: var(--white);
+      opacity: 0.4;
+    }
+
+    .api-key-toggle {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 20px;
+      opacity: 0.6;
+      transition: opacity 0.1s;
+    }
+
+    .api-key-toggle:hover {
+      opacity: 1;
+    }
+
+    .api-key-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+    }
+
+    .api-key-btn {
+      padding: 10px 20px;
+      border: var(--border-thin) solid var(--black);
+      background: var(--white);
+      cursor: pointer;
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 600;
+      transition: all 0.1s step-end;
+    }
+
+    .api-key-btn:hover {
+      background: var(--black);
+      color: var(--white);
+    }
+
+    .api-key-btn.danger:hover {
+      background: var(--alert-red);
+      border-color: var(--alert-red);
+      color: var(--white);
+    }
+
+    .add-key-btn {
+      width: 100%;
+      padding: 20px;
+      border: var(--border-thick) dashed var(--black);
+      background: var(--white);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      transition: all 0.15s step-end;
+    }
+
+    .add-key-btn:hover {
+      border-color: var(--neon-green);
+      color: var(--neon-green);
+      background: var(--terminal-gray);
+    }
+
+    .url-input-wrapper {
+      margin-bottom: 16px;
+    }
+
+    .url-input {
+      width: 100%;
+      padding: 20px 24px;
+      border: var(--border-thick) solid var(--black);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      background: var(--white);
+      outline: none;
+      transition: all 0.15s step-end;
+    }
+
+    .url-input:focus {
+      border-color: var(--neon-green);
+      box-shadow: 4px 4px 0 var(--neon-green);
+    }
+
+    .url-preview {
+      font-size: 11px;
+      opacity: 0.6;
+      margin-top: 12px;
+      padding-left: 24px;
+    }
+
+    .model-list {
+      border: var(--border-thick) solid var(--black);
+    }
+
+    .model-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px 24px;
+      border-bottom: var(--border-thin) solid var(--black);
+      transition: all 0.1s step-end;
+    }
+
+    .model-item:last-child {
+      border-bottom: none;
+    }
+
+    .model-item:hover {
+      background: var(--terminal-gray);
+    }
+
+    .model-toggle {
+      width: 28px;
+      height: 28px;
+      border: var(--border-thin) solid var(--black);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.1s step-end;
+    }
+
+    .model-toggle.on {
+      background: var(--neon-green);
+      color: var(--black);
+    }
+
+    .model-info {
+      flex: 1;
+    }
+
+    .model-id {
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .model-name {
+      font-size: 11px;
+      opacity: 0.6;
+      margin-top: 4px;
+    }
+
+    .model-delete {
+      opacity: 0;
+      padding: 8px 12px;
+      border: var(--border-thin) solid var(--alert-red);
+      background: var(--white);
+      color: var(--alert-red);
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.1s step-end;
+    }
+
+    .model-item:hover .model-delete {
+      opacity: 1;
+    }
+
+    .model-delete:hover {
+      background: var(--alert-red);
+      color: var(--white);
+    }
+
+    .empty-state {
+      border: var(--border-thick) dashed var(--black);
+      padding: 64px 40px;
+      text-align: center;
+      background: var(--terminal-gray);
+    }
+
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: 24px;
+      opacity: 0.6;
+    }
+
+    .empty-title {
+      font-size: 16px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .empty-desc {
+      font-size: 12px;
+      opacity: 0.6;
+    }
+
+    /* Custom Scrollbar - Brutalist */
+    ::-webkit-scrollbar {
+      width: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--white);
+      border-left: var(--border-thin) solid var(--black);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--black);
+      border-left: var(--border-thin) solid var(--white);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--neon-green);
+    }
+
+    /* Animations */
+    @keyframes glitchIn {
+      0% {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      50% {
+        transform: translateX(4px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes terminalBlink {
+      0%, 50% {
+        opacity: 1;
+      }
+      51%, 100% {
+        opacity: 0;
+      }
+    }
+
+    .nav-item {
+      animation: glitchIn 0.2s step-end backwards;
+    }
+
+    .nav-item:nth-child(1) { animation-delay: 0.05s; }
+    .nav-item:nth-child(2) { animation-delay: 0.1s; }
+    .nav-item:nth-child(3) { animation-delay: 0.15s; }
+    .nav-item:nth-child(4) { animation-delay: 0.2s; }
+    .nav-item:nth-child(5) { animation-delay: 0.25s; }
+    .nav-item:nth-child(6) { animation-delay: 0.3s; }
+
+    .provider-item {
+      animation: glitchIn 0.2s step-end backwards;
+    }
+
+    .provider-item:nth-child(1) { animation-delay: 0.1s; }
+    .provider-item:nth-child(2) { animation-delay: 0.15s; }
+    .provider-item:nth-child(3) { animation-delay: 0.2s; }
+
+    .cursor-blink::after {
+      content: '█';
+      animation: terminalBlink 1s infinite;
+      margin-left: 4px;
+      color: var(--neon-green);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- LEFT SIDEBAR -->
+    <nav class="sidebar-nav">
+      <div class="nav-header">
+        <div class="nav-title cursor-blink">Settings</div>
+        <div class="nav-subtitle">// Configuration</div>
+      </div>
+
+      <div class="nav-items">
+        <div class="nav-section-label">> modules</div>
+
+        <div class="nav-item active">
+          [+] Providers
+        </div>
+        <div class="nav-item">
+          [ ] Models
+        </div>
+        <div class="nav-item">
+          [ ] General
+        </div>
+        <div class="nav-item">
+          [ ] Display
+        </div>
+        <div class="nav-item">
+          [ ] Data
+        </div>
+        <div class="nav-item">
+          [ ] About
+        </div>
+      </div>
+
+      <div class="nav-footer">
+        <div class="version-info">
+          v1.0.0<br>
+          Cortex_System
+        </div>
+      </div>
+    </nav>
+
+    <!-- MIDDLE COLUMN -->
+    <div class="provider-list">
+      <div class="provider-header">
+        <div class="provider-title cursor-blink">Providers</div>
+        <div class="provider-count">3</div>
+      </div>
+
+      <div class="provider-items">
+        <div class="provider-item active">
+          <div class="provider-item-top">
+            <div class="provider-icon">O</div>
+            <div class="provider-name">OpenAI</div>
+            <div class="provider-toggle on">
+              <div class="provider-toggle-handle"></div>
+            </div>
+          </div>
+          <div class="provider-delete">×</div>
+        </div>
+
+        <div class="provider-item">
+          <div class="provider-item-top">
+            <div class="provider-icon">A</div>
+            <div class="provider-name">Anthropic</div>
+            <div class="provider-toggle on">
+              <div class="provider-toggle-handle"></div>
+            </div>
+          </div>
+          <div class="provider-delete">×</div>
+        </div>
+
+        <div class="provider-item">
+          <div class="provider-item-top">
+            <div class="provider-icon">D</div>
+            <div class="provider-name">DeepSeek</div>
+            <div class="provider-toggle">
+              <div class="provider-toggle-handle"></div>
+            </div>
+          </div>
+          <div class="provider-delete">×</div>
+        </div>
+      </div>
+
+      <button class="add-provider-btn">
+        [+ ] ADD PROVIDER
+      </button>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="config-panel">
+      <div class="config-header">
+        <div class="config-title-wrapper">
+          <div class="config-icon">O</div>
+          <div class="config-title cursor-blink">OPENAI</div>
+        </div>
+        <button class="check-connection-btn">
+          [TEST] CONNECTION
+        </button>
+      </div>
+
+      <div class="config-content">
+        <!-- API Keys Section -->
+        <div class="config-section">
+          <div class="section-header">
+            <div class="section-icon">🔑</div>
+            <div class="section-title">API Keys</div>
+          </div>
+
+          <div class="api-key-card">
+            <div class="api-key-header">
+              <input type="text" class="api-key-name" value="Primary Key" placeholder="API_KEY_NAME">
+              <div class="api-key-badge">PRIMARY</div>
+            </div>
+            <div class="api-key-input-wrapper">
+              <input type="password" class="api-key-input" value="sk-proj-xxxxx" placeholder="sk-...">
+              <div class="api-key-toggle">👁</div>
+            </div>
+            <div class="api-key-actions">
+              <button class="api-key-btn">SET AS PRIMARY</button>
+              <div>
+                <button class="api-key-btn">COPY</button>
+                <button class="api-key-btn danger">DELETE</button>
+              </div>
+            </div>
+          </div>
+
+          <button class="add-key-btn">
+            [+ ] ADD NEW KEY
+          </button>
+        </div>
+
+        <!-- Base URL Section -->
+        <div class="config-section">
+          <div class="section-header">
+            <div class="section-icon">🔗</div>
+            <div class="section-title">Base URL</div>
+          </div>
+
+          <div class="url-input-wrapper">
+            <input type="text" class="url-input" value="https://api.openai.com/v1" placeholder="https://api.openai.com/v1">
+          </div>
+          <div class="url-preview">
+            > Preview: https://api.openai.com/v1/chat/completions
+          </div>
+        </div>
+
+        <!-- Models Section -->
+        <div class="config-section">
+          <div class="section-header">
+            <div class="section-icon">🤖</div>
+            <div class="section-title">Models (5)</div>
+          </div>
+
+          <div class="model-list">
+            <div class="model-item">
+              <div class="model-toggle on">✓</div>
+              <div class="model-info">
+                <div class="model-id">gpt-4o</div>
+                <div class="model-name">GPT-4 Omni</div>
+              </div>
+              <button class="model-delete">×</button>
+            </div>
+
+            <div class="model-item">
+              <div class="model-toggle on">✓</div>
+              <div class="model-info">
+                <div class="model-id">gpt-4o-mini</div>
+                <div class="model-name">GPT-4 Mini</div>
+              </div>
+              <button class="model-delete">×</button>
+            </div>
+
+            <div class="model-item">
+              <div class="model-toggle">✓</div>
+              <div class="model-info">
+                <div class="model-id">gpt-4-turbo</div>
+                <div class="model-name">GPT-4 Turbo</div>
+              </div>
+              <button class="model-delete">×</button>
+            </div>
+
+            <div class="model-item">
+              <div class="model-toggle">✓</div>
+              <div class="model-info">
+                <div class="model-id">gpt-3.5-turbo</div>
+                <div class="model-name">GPT-3.5 Turbo</div>
+              </div>
+              <button class="model-delete">×</button>
+            </div>
+
+            <div class="model-item">
+              <div class="model-toggle">✓</div>
+              <div class="model-info">
+                <div class="model-id">o1-preview</div>
+                <div class="model-name">O1 Preview</div>
+              </div>
+              <button class="model-delete">×</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Interactive behaviors
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', function() {
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('.provider-item').forEach(item => {
+      item.addEventListener('click', function(e) {
+        if (!e.target.closest('.provider-delete') && !e.target.closest('.provider-toggle')) {
+          document.querySelectorAll('.provider-item').forEach(i => i.classList.remove('active'));
+          this.classList.add('active');
+        }
+      });
+    });
+
+    document.querySelectorAll('.provider-toggle').forEach(toggle => {
+      toggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        this.classList.toggle('on');
+      });
+    });
+
+    document.querySelectorAll('.model-toggle').forEach(toggle => {
+      toggle.addEventListener('click', function() {
+        this.classList.toggle('on');
+      });
+    });
+
+    // Password visibility toggle
+    document.querySelectorAll('.api-key-toggle').forEach(toggle => {
+      toggle.addEventListener('click', function() {
+        const input = this.previousElementSibling;
+        input.type = input.type === 'password' ? 'text' : 'password';
+        this.textContent = input.type === 'password' ? '👁' : '👁‍🗨';
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings | Cyberpunk Tech UI</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* 赛博朋克色彩系统 */
+      --neon-cyan: #00F5FF;
+      --neon-magenta: #FF006E;
+      --neon-purple: #8B5CF6;
+      --neon-green: #10B981;
+      --cyber-black: #0A0A0F;
+      --cyber-dark: #12121A;
+      --cyber-gray: #1F1F2E;
+      --cyber-light: #2A2A3D;
+      --text-primary: #E2E8F0;
+      --text-secondary: #94A3B8;
+      --border-glow: rgba(0, 245, 255, 0.3);
+
+      /* 间距系统 */
+      --space-xs: 0.5rem;
+      --space-sm: 1rem;
+      --space-md: 1.5rem;
+      --space-lg: 2rem;
+      --space-xl: 2.5rem;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+      background: var(--cyber-black);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* 网格背景 */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image:
+        linear-gradient(rgba(0, 245, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 245, 255, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* 扫描线效果 */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.1) 2px,
+        rgba(0, 0, 0, 0.1) 4px
+      );
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.3;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* 左侧导航 */
+    .sidebar {
+      width: 280px;
+      background: rgba(18, 18, 26, 0.95);
+      border-right: 1px solid rgba(0, 245, 255, 0.2);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .sidebar::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 2px;
+      height: 100%;
+      background: linear-gradient(180deg,
+        var(--neon-cyan),
+        var(--neon-purple),
+        var(--neon-magenta)
+      );
+      box-shadow: 0 0 20px var(--neon-cyan);
+    }
+
+    .sidebar-header {
+      padding: var(--space-lg);
+      border-bottom: 1px solid rgba(0, 245, 255, 0.15);
+    }
+
+    .brand-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      text-shadow: 0 0 30px rgba(0, 245, 255, 0.5);
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow {
+      from {
+        filter: drop-shadow(0 0 5px var(--neon-cyan));
+      }
+      to {
+        filter: drop-shadow(0 0 20px var(--neon-cyan)) drop-shadow(0 0 30px var(--neon-purple));
+      }
+    }
+
+    .brand-subtitle {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--neon-cyan);
+      letter-spacing: 4px;
+      margin-top: 4px;
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+
+    .nav-section {
+      padding: var(--space-md);
+      flex: 1;
+    }
+
+    .nav-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: var(--space-sm);
+      padding-left: var(--space-sm);
+      position: relative;
+    }
+
+    .nav-label::before {
+      content: '//';
+      position: absolute;
+      left: 0;
+      color: var(--neon-cyan);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      border: 1px solid transparent;
+      background: rgba(31, 31, 46, 0.5);
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .nav-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 3px;
+      height: 100%;
+      background: var(--neon-cyan);
+      transform: scaleY(0);
+      transition: transform 0.3s ease;
+    }
+
+    .nav-item::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.1), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .nav-item:hover {
+      background: rgba(0, 245, 255, 0.1);
+      border-color: var(--border-glow);
+      color: var(--neon-cyan);
+      box-shadow: 0 0 20px rgba(0, 245, 255, 0.2);
+      transform: translateX(5px);
+    }
+
+    .nav-item:hover::after {
+      left: 100%;
+    }
+
+    .nav-item.active {
+      background: rgba(0, 245, 255, 0.15);
+      border-color: var(--neon-cyan);
+      color: var(--neon-cyan);
+      box-shadow: 0 0 30px rgba(0, 245, 255, 0.3), inset 0 0 30px rgba(0, 245, 255, 0.05);
+    }
+
+    .nav-item.active::before {
+      transform: scaleY(1);
+      box-shadow: 0 0 10px var(--neon-cyan);
+    }
+
+    .nav-item svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 1.5;
+    }
+
+    /* 主内容区 */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .providers-panel {
+      width: 320px;
+      background: rgba(18, 18, 26, 0.8);
+      border-right: 1px solid rgba(0, 245, 255, 0.2);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      padding: var(--space-lg);
+      border-bottom: 1px solid rgba(0, 245, 255, 0.15);
+      background: rgba(0, 245, 255, 0.03);
+    }
+
+    .panel-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--neon-cyan);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-md);
+    }
+
+    .provider-card {
+      background: rgba(31, 31, 46, 0.6);
+      border: 1px solid rgba(0, 245, 255, 0.2);
+      padding: var(--space-md);
+      margin-bottom: var(--space-sm);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .provider-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, rgba(0, 245, 255, 0.1), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .provider-card:hover {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 30px rgba(0, 245, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .provider-card:hover::before {
+      opacity: 1;
+    }
+
+    .provider-card.active {
+      background: rgba(0, 245, 255, 0.1);
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 40px rgba(0, 245, 255, 0.4), inset 0 0 20px rgba(0, 245, 255, 0.05);
+    }
+
+    .provider-card-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      position: relative;
+      z-index: 1;
+    }
+
+    .provider-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      color: var(--cyber-black);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Orbitron', monospace;
+      font-size: 1.3rem;
+      font-weight: 700;
+      box-shadow: 0 0 20px rgba(0, 245, 255, 0.4);
+    }
+
+    .provider-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .provider-status {
+      margin-left: auto;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--cyber-gray);
+      border: 2px solid var(--text-secondary);
+      box-shadow: 0 0 10px rgba(148, 163, 184, 0.3);
+    }
+
+    .provider-status.healthy {
+      background: var(--neon-green);
+      border-color: var(--neon-green);
+      box-shadow: 0 0 15px var(--neon-green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 15px var(--neon-green);
+      }
+      50% {
+        box-shadow: 0 0 25px var(--neon-green), 0 0 35px var(--neon-green);
+      }
+    }
+
+    .add-provider {
+      background: transparent;
+      border: 2px dashed rgba(0, 245, 255, 0.3);
+      padding: var(--space-md);
+      color: var(--text-secondary);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-xs);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: var(--space-md);
+    }
+
+    .add-provider:hover {
+      border-color: var(--neon-cyan);
+      color: var(--neon-cyan);
+      background: rgba(0, 245, 255, 0.05);
+      box-shadow: 0 0 30px rgba(0, 245, 255, 0.2);
+    }
+
+    /* 配置面板 */
+    .config-panel {
+      flex: 1;
+      background: rgba(10, 10, 15, 0.95);
+      overflow-y: auto;
+      padding: var(--space-xl);
+    }
+
+    .config-header {
+      margin-bottom: var(--space-xl);
+      padding-bottom: var(--space-lg);
+      border-bottom: 1px solid rgba(0, 245, 255, 0.2);
+    }
+
+    .config-title-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+
+    .config-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      color: var(--cyber-black);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Orbitron', monospace;
+      font-size: 2rem;
+      font-weight: 700;
+      box-shadow: 0 0 40px rgba(0, 245, 255, 0.5);
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-5px);
+      }
+    }
+
+    .config-title h1 {
+      font-family: 'Orbitron', monospace;
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+
+    .test-btn {
+      margin-left: auto;
+      padding: var(--space-sm) var(--space-lg);
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      color: var(--cyber-black);
+      border: none;
+      border-radius: 4px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 30px rgba(0, 245, 255, 0.4);
+    }
+
+    .test-btn:hover {
+      box-shadow: 0 0 50px rgba(0, 245, 255, 0.6);
+      transform: translateY(-2px);
+    }
+
+    .section {
+      margin-bottom: var(--space-xl);
+    }
+
+    .section-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--neon-cyan);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: var(--space-md);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .section-title::before {
+      content: '>';
+      color: var(--neon-magenta);
+      text-shadow: 0 0 10px var(--neon-magenta);
+    }
+
+    .api-key-card {
+      background: rgba(31, 31, 46, 0.6);
+      border: 1px solid rgba(0, 245, 255, 0.2);
+      border-radius: 8px;
+      padding: var(--space-md);
+      margin-bottom: var(--space-sm);
+      transition: all 0.3s ease;
+    }
+
+    .api-key-card:hover {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 30px rgba(0, 245, 255, 0.2);
+    }
+
+    .api-key-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-sm);
+    }
+
+    .api-key-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .api-key-badge {
+      padding: 4px 12px;
+      background: linear-gradient(135deg, var(--neon-magenta), var(--neon-purple));
+      color: white;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      border-radius: 4px;
+      letter-spacing: 2px;
+      font-weight: 600;
+      text-transform: uppercase;
+      box-shadow: 0 0 15px rgba(255, 0, 110, 0.4);
+    }
+
+    .api-key-input {
+      width: 100%;
+      background: rgba(10, 10, 15, 0.8);
+      border: 1px solid rgba(0, 245, 255, 0.3);
+      border-radius: 4px;
+      padding: var(--space-sm) var(--space-md);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--neon-cyan);
+      transition: all 0.3s ease;
+    }
+
+    .api-key-input:focus {
+      outline: none;
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 20px rgba(0, 245, 255, 0.3), inset 0 0 20px rgba(0, 245, 255, 0.05);
+    }
+
+    .add-key-btn {
+      width: 100%;
+      background: transparent;
+      border: 2px dashed rgba(0, 245, 255, 0.3);
+      border-radius: 8px;
+      padding: var(--space-md);
+      color: var(--text-secondary);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: var(--space-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-xs);
+    }
+
+    .add-key-btn:hover {
+      border-color: var(--neon-cyan);
+      color: var(--neon-cyan);
+      background: rgba(0, 245, 255, 0.05);
+      box-shadow: 0 0 30px rgba(0, 245, 255, 0.2);
+    }
+
+    .input-group {
+      margin-bottom: var(--space-lg);
+    }
+
+    .input-label {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: var(--space-xs);
+    }
+
+    .input-field {
+      width: 100%;
+      background: rgba(10, 10, 15, 0.8);
+      border: 1px solid rgba(0, 245, 255, 0.3);
+      border-radius: 4px;
+      padding: var(--space-sm) var(--space-md);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      transition: all 0.3s ease;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 20px rgba(0, 245, 255, 0.3), inset 0 0 20px rgba(0, 245, 255, 0.05);
+    }
+
+    .input-hint {
+      margin-top: var(--space-xs);
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* 模型卡片 */
+    .model-card {
+      background: rgba(31, 31, 46, 0.6);
+      border: 1px solid rgba(0, 245, 255, 0.2);
+      border-radius: 8px;
+      padding: var(--space-md);
+      margin-bottom: var(--space-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      transition: all 0.3s ease;
+    }
+
+    .model-card:hover {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 30px rgba(0, 245, 255, 0.2);
+    }
+
+    .model-toggle {
+      width: 50px;
+      height: 26px;
+      background: var(--cyber-gray);
+      border: 2px solid var(--text-secondary);
+      border-radius: 13px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .model-toggle.active {
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 20px rgba(0, 245, 255, 0.5);
+    }
+
+    .model-toggle::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background: var(--text-secondary);
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 10px rgba(148, 163, 184, 0.5);
+    }
+
+    .model-toggle.active::after {
+      left: 26px;
+      background: white;
+      box-shadow: 0 0 15px var(--neon-cyan);
+    }
+
+    .model-info {
+      flex: 1;
+    }
+
+    .model-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .model-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--neon-cyan);
+    }
+
+    /* 版本信息 */
+    .version {
+      padding: var(--space-lg);
+      border-top: 1px solid rgba(0, 245, 255, 0.15);
+      background: rgba(0, 245, 255, 0.03);
+    }
+
+    .version-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .version-text span {
+      color: var(--neon-cyan);
+    }
+
+    /* 滚动条样式 */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--cyber-dark);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--neon-cyan);
+      border-radius: 4px;
+      box-shadow: 0 0 10px var(--neon-cyan);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--neon-purple);
+      box-shadow: 0 0 15px var(--neon-purple);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 左侧导航 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-title">SETTINGS</div>
+        <div class="brand-subtitle">System Configuration v2.0</div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Configuration</div>
+        <div class="nav-item active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M17.5 19c0-1.7-1.3-3-3-3h-11c-1.7 0-3 1.3-3 3s1.3 3 3 3h11c1.7 0 3-1.3 3-3z"/>
+            <path d="M19 16c2.8 0 5-2.2 5-5s-2.2-5-5-5c-.5 0-1 .1-1.4.2"/>
+            <path d="M6.5 6C8.4 3.7 11.5 2.5 14.5 3c2.3.4 4.3 1.9 5.5 4"/>
+          </svg>
+          <span>Model Services</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="4" y="4" width="16" height="16" rx="2"/>
+            <rect x="9" y="9" width="6" height="6"/>
+          </svg>
+          <span>Default Model</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <span>General</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+          <span>Display</span>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Data & System</div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          </svg>
+          <span>Data Storage</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <span>About</span>
+        </div>
+      </div>
+
+      <div class="version">
+        <p class="version-text">CORTEX <span>v1.0.0</span> // BUILD 2024.01</p>
+      </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main">
+      <!-- 提供商列表 -->
+      <div class="providers-panel">
+        <div class="panel-header">
+          <div class="panel-title">Service Providers</div>
+        </div>
+        <div class="panel-content">
+          <div class="provider-card active">
+            <div class="provider-card-header">
+              <div class="provider-icon">O</div>
+              <span class="provider-name">OpenAI</span>
+              <div class="provider-status healthy"></div>
+            </div>
+          </div>
+
+          <div class="provider-card">
+            <div class="provider-card-header">
+              <div class="provider-icon" style="background: linear-gradient(135deg, var(--neon-magenta), var(--neon-purple));">A</div>
+              <span class="provider-name">Anthropic</span>
+              <div class="provider-status healthy"></div>
+            </div>
+          </div>
+
+          <div class="provider-card">
+            <div class="provider-card-header">
+              <div class="provider-icon" style="background: var(--cyber-light);">D</div>
+              <span class="provider-name">DeepSeek</span>
+              <div class="provider-status"></div>
+            </div>
+          </div>
+
+          <button class="add-provider">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Provider
+          </button>
+        </div>
+      </div>
+
+      <!-- 配置面板 -->
+      <div class="config-panel">
+        <div class="config-header">
+          <div class="config-title-row">
+            <div class="config-icon">O</div>
+            <div class="config-title">
+              <h1>OpenAI</h1>
+            </div>
+            <button class="test-btn">Test Connection</button>
+          </div>
+        </div>
+
+        <!-- API 密钥 -->
+        <div class="section">
+          <h2 class="section-title">API Keys</h2>
+
+          <div class="api-key-card">
+            <div class="api-key-header">
+              <span class="api-key-name">Primary Key</span>
+              <span class="api-key-badge">PRIMARY</span>
+            </div>
+            <input type="password" class="api-key-input" value="sk-••••••••••••••••" readonly>
+          </div>
+
+          <div class="api-key-card">
+            <div class="api-key-header">
+              <span class="api-key-name">Backup Key</span>
+            </div>
+            <input type="password" class="api-key-input" value="sk-••••••••••••••••" readonly>
+          </div>
+
+          <button class="add-key-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add New Key
+          </button>
+        </div>
+
+        <!-- API 地址 -->
+        <div class="section">
+          <h2 class="section-title">API Endpoint</h2>
+          <div class="input-group">
+            <label class="input-label">Base URL</label>
+            <input type="text" class="input-field" value="https://api.openai.com/v1" placeholder="https://api.openai.com/v1">
+            <p class="input-hint">Preview: https://api.openai.com/v1/chat/completions</p>
+          </div>
+        </div>
+
+        <!-- 模型列表 -->
+        <div class="section">
+          <h2 class="section-title">Available Models</h2>
+
+          <div class="model-card">
+            <div class="model-toggle active"></div>
+            <div class="model-info">
+              <div class="model-name">GPT-4 Turbo</div>
+              <div class="model-id">gpt-4-turbo-preview</div>
+            </div>
+          </div>
+
+          <div class="model-card">
+            <div class="model-toggle active"></div>
+            <div class="model-info">
+              <div class="model-name">GPT-4</div>
+              <div class="model-id">gpt-4</div>
+            </div>
+          </div>
+
+          <div class="model-card">
+            <div class="model-toggle"></div>
+            <div class="model-info">
+              <div class="model-name">GPT-3.5 Turbo</div>
+              <div class="model-id">gpt-3.5-turbo</div>
+            </div>
+          </div>
+
+          <button class="add-key-btn" style="margin-top: var(--space-md);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            Browse Models
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

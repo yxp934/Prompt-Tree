@@ -1,6 +1,5 @@
 /**
- * 提供商列表组件
- * 显示在中间栏，包含提供商列表和添加按钮
+ * 提供商列表组件 - 宁静禅意风格
  */
 
 "use client";
@@ -15,28 +14,26 @@ import { PlusIcon, TrashIcon } from "./icons";
  * 提供商图标生成器 - 根据名称生成首字母图标
  */
 function ProviderIcon({ name }: { name: string }) {
-  // 提取首字母或首字符
   const initial = name.trim().charAt(0).toUpperCase();
 
-  // 根据名称生成一致的颜色
+  // 使用宁静禅意色彩
   const colors = [
-    "bg-machine",
-    "bg-human",
-    "bg-system",
-    "bg-copper",
+    "bg-matcha-green",
+    "bg-kintsugi-gold",
+    "bg-stone-gray",
   ];
   const index = name.charCodeAt(0) % colors.length;
   const colorClass = colors[index];
 
   return (
-    <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${colorClass} text-sm font-medium text-paper`}>
+    <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${colorClass} text-shoji-white text-lg font-medium shadow-sm`}>
       {initial}
     </div>
   );
 }
 
 /**
- * 开关组件
+ * 开关组件 - 宁静禅意风格
  */
 function Toggle({
   enabled,
@@ -48,14 +45,14 @@ function Toggle({
   return (
     <button
       type="button"
-      className={`relative flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors duration-200 ${
-        enabled ? "bg-copper" : "bg-parchment"
+      className={`relative flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-300 ${
+        enabled ? "bg-matcha-green" : "bg-stone-gray/30"
       }`}
       onClick={onToggle}
     >
       <span
-        className={`block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-          enabled ? "translate-x-5" : "translate-x-0.5"
+        className={`block h-4.5 w-4.5 transform rounded-full bg-white shadow-sm transition-all duration-300 ${
+          enabled ? "translate-x-6" : "translate-x-0.5"
         }`}
       />
     </button>
@@ -63,7 +60,7 @@ function Toggle({
 }
 
 /**
- * 提供商列表项
+ * 提供商列表项 - 宁静禅意风格
  */
 function ProviderListItem({
   provider,
@@ -82,22 +79,22 @@ function ProviderListItem({
 
   return (
     <div
-      className={`group relative mb-1.5 cursor-pointer rounded-lg transition-all duration-150 ${
+      className={`group relative mb-2 cursor-pointer rounded-xl p-4 transition-all duration-300 ${
         isActive
-          ? "bg-paper shadow-sm"
-          : "hover:bg-paper/50"
+          ? "bg-washi-cream/70 border border-matcha-green/20 shadow-sm"
+          : "hover:bg-washi-cream/30 border border-transparent"
       }`}
       onMouseEnter={() => setShowDelete(true)}
       onMouseLeave={() => setShowDelete(false)}
     >
       <button
         type="button"
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left"
+        className="flex w-full items-center gap-4 text-left"
         onClick={onSelect}
       >
         <ProviderIcon name={provider.name} />
 
-        <span className="flex-1 truncate font-body text-[0.9rem] text-ink">
+        <span className="flex-1 truncate font-zen-body text-sm font-normal text-ink-black">
           {provider.name}
         </span>
 
@@ -106,7 +103,7 @@ function ProviderListItem({
         {showDelete && (
           <button
             type="button"
-            className="ml-2 flex-shrink-0 rounded p-1 text-clay transition-colors hover:bg-cream hover:text-ink"
+            className="ml-2 flex-shrink-0 rounded-lg p-2 text-stone-gray transition-colors hover:bg-sakura-pink/30 hover:text-red-500"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
@@ -121,7 +118,7 @@ function ProviderListItem({
 }
 
 /**
- * 添加提供商对话框
+ * 添加提供商对话框 - 宁静禅意风格
  */
 function AddProviderDialog({
   open,
@@ -147,38 +144,38 @@ function AddProviderDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/20 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl bg-paper p-6 shadow-xl">
-        <h3 className="mb-4 font-display text-xl text-ink">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-ink-black/20 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl bg-shoji-white p-8 shadow-lg border border-parchment/10">
+        <h3 className="mb-6 font-zen-display text-2xl font-light text-ink-black tracking-wide">
           添加提供商
         </h3>
 
         <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="mb-2 block font-mono text-[0.7rem] uppercase tracking-widest text-sand">
-              提供商名称
+          <div className="mb-6">
+            <label className="mb-3 block font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+              Provider Name
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：OpenAI, Anthropic, DeepSeek"
-              className="w-full rounded-xl border border-parchment bg-cream px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+              placeholder="OpenAI, Anthropic, DeepSeek..."
+              className="w-full rounded-xl border border-parchment/20 bg-washi-cream px-5 py-4 font-zen-body text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50 focus:shadow-sm"
               autoFocus
             />
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-3">
             <button
               type="button"
-              className="rounded-lg border border-parchment px-4 py-2 font-body text-[0.85rem] text-clay transition-all duration-150 hover:border-sand hover:text-ink"
+              className="rounded-xl border border-parchment/20 px-6 py-3 font-zen-body text-sm text-stone-gray transition-all duration-200 hover:border-stone-gray/30 hover:text-ink-black"
               onClick={onClose}
             >
               取消
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-ink px-4 py-2 font-body text-[0.85rem] text-cream transition-all duration-150 hover:bg-charcoal"
+              className="rounded-xl bg-matcha-green px-6 py-3 font-zen-body text-sm text-shoji-white transition-all duration-200 hover:bg-bamboo-light"
             >
               添加
             </button>
@@ -190,7 +187,7 @@ function AddProviderDialog({
 }
 
 /**
- * 提供商列表主组件
+ * 提供商列表主组件 - 宁静禅意风格
  */
 export function ProviderList() {
   const providers = useAppStore((s) => s.providers);
@@ -204,22 +201,22 @@ export function ProviderList() {
 
   return (
     <>
-      <div className="flex h-full w-[280px] flex-shrink-0 flex-col border-r border-parchment bg-cream">
+      <div className="flex h-full w-[320px] flex-shrink-0 flex-col border-r border-parchment/10 bg-washi-cream/50">
         {/* 标题 */}
-        <div className="flex items-center justify-between border-b border-parchment px-5 py-4">
-          <div className="font-mono text-[0.65rem] uppercase tracking-[0.15em] text-sand">
-            提供商列表
+        <div className="flex items-center justify-between border-b border-parchment/10 px-6 py-6">
+          <div className="font-zen-display text-xl font-normal text-ink-black tracking-wide">
+            服务提供商
           </div>
-          <div className="font-mono text-[0.7rem] text-clay">
+          <div className="flex h-7 min-h-7 w-7 min-w-7 items-center justify-center rounded-full bg-washi-cream font-zen-body text-xs text-stone-gray font-light">
             {providers.length}
           </div>
         </div>
 
         {/* 提供商列表 */}
-        <div className="flex-1 overflow-y-auto px-3 py-4">
+        <div className="flex-1 overflow-y-auto px-4 py-6">
           {providers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="mb-3 text-sand">
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="mb-4 rounded-2xl bg-washi-cream/50 p-6 text-stone-gray">
                 <svg
                   width="48"
                   height="48"
@@ -234,32 +231,36 @@ export function ProviderList() {
                   <path d="M6.5 6C8.4 3.7 11.5 2.5 14.5 3c2.3.4 4.3 1.9 5.5 4" />
                 </svg>
               </div>
-              <p className="mb-1 font-body text-[0.9rem] text-clay">
+              <p className="mb-2 font-zen-body text-sm text-stone-gray font-light">
                 暂无提供商
               </p>
-              <p className="font-body text-[0.8rem] text-sand">
+              <p className="font-zen-body text-xs text-stone-gray/70 font-light">
                 点击下方按钮添加
               </p>
             </div>
           ) : (
-            providers.map((provider) => (
-              <ProviderListItem
+            providers.map((provider, index) => (
+              <div
                 key={provider.id}
-                provider={provider}
-                isActive={selectedProviderId === provider.id}
-                onSelect={() => selectProvider(provider.id)}
-                onToggle={() => toggleProviderEnabled(provider.id)}
-                onDelete={() => deleteProvider(provider.id)}
-              />
+                style={{ animation: `slideInUp 0.5s ease-out ${index * 0.05}s backwards` }}
+              >
+                <ProviderListItem
+                  provider={provider}
+                  isActive={selectedProviderId === provider.id}
+                  onSelect={() => selectProvider(provider.id)}
+                  onToggle={() => toggleProviderEnabled(provider.id)}
+                  onDelete={() => deleteProvider(provider.id)}
+                />
+              </div>
             ))
           )}
         </div>
 
         {/* 添加按钮 */}
-        <div className="border-t border-parchment p-4">
+        <div className="border-t border-parchment/10 p-5">
           <button
             type="button"
-            className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-parchment px-4 py-3 font-body text-[0.85rem] text-clay transition-all duration-150 hover:border-copper hover:text-copper"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border-1.5 border-dashed border-parchment/30 px-5 py-4 font-zen-body text-sm text-stone-gray font-light transition-all duration-300 hover:border-matcha-green/50 hover:bg-matcha-green/5 hover:text-matcha-green"
             onClick={() => setShowAddDialog(true)}
           >
             <PlusIcon />

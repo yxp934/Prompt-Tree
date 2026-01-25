@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings | Mid-Century Modern</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Lato:wght@300;400;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* 中世纪现代色彩系统 */
+      --warm-cream: #F5F0E8;
+      --vintage-white: #FAF8F3;
+      --amber-gold: #D4A574;
+      --burnt-orange: #C17F59;
+      --deep-teal: #2D5A5D;
+      --forest-green: #3D6B58;
+      --rich-brown: #8B6914;
+      --charcoal: #2C2C2C;
+      --warm-gray: #7A7A7A;
+      --shadow-warm: rgba(44, 44, 44, 0.08);
+
+      /* 间距系统 */
+      --space-xs: 0.5rem;
+      --space-sm: 1rem;
+      --space-md: 1.5rem;
+      --space-lg: 2rem;
+      --space-xl: 3rem;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Lato', -apple-system, sans-serif;
+      background: var(--warm-cream);
+      color: var(--charcoal);
+      line-height: 1.7;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* 纹理背景 */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.4;
+      pointer-events: none;
+      background-image:
+        repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent 10px,
+          rgba(0, 0, 0, 0.008) 10px,
+          rgba(0, 0, 0, 0.008) 20px
+        );
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* 左侧导航 */
+    .sidebar {
+      width: 260px;
+      background: var(--vintage-white);
+      border-right: 3px solid var(--amber-gold);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 4px 0 20px var(--shadow-warm);
+    }
+
+    .brand {
+      padding: var(--space-lg);
+      border-bottom: 2px solid var(--amber-gold);
+      background: linear-gradient(135deg, var(--deep-teal), var(--forest-green));
+    }
+
+    .brand h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--vintage-white);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .brand p {
+      font-size: 0.75rem;
+      letter-spacing: 0.3em;
+      color: var(--amber-gold);
+      text-transform: uppercase;
+      font-weight: 300;
+    }
+
+    .nav-section {
+      padding: var(--space-lg);
+      flex: 1;
+    }
+
+    .nav-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.25em;
+      color: var(--warm-gray);
+      text-transform: uppercase;
+      margin-bottom: var(--space-md);
+      padding-left: var(--space-sm);
+      font-weight: 500;
+      border-left: 3px solid var(--burnt-orange);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      border-left: 4px solid transparent;
+      background: transparent;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--charcoal);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .nav-item:hover {
+      background: rgba(193, 127, 89, 0.1);
+      border-left-color: var(--burnt-orange);
+      padding-left: calc(var(--space-md) + 4px);
+    }
+
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(193, 127, 89, 0.15), transparent);
+      border-left-color: var(--burnt-orange);
+      color: var(--deep-teal);
+    }
+
+    .nav-item svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2;
+      opacity: 0.8;
+    }
+
+    /* 主内容区 */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .providers-panel {
+      width: 340px;
+      background: var(--vintage-white);
+      border-right: 2px solid rgba(212, 165, 116, 0.3);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      padding: var(--space-lg);
+      border-bottom: 2px solid var(--amber-gold);
+      background: rgba(212, 165, 116, 0.1);
+    }
+
+    .panel-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--deep-teal);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-lg);
+    }
+
+    .provider-card {
+      background: var(--warm-cream);
+      border: 2px solid rgba(212, 165, 116, 0.4);
+      padding: var(--space-md);
+      margin-bottom: var(--space-md);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      box-shadow: 2px 2px 8px var(--shadow-warm);
+    }
+
+    .provider-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--amber-gold);
+      transform: scaleY(0);
+      transition: transform 0.3s ease;
+    }
+
+    .provider-card:hover {
+      transform: translateX(4px);
+      box-shadow: 4px 4px 16px var(--shadow-warm);
+      border-color: var(--burnt-orange);
+    }
+
+    .provider-card:hover::before {
+      transform: scaleY(1);
+    }
+
+    .provider-card.active {
+      background: linear-gradient(135deg, rgba(212, 165, 116, 0.2), rgba(193, 127, 89, 0.1));
+      border-color: var(--burnt-orange);
+      box-shadow: 4px 4px 20px rgba(193, 127, 89, 0.3);
+    }
+
+    .provider-card.active::before {
+      transform: scaleY(1);
+      background: var(--burnt-orange);
+    }
+
+    .provider-card-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .provider-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--deep-teal), var(--forest-green));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      box-shadow: 2px 2px 8px rgba(45, 90, 93, 0.3);
+    }
+
+    .provider-name {
+      font-weight: 900;
+      font-size: 1.1rem;
+      color: var(--deep-teal);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .provider-status {
+      margin-left: auto;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid var(--warm-gray);
+      background: var(--warm-gray);
+    }
+
+    .provider-status.healthy {
+      background: var(--forest-green);
+      border-color: var(--forest-green);
+      box-shadow: 0 0 8px rgba(61, 107, 88, 0.4);
+    }
+
+    .add-provider {
+      background: transparent;
+      border: 3px dashed rgba(212, 165, 116, 0.5);
+      padding: var(--space-md);
+      color: var(--warm-gray);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-xs);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: var(--space-md);
+    }
+
+    .add-provider:hover {
+      border-color: var(--burnt-orange);
+      color: var(--burnt-orange);
+      background: rgba(193, 127, 89, 0.1);
+    }
+
+    /* 配置面板 */
+    .config-panel {
+      flex: 1;
+      background: var(--warm-cream);
+      overflow-y: auto;
+      padding: var(--space-xl);
+    }
+
+    .config-header {
+      margin-bottom: var(--space-xl);
+      padding-bottom: var(--space-lg);
+      border-bottom: 3px solid var(--amber-gold);
+    }
+
+    .config-title-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-lg);
+      margin-bottom: var(--space-lg);
+    }
+
+    .config-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--deep-teal), var(--forest-green));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 700;
+      box-shadow: 4px 4px 16px rgba(45, 90, 93, 0.3);
+    }
+
+    .config-title h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--deep-teal);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .test-btn {
+      margin-left: auto;
+      padding: var(--space-sm) var(--space-xl);
+      background: linear-gradient(135deg, var(--deep-teal), var(--forest-green));
+      color: white;
+      border: none;
+      border-radius: 0;
+      font-size: 0.9rem;
+      font-weight: 900;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      transition: all 0.3s ease;
+      box-shadow: 4px 4px 12px rgba(45, 90, 93, 0.3);
+    }
+
+    .test-btn:hover {
+      transform: translateX(2px) translateY(2px);
+      box-shadow: 2px 2px 8px rgba(45, 90, 93, 0.4);
+    }
+
+    .section {
+      margin-bottom: var(--space-xl);
+    }
+
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--deep-teal);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: var(--space-md);
+      padding-bottom: var(--space-sm);
+      border-bottom: 2px solid var(--amber-gold);
+      display: inline-block;
+    }
+
+    .api-key-card {
+      background: var(--vintage-white);
+      border: 2px solid rgba(212, 165, 116, 0.4);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-md);
+      transition: all 0.3s ease;
+      box-shadow: 2px 2px 8px var(--shadow-warm);
+    }
+
+    .api-key-card:hover {
+      border-color: var(--burnt-orange);
+      box-shadow: 4px 4px 16px var(--shadow-warm);
+    }
+
+    .api-key-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-sm);
+    }
+
+    .api-key-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--deep-teal);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .api-key-badge {
+      padding: 6px 14px;
+      background: var(--burnt-orange);
+      color: white;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+
+    .api-key-input {
+      width: 100%;
+      background: var(--warm-cream);
+      border: 2px solid rgba(212, 165, 116, 0.4);
+      padding: var(--space-sm) var(--space-md);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--charcoal);
+      transition: all 0.3s ease;
+    }
+
+    .api-key-input:focus {
+      outline: none;
+      border-color: var(--deep-teal);
+      box-shadow: 0 0 0 3px rgba(45, 90, 93, 0.1);
+    }
+
+    .add-key-btn {
+      width: 100%;
+      background: transparent;
+      border: 3px dashed rgba(212, 165, 116, 0.5);
+      padding: var(--space-md);
+      color: var(--warm-gray);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: var(--space-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-xs);
+    }
+
+    .add-key-btn:hover {
+      border-color: var(--burnt-orange);
+      color: var(--burnt-orange);
+      background: rgba(193, 127, 89, 0.1);
+    }
+
+    .input-group {
+      margin-bottom: var(--space-lg);
+    }
+
+    .input-label {
+      display: block;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--warm-gray);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      margin-bottom: var(--space-xs);
+      font-weight: 500;
+    }
+
+    .input-field {
+      width: 100%;
+      background: var(--vintage-white);
+      border: 2px solid rgba(212, 165, 116, 0.4);
+      padding: var(--space-sm) var(--space-md);
+      font-size: 0.95rem;
+      color: var(--charcoal);
+      font-weight: 400;
+      transition: all 0.3s ease;
+      font-family: 'Lato', sans-serif;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--deep-teal);
+      box-shadow: 0 0 0 3px rgba(45, 90, 93, 0.1);
+    }
+
+    .input-hint {
+      margin-top: var(--space-xs);
+      font-size: 0.85rem;
+      color: var(--warm-gray);
+      font-style: italic;
+    }
+
+    /* 模型卡片 */
+    .model-card {
+      background: var(--vintage-white);
+      border: 2px solid rgba(212, 165, 116, 0.4);
+      padding: var(--space-md);
+      margin-bottom: var(--space-md);
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      transition: all 0.3s ease;
+      box-shadow: 2px 2px 8px var(--shadow-warm);
+    }
+
+    .model-card:hover {
+      border-color: var(--burnt-orange);
+      box-shadow: 4px 4px 16px var(--shadow-warm);
+    }
+
+    .model-toggle {
+      width: 52px;
+      height: 28px;
+      background: var(--warm-gray);
+      border-radius: 14px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .model-toggle.active {
+      background: linear-gradient(135deg, var(--deep-teal), var(--forest-green));
+    }
+
+    .model-toggle::after {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      background: white;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: all 0.3s ease;
+      box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .model-toggle.active::after {
+      left: 27px;
+    }
+
+    .model-info {
+      flex: 1;
+    }
+
+    .model-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--deep-teal);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .model-id {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--warm-gray);
+    }
+
+    /* 版本信息 */
+    .version {
+      padding: var(--space-lg);
+      border-top: 2px solid var(--amber-gold);
+      background: rgba(212, 165, 116, 0.1);
+      text-align: center;
+    }
+
+    .version-text {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--warm-gray);
+      letter-spacing: 0.15em;
+      font-weight: 500;
+    }
+
+    .version-text span {
+      color: var(--deep-teal);
+      font-weight: 700;
+    }
+
+    /* 滚动条样式 */
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--warm-cream);
+      border-left: 1px solid rgba(212, 165, 116, 0.3);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--amber-gold);
+      border-radius: 0;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--burnt-orange);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 左侧导航 -->
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>Settings</h1>
+        <p>Configuration</p>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Configuration</div>
+        <div class="nav-item active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M17.5 19c0-1.7-1.3-3-3-3h-11c-1.7 0-3 1.3-3 3s1.3 3 3 3h11c1.7 0 3-1.3 3-3z"/>
+            <path d="M19 16c2.8 0 5-2.2 5-5s-2.2-5-5-5c-.5 0-1 .1-1.4.2"/>
+            <path d="M6.5 6C8.4 3.7 11.5 2.5 14.5 3c2.3.4 4.3 1.9 5.5 4"/>
+          </svg>
+          <span>Model Services</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="4" y="4" width="16" height="16" rx="2"/>
+            <rect x="9" y="9" width="6" height="6"/>
+          </svg>
+          <span>Default Model</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <span>General</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+          <span>Display</span>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Data & System</div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          </svg>
+          <span>Data Storage</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <span>About</span>
+        </div>
+      </div>
+
+      <div class="version">
+        <p class="version-text">CORTEX <span>v1.0.0</span></p>
+      </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main">
+      <!-- 提供商列表 -->
+      <div class="providers-panel">
+        <div class="panel-header">
+          <div class="panel-title">Service Providers</div>
+        </div>
+        <div class="panel-content">
+          <div class="provider-card active">
+            <div class="provider-card-header">
+              <div class="provider-icon">O</div>
+              <span class="provider-name">OpenAI</span>
+              <div class="provider-status healthy"></div>
+            </div>
+          </div>
+
+          <div class="provider-card">
+            <div class="provider-card-header">
+              <div class="provider-icon" style="background: linear-gradient(135deg, var(--burnt-orange), var(--rich-brown));">A</div>
+              <span class="provider-name">Anthropic</span>
+              <div class="provider-status healthy"></div>
+            </div>
+          </div>
+
+          <div class="provider-card">
+            <div class="provider-card-header">
+              <div class="provider-icon" style="background: var(--charcoal);">D</div>
+              <span class="provider-name">DeepSeek</span>
+              <div class="provider-status"></div>
+            </div>
+          </div>
+
+          <button class="add-provider">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Provider
+          </button>
+        </div>
+      </div>
+
+      <!-- 配置面板 -->
+      <div class="config-panel">
+        <div class="config-header">
+          <div class="config-title-row">
+            <div class="config-icon">O</div>
+            <div class="config-title">
+              <h1>OpenAI</h1>
+            </div>
+            <button class="test-btn">Test Connection</button>
+          </div>
+        </div>
+
+        <!-- API 密钥 -->
+        <div class="section">
+          <h2 class="section-title">API Keys</h2>
+
+          <div class="api-key-card">
+            <div class="api-key-header">
+              <span class="api-key-name">Primary Key</span>
+              <span class="api-key-badge">Primary</span>
+            </div>
+            <input type="password" class="api-key-input" value="sk-••••••••••••••••" readonly>
+          </div>
+
+          <div class="api-key-card">
+            <div class="api-key-header">
+              <span class="api-key-name">Backup Key</span>
+            </div>
+            <input type="password" class="api-key-input" value="sk-••••••••••••••••" readonly>
+          </div>
+
+          <button class="add-key-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add New Key
+          </button>
+        </div>
+
+        <!-- API 地址 -->
+        <div class="section">
+          <h2 class="section-title">API Endpoint</h2>
+          <div class="input-group">
+            <label class="input-label">Base URL</label>
+            <input type="text" class="input-field" value="https://api.openai.com/v1" placeholder="https://api.openai.com/v1">
+            <p class="input-hint">Full endpoint: https://api.openai.com/v1/chat/completions</p>
+          </div>
+        </div>
+
+        <!-- 模型列表 -->
+        <div class="section">
+          <h2 class="section-title">Available Models</h2>
+
+          <div class="model-card">
+            <div class="model-toggle active"></div>
+            <div class="model-info">
+              <div class="model-name">GPT-4 Turbo</div>
+              <div class="model-id">gpt-4-turbo-preview</div>
+            </div>
+          </div>
+
+          <div class="model-card">
+            <div class="model-toggle active"></div>
+            <div class="model-info">
+              <div class="model-name">GPT-4</div>
+              <div class="model-id">gpt-4</div>
+            </div>
+          </div>
+
+          <div class="model-card">
+            <div class="model-toggle"></div>
+            <div class="model-info">
+              <div class="model-name">GPT-3.5 Turbo</div>
+              <div class="model-id">gpt-3.5-turbo</div>
+            </div>
+          </div>
+
+          <button class="add-key-btn" style="margin-top: var(--space-md);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            Browse All Models
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

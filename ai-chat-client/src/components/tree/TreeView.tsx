@@ -285,6 +285,49 @@ export function TreeView() {
         }
       }
 
+      if (clientX !== null && clientY !== null) {
+        const nodeEls = Array.from(
+          document.querySelectorAll<HTMLElement>("[data-node-id]"),
+        );
+        const target = nodeEls.find((el) => {
+          const targetId = el.getAttribute("data-node-id");
+          if (!targetId || targetId === node.id) return false;
+          const rect = el.getBoundingClientRect();
+          return (
+            clientX >= rect.left &&
+            clientX <= rect.right &&
+            clientY >= rect.top &&
+            clientY <= rect.bottom
+          );
+        });
+
+        const targetId = target?.getAttribute("data-node-id") ?? null;
+        if (targetId) {
+          let cursor = nodesMap.get(targetId) ?? null;
+          let isCycle = false;
+          while (cursor?.parentId) {
+            if (cursor.parentId === node.id) {
+              isCycle = true;
+              break;
+            }
+            cursor = nodesMap.get(cursor.parentId) ?? null;
+          }
+
+          if (!isCycle) {
+            void updateNode(node.id, {
+              parentId: targetId,
+              position: node.position,
+            });
+            setDragOrigin((prev) => {
+              const next = new Map(prev);
+              next.delete(node.id);
+              return next;
+            });
+            return;
+          }
+        }
+      }
+
       void updateNode(node.id, { position: node.position });
       setDragOrigin((prev) => {
         const next = new Map(prev);
@@ -292,7 +335,7 @@ export function TreeView() {
         return next;
       });
     },
-    [addToContext, dragOrigin, setFlowNodes, updateNode],
+    [addToContext, dragOrigin, nodesMap, setFlowNodes, updateNode],
   );
 
   const applyAutoLayout = useCallback(() => {

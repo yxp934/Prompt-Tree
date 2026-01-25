@@ -74,6 +74,7 @@ const TreeNode = memo(function TreeNode({ data }: NodeProps<TreeFlowNodeData>) {
         node.type,
       )} ${chrome}`}
       data-cortex-node-type={node.type}
+      data-node-id={node.id}
     >
       <Handle
         type="target"

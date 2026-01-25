@@ -14,6 +14,7 @@ import { createLLMSlice, type LLMSlice } from "./llmSlice";
 import { createNodeSlice, type NodeSlice } from "./nodeSlice";
 import { createTreeSlice, type TreeSlice } from "./treeSlice";
 import { createUISlice, type UISlice } from "./uiSlice";
+import { createProviderSlice, type ProviderSlice } from "./providerSlice";
 
 export interface AppStoreDeps {
   nodeService: NodeService;
@@ -35,7 +36,8 @@ export type AppStoreState = BaseSlice &
   TreeSlice &
   ContextSlice &
   UISlice &
-  LLMSlice;
+  LLMSlice &
+  ProviderSlice;
 
 export function createAppStore(
   deps?: Partial<AppStoreDeps>,
@@ -84,6 +86,7 @@ export function createAppStore(
     ...createContextSlice(services)(set, get, ...api),
     ...createUISlice()(set, get, ...api),
     ...createLLMSlice(services)(set, get, ...api),
+    ...createProviderSlice(services)(set, get, ...api),
   }));
 }
 

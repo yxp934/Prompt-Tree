@@ -8,6 +8,10 @@ export const metadata: Metadata = {
     "A visual dialogue tree interface for AI conversations with context management and token optimization.",
   keywords: ["AI", "dialogue", "chat", "context", "topology", "tree"],
   authors: [{ name: "Cortex Team" }],
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

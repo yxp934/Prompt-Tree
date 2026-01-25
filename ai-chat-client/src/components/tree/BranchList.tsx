@@ -72,6 +72,8 @@ export function BranchList() {
     await updateNode(editingId, {
       metadata: {
         branchLabel: trimmed || undefined,
+        tags: [],
+        metaInstructions: {},
       },
     });
     setEditingId(null);

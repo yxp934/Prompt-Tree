@@ -11,7 +11,8 @@ describe("sendMessage flow", () => {
   });
 
   it("creates user + assistant nodes and updates active node", async () => {
-    const chatMock = vi.fn(async (_params: ChatParams) => {
+    const chatMock = vi.fn(async (params: ChatParams) => {
+      void params;
       return "Hi there!";
     });
     const llmService: ILLMService = { chat: chatMock };
@@ -39,7 +40,10 @@ describe("sendMessage flow", () => {
   });
 
   it("supports explicit context node ids", async () => {
-    const chatMock = vi.fn(async (_params: ChatParams) => "ok");
+    const chatMock = vi.fn(async (params: ChatParams) => {
+      void params;
+      return "ok";
+    });
     const llmService: ILLMService = { chat: chatMock };
 
     const store = createAppStore({ llmService });

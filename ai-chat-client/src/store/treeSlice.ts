@@ -18,6 +18,14 @@ function computeLatestNodeId(nodes: Node[], fallback: string): string {
   return latest;
 }
 
+function computeTotalTokens(nodeIds: string[], nodes: Map<string, Node>): number {
+  let total = 0;
+  for (const id of nodeIds) {
+    total += nodes.get(id)?.tokenCount ?? 0;
+  }
+  return total;
+}
+
 export interface TreeSlice {
   trees: Map<string, ConversationTree>;
   currentTreeId: string | null;
@@ -103,6 +111,15 @@ export function createTreeSlice(
           contextBox = await deps.contextBoxService.put(fallback);
         }
 
+        const filteredIds = contextBox.nodeIds.filter((id) => nodesMap.has(id));
+        if (filteredIds.length !== contextBox.nodeIds.length) {
+          contextBox = await deps.contextBoxService.put({
+            ...contextBox,
+            nodeIds: filteredIds,
+            totalTokens: computeTotalTokens(filteredIds, nodesMap),
+          });
+        }
+
         set({ contextBox });
       } catch (err) {
         set({
@@ -163,4 +180,3 @@ export function createTreeSlice(
     },
   });
 }
-

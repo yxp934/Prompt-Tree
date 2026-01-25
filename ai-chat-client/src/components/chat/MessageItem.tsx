@@ -28,6 +28,8 @@ function getMessageMeta(node: Node): {
 export function MessageItem({ node }: MessageItemProps) {
   const meta = getMessageMeta(node);
   const time = format(new Date(node.createdAt), "HH:mm");
+  const body =
+    node.type === NodeType.COMPRESSED ? node.summary ?? node.content : node.content;
 
   return (
     <div className="animate-message-in mb-8 max-w-[680px]">
@@ -50,7 +52,7 @@ export function MessageItem({ node }: MessageItemProps) {
       </div>
 
       <div className="prose-cortex pl-11 text-[0.95rem] leading-relaxed text-charcoal">
-        <p className="whitespace-pre-wrap">{node.content}</p>
+        <p className="whitespace-pre-wrap">{body}</p>
       </div>
     </div>
   );

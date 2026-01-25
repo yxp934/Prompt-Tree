@@ -22,6 +22,7 @@ export interface NodeSlice {
 
   setActiveNode: (id: string) => void;
   toggleNodeSelection: (id: string) => void;
+  setSelectedNodeIds: (ids: string[]) => void;
   clearSelection: () => void;
 
   getNodePath: (nodeId: string) => Promise<Node[]>;
@@ -60,6 +61,15 @@ export function createNodeSlice(
       return node;
     },
     updateNode: async (id, updates) => {
+      const existing = get().nodes.get(id);
+      if (existing) {
+        set((state) => {
+          const nodes = new Map(state.nodes);
+          nodes.set(id, { ...existing, ...updates, id });
+          return { nodes };
+        });
+      }
+
       const node = await deps.nodeService.update(id, updates);
 
       set((state) => {
@@ -86,7 +96,10 @@ export function createNodeSlice(
       });
     },
 
-    setActiveNode: (id) => set({ activeNodeId: id }),
+    setActiveNode: (id) => {
+      set({ activeNodeId: id });
+      void get().syncContextToNode(id);
+    },
     toggleNodeSelection: (id) =>
       set((state) => {
         const selectedNodeIds = state.selectedNodeIds.includes(id)
@@ -94,10 +107,10 @@ export function createNodeSlice(
           : [...state.selectedNodeIds, id];
         return { selectedNodeIds };
       }),
+    setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
     clearSelection: () => set({ selectedNodeIds: [] }),
 
     getNodePath: (nodeId) => deps.nodeService.getPath(nodeId),
     getChildren: (nodeId) => deps.nodeService.getChildren(nodeId),
   });
 }
-

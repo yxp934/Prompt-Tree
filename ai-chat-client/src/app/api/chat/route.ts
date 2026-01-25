@@ -46,6 +46,7 @@ export async function POST(request: Request) {
       model?: unknown;
       temperature?: unknown;
       maxTokens?: unknown;
+      responseFormat?: unknown;
     };
 
     const apiKey =
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
       model: typeof b.model === "string" ? b.model : undefined,
       temperature: typeof b.temperature === "number" ? b.temperature : undefined,
       maxTokens: typeof b.maxTokens === "number" ? b.maxTokens : undefined,
+      responseFormat: b.responseFormat,
     });
 
     return NextResponse.json({ content });

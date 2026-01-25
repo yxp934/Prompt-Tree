@@ -16,6 +16,16 @@
 
 ---
 
+## 当前进展（最后更新：2026-01-25）
+
+- ✅ 已实现：IndexedDB 数据层、Zustand Store、基础聊天、ReactFlow 树视图、Context Box、压缩节点（含 AI 生成摘要/元指令）
+- 🧩 2026-01-24：修复 `Compress Selected/Context` 在 ContextBox 多节点时不可点击（支持以 ContextBox 链式节点作为默认压缩目标），并用 Playwright MCP 验证通过
+- 🧩 2026-01-25：压缩节点定位到被压缩链的末端节点位置；压缩后默认折叠隐藏被压缩节点（树画布仅显示压缩节点），支持点击压缩节点展开/折叠，并保持后续节点可继续连接
+- 🧩 2026-01-25：点击树节点时 ContextBox 自动刷新为当前路径，并保持拖拽添加/重排能力（Playwright MCP 验证）
+- 🧩 2026-01-25：压缩节点改为挂载到被压缩链的尾节点（展开时作为子节点），折叠视图保持压缩节点可见，并保留分支节点不被误折叠；修复压缩弹窗提示 `entry is not defined`（Playwright MCP 验证）
+
+---
+
 ## 开发阶段
 
 ### 🎯 阶段 0：项目初始化（1-2天）
@@ -24,26 +34,26 @@
 
 #### 任务列表
 
-- [ ] 创建Next.js项目
+- [x] 创建Next.js项目
   ```bash
   npx create-next-app@latest ai-chat-client --typescript --tailwind --app
   ```
 
-- [ ] 安装核心依赖
+- [x] 安装核心依赖
   - `zustand` - 状态管理
   - `reactflow` - 树图可视化
   - `uuid` - UUID生成
   - `date-fns` - 日期处理
 
-- [ ] 配置TypeScript
+- [x] 配置TypeScript
   - 启用严格模式
   - 配置路径别名（@/components, @/lib, @/store）
 
-- [ ] 配置ESLint和Prettier
+- [x] 配置ESLint和Prettier
   - 安装必要的代码规范插件
   - 配置.format和.lintignore
 
-- [ ] 设置项目目录结构
+- [x] 设置项目目录结构
   ```
   src/
   ├── app/
@@ -53,12 +63,12 @@
   └── types/
   ```
 
-- [ ] 创建基础布局组件
+- [x] 创建基础布局组件
   - `app/layout.tsx` - 根布局
   - `app/page.tsx` - 主页面
   - `components/layout/MainLayout.tsx` - 主布局容器
 
-- [ ] 配置Tailwind CSS
+- [x] 配置Tailwind CSS
   - 设置主题色
   - 定义通用样式类
 
@@ -80,34 +90,34 @@
 
 #### 任务列表
 
-- [ ] 创建TypeScript类型定义
-  - [ ] `types/node.ts` - 节点类型
-  - [ ] `types/tree.ts` - 树类型
-  - [ ] `types/context.ts` - 上下文类型
-  - [ ] `types/index.ts` - 统一导出
+- [x] 创建TypeScript类型定义
+  - [x] `types/node.ts` - 节点类型
+  - [x] `types/tree.ts` - 树类型
+  - [x] `types/context.ts` - 上下文类型
+  - [x] `types/index.ts` - 统一导出
 
-- [ ] 实现IndexedDB封装
-  - [ ] `lib/db/indexedDB.ts` - 数据库初始化
-  - [ ] `lib/db/objectStore.ts` - ObjectStore封装
-  - [ ] `lib/db/schema.ts` - 数据库Schema配置
+- [x] 实现IndexedDB封装
+  - [x] `lib/db/indexedDB.ts` - 数据库初始化
+  - [x] `lib/db/objectStore.ts` - ObjectStore封装
+  - [x] `lib/db/schema.ts` - 数据库Schema配置
 
-- [ ] 实现节点数据访问层
-  - [ ] `lib/services/nodeService.ts`
+- [x] 实现节点数据访问层
+  - [x] `lib/services/nodeService.ts`
     - CRUD操作
     - 路径查询
     - 子节点查询
     - 批量操作
 
-- [ ] 实现树数据访问层
-  - [ ] `lib/services/treeService.ts`
+- [x] 实现树数据访问层
+  - [x] `lib/services/treeService.ts`
     - 树CRUD操作
     - 树列表查询
     - 树加载
 
-- [ ] 编写单元测试
-  - [ ] IndexedDB操作测试
-  - [ ] 节点服务测试
-  - [ ] 树服务测试
+- [x] 编写单元测试
+  - [x] IndexedDB操作测试
+  - [x] 节点服务测试
+  - [x] 树服务测试
 
 **交付物**：
 - ✅ 完整的类型定义系统
@@ -128,23 +138,23 @@
 
 #### 任务列表
 
-- [ ] 创建Zustand Store
-  - [ ] `store/useStore.ts` - 主Store
-  - [ ] `store/nodeSlice.ts` - 节点状态
-  - [ ] `store/treeSlice.ts` - 树状态
-  - [ ] `store/contextSlice.ts` - 上下文状态
-  - [ ] `store/uiSlice.ts` - UI状态
+- [x] 创建Zustand Store
+  - [x] `store/useStore.ts` - 主Store
+  - [x] `store/nodeSlice.ts` - 节点状态
+  - [x] `store/treeSlice.ts` - 树状态
+  - [x] `store/contextSlice.ts` - 上下文状态
+  - [x] `store/uiSlice.ts` - UI状态
 
-- [ ] 实现状态持久化
-  - [ ] 将IndexedDB与Store同步
-  - [ ] 自动保存机制
-  - [ ] 错误处理和重试
+- [x] 实现状态持久化
+  - [x] 将IndexedDB与Store同步
+  - [x] 自动保存机制
+  - [x] 错误处理和重试
 
-- [ ] 实现React Hooks
-  - [ ] `lib/hooks/useTree.ts`
-  - [ ] `lib/hooks/useNode.ts`
-  - [ ] `lib/hooks/useContext.ts`
-  - [ ] `lib/hooks/useStore.ts`
+- [x] 实现React Hooks
+  - [x] `lib/hooks/useTree.ts`
+  - [x] `lib/hooks/useNode.ts`
+  - [x] `lib/hooks/useContext.ts`
+  - [x] `lib/hooks/useStore.ts`
 
 **交付物**：
 - ✅ 完整的Zustand Store实现
@@ -164,35 +174,35 @@
 
 #### 任务列表
 
-- [ ] 创建基础UI组件
-  - [ ] `components/common/Button.tsx`
-  - [ ] `components/common/Input.tsx`
-  - [ ] `components/common/Modal.tsx`
+- [x] 创建基础UI组件
+  - [x] `components/common/Button.tsx`
+  - [x] `components/common/Input.tsx`
+  - [x] `components/common/Modal.tsx`
 
-- [ ] 实现ChatView组件
-  - [ ] `components/chat/ChatView.tsx` - 对话视图容器
-  - [ ] `components/chat/MessageList.tsx` - 消息列表
-  - [ ] `components/chat/MessageItem.tsx` - 单条消息
-  - [ ] `components/chat/InputArea.tsx` - 输入区域
+- [x] 实现ChatView组件
+  - [x] `components/chat/ChatView.tsx` - 对话视图容器
+  - [x] `components/chat/MessageList.tsx` - 消息列表
+  - [x] `components/chat/MessageItem.tsx` - 单条消息
+  - [x] `components/chat/InputArea.tsx` - 输入区域
 
-- [ ] 实现OpenAI API集成
-  - [ ] `lib/services/llmService.ts` - LLM服务
-  - [ ] `lib/services/openaiClient.ts` - OpenAI客户端
-  - [ ] API Key管理（localStorage）
+- [x] 实现OpenAI API集成
+  - [x] `lib/services/llmService.ts` - LLM服务
+  - [x] `lib/services/openaiClient.ts` - OpenAI客户端
+  - [x] API Key管理（localStorage）
 
-- [ ] 实现消息发送流程
-  - [ ] 用户输入 -> 创建用户节点
-  - [ ] 调用OpenAI API
-  - [ ] 创建AI回复节点
-  - [ ] 更新UI显示
+- [x] 实现消息发送流程
+  - [x] 用户输入 -> 创建用户节点
+  - [x] 调用OpenAI API
+  - [x] 创建AI回复节点
+  - [x] 更新UI显示
 
-- [ ] 实现Token计算
-  - [ ] `lib/services/tokenService.ts`
-  - [ ] 简单的Token估算算法
+- [x] 实现Token计算
+  - [x] `lib/services/tokenService.ts`
+  - [x] 简单的Token估算算法
 
-- [ ] 添加加载状态和错误处理
-  - [ ] 发送消息时的加载动画
-  - [ ] API调用失败的错误提示
+- [x] 添加加载状态和错误处理
+  - [x] 发送消息时的加载动画
+  - [x] API调用失败的错误提示
 
 **交付物**：
 - ✅ 可用的单分支对话功能
@@ -215,35 +225,35 @@
 
 #### 任务列表
 
-- [ ] 集成React Flow
-  - [ ] 安装依赖
-  - [ ] `components/tree/TreeView.tsx` - 树视图容器
-  - [ ] 配置基础布局
+- [x] 集成React Flow
+  - [x] 安装依赖
+  - [x] `components/tree/TreeView.tsx` - 树视图容器
+  - [x] 配置基础布局
 
-- [ ] 实现自定义节点组件
-  - [ ] `components/tree/TreeNode.tsx` - 自定义节点
-  - [ ] 节点样式设计（用户/AI/系统节点）
-  - [ ] 节点交互（点击、双击、右键菜单）
+- [x] 实现自定义节点组件
+  - [x] `components/tree/TreeNode.tsx` - 自定义节点
+  - [x] 节点样式设计（用户/AI/系统节点）
+  - [x] 节点交互（点击、右键菜单、编辑）
 
-- [ ] 实现自定义连线组件
-  - [ ] `components/tree/TreeEdge.tsx` - 自定义连线
-  - [ ] 连线样式设计
+- [x] 实现自定义连线组件
+  - [x] `components/tree/TreeEdge.tsx` - 自定义连线
+  - [x] 连线样式设计
 
-- [ ] 实现DAG服务
-  - [ ] `lib/services/dagService.ts`
-  - [ ] 树到React Flow图的转换
-  - [ ] 节点布局算法
+- [x] 实现DAG服务
+  - [x] `lib/services/dagService.ts`
+  - [x] 树到React Flow图的转换
+  - [x] 节点布局算法
 
-- [ ] 实现树操作功能
-  - [ ] 节点点击选择
-  - [ ] 路径高亮
-  - [ ] 缩放和平移
-  - [ ] MiniMap显示
+- [x] 实现树操作功能
+  - [x] 节点点击选择
+  - [x] 路径高亮
+  - [x] 缩放和平移
+  - [x] MiniMap显示
 
-- [ ] 添加树控制栏
-  - [ ] `components/tree/TreeControls.tsx`
-  - [ ] 自动布局按钮
-  - [ ] 适应视图按钮
+- [x] 添加树控制栏
+  - [x] `components/tree/TreeControls.tsx`
+  - [x] 自动布局按钮
+  - [x] 适应视图按钮
 
 **交付物**：
 - ✅ 可视化的树状图
@@ -265,22 +275,22 @@
 #### 任务列表
 
 - [ ] 实现分支创建
-  - [ ] 在任意节点上创建新分支
+  - [x] 在任意节点上创建新分支
   - [ ] 分支命名
-  - [ ] 分支切换
+  - [x] 分支切换
 
 - [ ] 实现分支编辑
-  - [ ] 编辑节点内容
-  - [ ] 删除节点
-  - [ ] 删除整条分支
+  - [x] 编辑节点内容
+  - [x] 删除节点
+  - [x] 删除整条分支
 
 - [ ] 添加分支管理UI
-  - [ ] 右键菜单
+  - [x] 右键菜单
   - [ ] 分支列表侧边栏
   - [ ] 分支切换动画
 
 - [ ] 实现节点拖拽
-  - [ ] 拖拽节点改变位置
+  - [x] 拖拽节点改变位置
   - [ ] 拖拽节点改变父节点
 
 **交付物**：
@@ -301,35 +311,29 @@
 
 #### 任务列表
 
-- [ ] 实现ContextPanel组件
-  - [ ] `components/context/ContextPanel.tsx` - 上下文面板
-  - [ ] `components/context/ContextBox.tsx` - 上下文箱子
-  - [ ] `components/context/ContextCard.tsx` - 上下文卡片
+- [x] 实现ContextPanel组件
+  - [x] `components/layout/ContextPanel.tsx` - 上下文面板（含 ContextCard/预览/压缩入口）
 
-- [ ] 实现Token计量器
-  - [ ] `components/context/TokenMeter.tsx`
-  - [ ] 进度条显示
-  - [ ] 百分比计算
-  - [ ] 超限警告
+- [x] 实现Token计量器
+  - [x] 进度条显示
+  - [x] 百分比计算
+  - [x] 超限显示（进度条上限）
 
-- [ ] 实现上下文预览
-  - [ ] `components/context/ContextPreview.tsx`
-  - [ ] 查看完整上下文内容
-  - [ ] 显示Token分布
+- [x] 实现上下文预览
+  - [x] 查看完整上下文内容
 
-- [ ] 实现节点拖拽到上下文
-  - [ ] 从树状图拖拽节点到上下文箱子
-  - [ ] 拖拽排序
-  - [ ] 拖拽移除
+- [x] 实现节点拖拽到上下文
+  - [x] 从树状图拖拽节点到上下文箱子
+  - [x] 拖拽排序
+  - [x] 拖拽移除
 
-- [ ] 实现上下文构建服务
-  - [ ] `lib/services/contextService.ts`
-  - [ ] 选择上下文节点
-  - [ ] 构建最终上下文
+- [x] 实现上下文构建服务
+  - [x] `store/contextSlice.ts` - 构建最终上下文（buildContextContent）
+  - [x] `lib/services/contextBoxService.ts` - ContextBox 持久化
 
-- [ ] 集成到消息发送流程
-  - [ ] 发送消息时使用上下文箱子
-  - [ ] 显示上下文Token占用
+- [x] 集成到消息发送流程
+  - [x] 发送消息时使用上下文箱子
+  - [x] 显示上下文Token占用
 
 **交付物**：
 - ✅ 上下文组装台UI
@@ -353,31 +357,31 @@
 
 #### 任务列表
 
-- [ ] 实现压缩服务
-  - [ ] `lib/services/compressionService.ts`
-  - [ ] 节点压缩逻辑
-  - [ ] 元指令提取算法
+- [x] 实现压缩服务
+  - [x] `lib/services/compressionService.ts`
+  - [x] 节点压缩逻辑
+  - [x] 元指令提取算法
 
-- [ ] 实现AI辅助压缩
-  - [ ] 调用LLM生成摘要
-  - [ ] 提取元指令
-  - [ ] 生成压缩节点
+- [x] 实现AI辅助压缩
+  - [x] 调用LLM生成摘要/建议（Generate with AI）
+  - [x] 提取元指令
+  - [x] 生成压缩节点
 
 - [ ] 实现压缩UI
-  - [ ] 框选节点
+  - [x] 框选节点
   - [ ] 右键菜单"压缩"
-  - [ ] 压缩预览
-  - [ ] 确认压缩
+  - [x] 压缩预览
+  - [x] 确认压缩
 
 - [ ] 实现压缩节点显示
-  - [ ] 蓝色背景标识
-  - [ ] 摘要显示
-  - [ ] 展开/折叠
+  - [x] 主题背景标识
+  - [x] 摘要显示
+  - [x] 展开/折叠
 
 - [ ] 实现压缩节点操作
-  - [ ] 查看压缩内容
+  - [x] 查看压缩内容（摘要/预览）
   - [ ] 解压缩
-  - [ ] 编辑摘要
+  - [x] 编辑摘要
 
 **交付物**：
 - ✅ 节点压缩功能
@@ -399,16 +403,16 @@
 
 #### 任务列表
 
-- [ ] 实现侧边栏
-  - [ ] `components/layout/Sidebar.tsx`
-  - [ ] 树列表显示
-  - [ ] 树切换
-  - [ ] 树创建和删除
+- [x] 实现侧边栏
+  - [x] `components/layout/Sidebar.tsx`
+  - [x] 树列表显示
+  - [x] 树切换
+  - [x] 树创建和删除
 
 - [ ] 实现Header
   - [ ] `components/layout/Header.tsx`
-  - [ ] 标题显示
-  - [ ] 设置按钮
+  - [x] 标题显示
+  - [x] 设置按钮
   - [ ] 主题切换
 
 - [ ] 实现主题系统
@@ -424,7 +428,7 @@
   - [ ] 空状态提示
 
 - [ ] 实现设置页面
-  - [ ] API Key配置
+  - [x] API Key配置
   - [ ] 模型选择
   - [ ] 主题设置
   - [ ] 数据管理（清空、导出）

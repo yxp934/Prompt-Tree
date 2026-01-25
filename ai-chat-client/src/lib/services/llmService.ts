@@ -8,6 +8,7 @@ export interface ChatParams {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  responseFormat?: unknown;
 }
 
 export interface ILLMService {

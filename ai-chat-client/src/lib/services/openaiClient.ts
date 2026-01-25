@@ -9,6 +9,7 @@ export interface OpenAIChatParams {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  responseFormat?: unknown;
 }
 
 type OpenAIChatCompletionResponse = {
@@ -40,6 +41,7 @@ export async function openAIChatCompletion(
         messages: params.messages,
         temperature: params.temperature ?? 0.7,
         max_tokens: params.maxTokens,
+        response_format: params.responseFormat,
       }),
     },
   );

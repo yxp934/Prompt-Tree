@@ -10,6 +10,7 @@ function normalizeMetadata(metadata: Partial<NodeMetadata> | undefined): NodeMet
     tags: metadata?.tags ?? [],
     metaInstructions: metadata?.metaInstructions ?? {},
     compressedNodeIds: metadata?.compressedNodeIds,
+    collapsed: metadata?.collapsed,
   };
 }
 

@@ -1,5 +1,6 @@
 import type { StateCreator } from "zustand";
 
+import { computePathIds } from "@/lib/services/dagService";
 import { NodeType, type ContextBox, type Node } from "@/types";
 
 import type { AppStoreDeps, AppStoreState } from "./useStore";
@@ -19,6 +20,8 @@ export interface ContextSlice {
   addToContext: (nodeId: string) => Promise<void>;
   removeFromContext: (nodeId: string) => void;
   clearContext: () => void;
+  reorderContext: (nodeIds: string[]) => void;
+  syncContextToNode: (nodeId: string) => Promise<void>;
   buildContextContent: () => Promise<string>;
 }
 
@@ -35,11 +38,20 @@ export function createContextSlice(
       if (!box) return;
       if (box.nodeIds.includes(nodeId)) return;
 
-      const node = get().nodes.get(nodeId) ?? (await deps.nodeService.read(nodeId));
+      const existingNodes = get().nodes;
+      const node =
+        existingNodes.get(nodeId) ?? (await deps.nodeService.read(nodeId));
       if (!node) return;
 
+      const nodesMap = existingNodes.has(nodeId)
+        ? existingNodes
+        : new Map(existingNodes).set(nodeId, node);
+      if (nodesMap !== existingNodes) {
+        set({ nodes: nodesMap });
+      }
+
       const nodeIds = [...box.nodeIds, nodeId];
-      const totalTokens = computeTotalTokens(nodeIds, get().nodes);
+      const totalTokens = computeTotalTokens(nodeIds, nodesMap);
 
       const next: ContextBox = { ...box, nodeIds, totalTokens };
       set({ contextBox: next });
@@ -65,6 +77,62 @@ export function createContextSlice(
       const next: ContextBox = { ...box, nodeIds: [], totalTokens: 0 };
       set({ contextBox: next });
       void deps.contextBoxService.put(next);
+    },
+
+    reorderContext: (nodeIds) => {
+      const box = get().contextBox;
+      if (!box) return;
+
+      const unique = Array.from(new Set(nodeIds));
+      const totalTokens = computeTotalTokens(unique, get().nodes);
+      const next: ContextBox = { ...box, nodeIds: unique, totalTokens };
+
+      set({ contextBox: next });
+      void deps.contextBoxService.put(next);
+    },
+    syncContextToNode: async (nodeId) => {
+      const box = get().contextBox;
+      if (!box) return;
+
+      const nodes = get().nodes;
+      if (!nodes.has(nodeId)) return;
+
+      const pathIds = computePathIds(nodes, nodeId);
+      if (pathIds.length === 0) return;
+
+      const pathSet = new Set(pathIds);
+      const hidden = new Set<string>();
+      for (const id of pathIds) {
+        const node = nodes.get(id);
+        if (!node) continue;
+        if (node.type !== NodeType.COMPRESSED) continue;
+        if (!node.metadata.collapsed) continue;
+        const compressedIds = node.metadata.compressedNodeIds ?? [];
+        for (const compressedId of compressedIds) {
+          if (pathSet.has(compressedId)) hidden.add(compressedId);
+        }
+      }
+
+      const filteredPathIds = pathIds.filter((id) => !hidden.has(id));
+
+      const unique: string[] = [];
+      const seen = new Set<string>();
+      for (const id of filteredPathIds) {
+        if (!id || seen.has(id)) continue;
+        if (!nodes.has(id)) continue;
+        seen.add(id);
+        unique.push(id);
+      }
+
+      const same =
+        unique.length === box.nodeIds.length &&
+        unique.every((id, index) => id === box.nodeIds[index]);
+      if (same) return;
+
+      const totalTokens = computeTotalTokens(unique, nodes);
+      const next: ContextBox = { ...box, nodeIds: unique, totalTokens };
+      set({ contextBox: next });
+      await deps.contextBoxService.put(next);
     },
 
     buildContextContent: async () => {
@@ -95,4 +163,3 @@ export function createContextSlice(
     },
   });
 }
-

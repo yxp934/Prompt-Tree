@@ -1,17 +1,27 @@
 import type { StateCreator } from "zustand";
 
-import { NodeType, type ChatMessage, type Node } from "@/types";
+import { NodeType, type ChatMessage, type Node, type NodeMetaInstructions } from "@/types";
 
 import type { AppStoreDeps, AppStoreState } from "./useStore";
 
 export interface LLMSlice {
   isSending: boolean;
   llmError: string | null;
+  isCompressing: boolean;
+  compressionError: string | null;
   model: string;
   temperature: number;
   maxTokens: number;
   sendMessage: (content: string, contextNodeIds?: string[]) => Promise<Node>;
-  compressNodes: (nodeIds: string[]) => Promise<Node>;
+  compressNodes: (
+    nodeIds: string[],
+    options?: { summary?: string; metaInstructions?: NodeMetaInstructions },
+  ) => Promise<Node>;
+  decompressNode: (nodeId: string) => Promise<Node[]>;
+  generateCompressionSuggestion: (nodeIds: string[]) => Promise<{
+    summary: string;
+    metaInstructions: NodeMetaInstructions;
+  }>;
   generateSummary: (content: string) => Promise<string>;
 }
 
@@ -37,6 +47,8 @@ export function createLLMSlice(
   return (set, get) => ({
     isSending: false,
     llmError: null,
+    isCompressing: false,
+    compressionError: null,
     model: "gpt-4o-mini",
     temperature: 0.7,
     maxTokens: 1024,
@@ -64,10 +76,17 @@ export function createLLMSlice(
 
         await get().addToContext(userNode.id);
 
-        const contextNodes: Node[] = contextNodeIds?.length
+        const resolvedContextIds =
+          contextNodeIds?.length
+            ? contextNodeIds
+            : get().contextBox?.nodeIds?.length
+              ? get().contextBox!.nodeIds
+              : null;
+
+        const contextNodes: Node[] = resolvedContextIds
           ? (
               await Promise.all(
-                contextNodeIds.map(
+                resolvedContextIds.map(
                   async (id) => get().nodes.get(id) ?? deps.nodeService.read(id),
                 ),
               )
@@ -125,11 +144,165 @@ export function createLLMSlice(
         set({ isSending: false });
       }
     },
-    compressNodes: async () => {
-      throw new Error("compressNodes() is not implemented yet.");
+    compressNodes: async (nodeIds, options) => {
+      const treeId = get().currentTreeId;
+      if (!treeId) throw new Error("No active conversation tree loaded.");
+
+      set({ isCompressing: true, compressionError: null });
+      try {
+        const compressed = await deps.compressionService.compress(nodeIds, {
+          summary: options?.summary,
+          metaInstructions: options?.metaInstructions,
+        });
+
+        await deps.treeService.touch(treeId);
+        await get().loadTree(treeId);
+
+        const box = get().contextBox;
+        if (box) {
+          const selected = new Set(nodeIds);
+          const nextIds: string[] = [];
+          let inserted = false;
+
+          for (const id of box.nodeIds) {
+            if (selected.has(id)) {
+              if (!inserted) {
+                nextIds.push(compressed.id);
+                inserted = true;
+              }
+              continue;
+            }
+            nextIds.push(id);
+          }
+
+          const unique: string[] = [];
+          const seen = new Set<string>();
+          for (const id of nextIds) {
+            if (!id || seen.has(id)) continue;
+            if (!get().nodes.has(id)) continue;
+            seen.add(id);
+            unique.push(id);
+          }
+
+          if (inserted) {
+            const totalTokens = unique.reduce(
+              (sum, id) => sum + (get().nodes.get(id)?.tokenCount ?? 0),
+              0,
+            );
+
+            const nextBox = { ...box, nodeIds: unique, totalTokens };
+            set({ contextBox: nextBox });
+            await deps.contextBoxService.put(nextBox);
+          }
+        }
+
+        return compressed;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to compress nodes";
+        set({ compressionError: message });
+        throw err;
+      } finally {
+        set({ isCompressing: false });
+      }
     },
-    generateSummary: async () => {
-      throw new Error("generateSummary() is not implemented yet.");
+    decompressNode: async (nodeId) => {
+      const treeId = get().currentTreeId;
+      if (!treeId) throw new Error("No active conversation tree loaded.");
+
+      const priorBoxIds = get().contextBox?.nodeIds ?? [];
+
+      set({ isCompressing: true, compressionError: null });
+      try {
+        const restored = await deps.compressionService.decompress(nodeId);
+        const restoredIds = restored.map((n) => n.id);
+
+        await deps.treeService.touch(treeId);
+        await get().loadTree(treeId);
+
+        const box = get().contextBox;
+        if (box && priorBoxIds.includes(nodeId)) {
+          const nextIds: string[] = [];
+          for (const id of priorBoxIds) {
+            if (id === nodeId) {
+              nextIds.push(...restoredIds);
+              continue;
+            }
+            nextIds.push(id);
+          }
+
+          const unique: string[] = [];
+          const seen = new Set<string>();
+          for (const id of nextIds) {
+            if (!id || seen.has(id)) continue;
+            if (!get().nodes.has(id)) continue;
+            seen.add(id);
+            unique.push(id);
+          }
+
+          const totalTokens = unique.reduce(
+            (sum, id) => sum + (get().nodes.get(id)?.tokenCount ?? 0),
+            0,
+          );
+
+          const nextBox = { ...box, nodeIds: unique, totalTokens };
+          set({ contextBox: nextBox });
+          await deps.contextBoxService.put(nextBox);
+        }
+
+        return restored;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to decompress node";
+        set({ compressionError: message });
+        throw err;
+      } finally {
+        set({ isCompressing: false });
+      }
+    },
+    generateCompressionSuggestion: async (nodeIds) => {
+      set({ isCompressing: true, compressionError: null });
+      try {
+        const nodes = await Promise.all(
+          nodeIds.map(async (id) => get().nodes.get(id) ?? deps.nodeService.read(id)),
+        ).then((items) => items.filter((n): n is Node => Boolean(n)));
+
+        const suggestion = await deps.compressionService.generateSuggestion(
+          deps.llmService,
+          nodes,
+          {
+            model: get().model,
+            temperature: 0.2,
+            maxTokens: 512,
+            responseFormat: { type: "json_object" },
+          },
+        );
+
+        return suggestion;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to generate suggestion";
+        set({ compressionError: message });
+        throw err;
+      } finally {
+        set({ isCompressing: false });
+      }
+    },
+    generateSummary: async (content) => {
+      const prompt = [
+        "You are a helpful assistant. Summarize the following content in 2-3 sentences.",
+        "",
+        content,
+      ].join("\n");
+
+      const text = await deps.llmService.chat({
+        messages: [{ role: "user", content: prompt }],
+        model: get().model,
+        temperature: 0.2,
+        maxTokens: 256,
+      });
+
+      return text.trim();
     },
   });
 }

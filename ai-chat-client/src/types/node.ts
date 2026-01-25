@@ -18,6 +18,7 @@ export interface NodeMetadata {
   tags: string[];
   metaInstructions: NodeMetaInstructions;
   compressedNodeIds?: string[];
+  collapsed?: boolean;
 }
 
 export interface NodePosition {
@@ -38,4 +39,3 @@ export interface Node {
   position?: NodePosition;
   style?: CSSProperties;
 }
-

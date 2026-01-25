@@ -18,6 +18,7 @@ import { Modal } from "@/components/common/Modal";
 import {
   buildFlowGraph,
   computeAutoLayout,
+  computePathIds,
   type TreeFlowEdgeData,
   type TreeFlowNodeData,
 } from "@/lib/services/dagService";
@@ -76,6 +77,8 @@ export function TreeView() {
   const addToContext = useAppStore((s) => s.addToContext);
   const deleteNode = useAppStore((s) => s.deleteNode);
   const updateNode = useAppStore((s) => s.updateNode);
+  const openCompression = useAppStore((s) => s.openCompression);
+  const decompressNode = useAppStore((s) => s.decompressNode);
 
   const graph = useMemo(() => {
     if (!currentTree) return { nodes: [], edges: [], branchCount: 0 };
@@ -358,6 +361,13 @@ export function TreeView() {
 
   const menuNode = contextMenu ? nodesMap.get(contextMenu.nodeId) ?? null : null;
   const isRoot = Boolean(menuNode && currentTree && menuNode.id === currentTree.rootId);
+  const compressPathIds = useMemo(() => {
+    if (!menuNode || !currentTree) return [] as string[];
+    const path = computePathIds(nodesMap, menuNode.id);
+    return path.filter((id) => id !== currentTree.rootId);
+  }, [currentTree, menuNode, nodesMap]);
+  const canCompressPath = compressPathIds.length >= 2;
+  const canDecompress = Boolean(menuNode && menuNode.type === NodeType.COMPRESSED);
 
   return (
     <div className="relative h-full w-full">
@@ -413,6 +423,31 @@ export function TreeView() {
               }}
             >
               Continue from here
+            </MenuItem>
+            <MenuItem
+              disabled={!canCompressPath}
+              onClick={() => {
+                if (!canCompressPath) return;
+                setSelectedNodeIds(compressPathIds);
+                openCompression();
+                closeContextMenu();
+              }}
+            >
+              Compress branch
+            </MenuItem>
+            <MenuItem
+              disabled={!canDecompress}
+              onClick={() => {
+                if (!menuNode || !canDecompress) return;
+                const ok = window.confirm(
+                  "Decompress this node and restore the full chain?",
+                );
+                if (!ok) return;
+                void decompressNode(menuNode.id);
+                closeContextMenu();
+              }}
+            >
+              Decompress
             </MenuItem>
             <MenuItem
               onClick={() => {

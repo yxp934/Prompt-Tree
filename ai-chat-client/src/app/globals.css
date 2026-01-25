@@ -28,6 +28,25 @@
   --font-mono: "IBM Plex Mono", monospace;
 }
 
+:root[data-theme="dark"] {
+  --ink: #f5f2ed;
+  --charcoal: #e6dfd6;
+  --stone: #cfc6bb;
+  --clay: #b2a79c;
+  --sand: #9a8f83;
+  --parchment: #3d342c;
+  --cream: #2a2521;
+  --paper: #1c1815;
+
+  --copper: #d48a46;
+  --copper-light: #e4a266;
+  --copper-glow: rgba(212, 138, 70, 0.25);
+
+  --human: #7a695d;
+  --machine: #5a7452;
+  --system: #5f6e81;
+}
+
 /* ========== Tailwind Theme Integration ========== */
 @theme inline {
   /* Colors */
@@ -73,6 +92,7 @@ body {
   color: var(--ink);
   overflow: hidden;
   height: 100vh;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* ========== Custom Scrollbar ========== */

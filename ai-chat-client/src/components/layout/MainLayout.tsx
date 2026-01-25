@@ -10,6 +10,7 @@ import { useAppStore } from "@/store/useStore";
 import ContextPanel from "./ContextPanel";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import ThemeSync from "./ThemeSync";
 
 export default function MainLayout() {
   const initialize = useAppStore((s) => s.initialize);
@@ -19,6 +20,7 @@ export default function MainLayout() {
 
   return (
     <div className="grid h-screen grid-cols-[280px_1fr_340px]">
+      <ThemeSync />
       <Sidebar />
 
       <main className="relative flex flex-col bg-paper">

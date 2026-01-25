@@ -54,6 +54,8 @@ function typeClass(type: NodeType): string {
 
 const TreeNode = memo(function TreeNode({ data }: NodeProps<TreeFlowNodeData>) {
   const node = data.node;
+  const isCompressed = node.type === NodeType.COMPRESSED;
+  const isCollapsed = node.metadata.collapsed ?? false;
 
   const preview = useMemo(() => {
     if (node.type === NodeType.COMPRESSED) return node.summary ?? "(empty summary)";
@@ -109,6 +111,12 @@ const TreeNode = memo(function TreeNode({ data }: NodeProps<TreeFlowNodeData>) {
             {typeLabel(node.type)}
           </div>
         </div>
+
+        {isCompressed && (
+          <div className="flex h-5 w-5 items-center justify-center rounded-full border border-[rgba(255,255,255,0.4)] text-[0.7rem] font-semibold text-cream/80">
+            {isCollapsed ? "+" : "−"}
+          </div>
+        )}
 
         <div className="font-mono text-[0.7rem] opacity-80">
           {node.tokenCount.toLocaleString()}

@@ -9,6 +9,7 @@ export interface UISlice {
   theme: ThemeMode;
   compressionOpen: boolean;
   toggleSidebar: () => void;
+  setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
   openCompression: () => void;
   closeCompression: () => void;
@@ -20,6 +21,11 @@ export function createUISlice(): StateCreator<AppStoreState, [], [], UISlice> {
     theme: getStoredTheme() ?? "light",
     compressionOpen: false,
     toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+    setTheme: (theme) =>
+      set(() => {
+        setStoredTheme(theme);
+        return { theme };
+      }),
     toggleTheme: () =>
       set((state) => {
         const nextTheme: ThemeMode = state.theme === "light" ? "dark" : "light";

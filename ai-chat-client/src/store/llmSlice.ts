@@ -1,6 +1,13 @@
 import type { StateCreator } from "zustand";
 
 import { NodeType, type ChatMessage, type Node, type NodeMetaInstructions } from "@/types";
+import {
+  DEFAULT_LLM_SETTINGS,
+  getStoredLLMSettings,
+  normalizeLLMSettings,
+  setStoredLLMSettings,
+  type LLMSettings,
+} from "@/lib/services/llmSettingsService";
 
 import type { AppStoreDeps, AppStoreState } from "./useStore";
 
@@ -12,6 +19,7 @@ export interface LLMSlice {
   model: string;
   temperature: number;
   maxTokens: number;
+  setLLMSettings: (settings: Partial<LLMSettings>) => void;
   sendMessage: (content: string, contextNodeIds?: string[]) => Promise<Node>;
   compressNodes: (
     nodeIds: string[],
@@ -44,14 +52,30 @@ function nodeToChatMessage(node: Node): ChatMessage | null {
 export function createLLMSlice(
   deps: AppStoreDeps,
 ): StateCreator<AppStoreState, [], [], LLMSlice> {
+  const storedSettings = getStoredLLMSettings();
+  const initialSettings = storedSettings ?? DEFAULT_LLM_SETTINGS;
+
   return (set, get) => ({
     isSending: false,
     llmError: null,
     isCompressing: false,
     compressionError: null,
-    model: "gpt-4o-mini",
-    temperature: 0.7,
-    maxTokens: 1024,
+    model: initialSettings.model,
+    temperature: initialSettings.temperature,
+    maxTokens: initialSettings.maxTokens,
+    setLLMSettings: (settings) =>
+      set((state) => {
+        const next = normalizeLLMSettings(
+          {
+            model: settings.model ?? state.model,
+            temperature: settings.temperature ?? state.temperature,
+            maxTokens: settings.maxTokens ?? state.maxTokens,
+          },
+          DEFAULT_LLM_SETTINGS,
+        );
+        setStoredLLMSettings(next);
+        return next;
+      }),
     sendMessage: async (content: string, contextNodeIds?: string[]) => {
       const trimmed = content.trim();
       if (!trimmed) throw new Error("Message is empty.");

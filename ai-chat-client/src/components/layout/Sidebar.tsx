@@ -12,6 +12,8 @@ import {
   getOpenAIBaseUrl,
   setOpenAIBaseUrl,
 } from "@/lib/services/apiUrlService";
+import { DEFAULT_LLM_SETTINGS } from "@/lib/services/llmSettingsService";
+import type { ThemeMode } from "@/lib/services/themeService";
 import { useAppStore } from "@/store/useStore";
 import type { ConversationTree } from "@/types";
 
@@ -113,6 +115,12 @@ export default function Sidebar() {
   const treesMap = useAppStore((s) => s.trees);
   const currentTreeId = useAppStore((s) => s.currentTreeId);
   const currentNodesCount = useAppStore((s) => s.nodes.size);
+  const model = useAppStore((s) => s.model);
+  const temperature = useAppStore((s) => s.temperature);
+  const maxTokens = useAppStore((s) => s.maxTokens);
+  const setLLMSettings = useAppStore((s) => s.setLLMSettings);
+  const theme = useAppStore((s) => s.theme);
+  const setTheme = useAppStore((s) => s.setTheme);
 
   const createTree = useAppStore((s) => s.createTree);
   const loadTree = useAppStore((s) => s.loadTree);
@@ -126,6 +134,10 @@ export default function Sidebar() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [apiKey, setApiKeyState] = useState("");
   const [baseUrl, setBaseUrlState] = useState(DEFAULT_OPENAI_BASE_URL);
+  const [modelValue, setModelValue] = useState("");
+  const [temperatureValue, setTemperatureValue] = useState("");
+  const [maxTokensValue, setMaxTokensValue] = useState("");
+  const [themeValue, setThemeValue] = useState<ThemeMode>("light");
 
   return (
     <aside className="flex h-full flex-col border-r border-parchment bg-cream">
@@ -168,6 +180,10 @@ export default function Sidebar() {
           onClick={() => {
             setApiKeyState(getOpenAIApiKey() ?? "");
             setBaseUrlState(getOpenAIBaseUrl() ?? DEFAULT_OPENAI_BASE_URL);
+            setModelValue(model);
+            setTemperatureValue(temperature.toString());
+            setMaxTokensValue(maxTokens.toString());
+            setThemeValue(theme);
             setSettingsOpen(true);
           }}
         >
@@ -214,6 +230,61 @@ export default function Sidebar() {
             </div>
           </div>
 
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <div className="mb-2 font-mono text-[0.7rem] uppercase tracking-widest text-sand">
+                Model
+              </div>
+              <Input
+                value={modelValue}
+                onChange={(e) => setModelValue(e.target.value)}
+                placeholder="gpt-4o-mini"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <div className="mb-2 font-mono text-[0.7rem] uppercase tracking-widest text-sand">
+                Temperature
+              </div>
+              <Input
+                value={temperatureValue}
+                onChange={(e) => setTemperatureValue(e.target.value)}
+                placeholder="0.7"
+                type="number"
+                min="0"
+                max="2"
+                step="0.1"
+              />
+            </div>
+            <div>
+              <div className="mb-2 font-mono text-[0.7rem] uppercase tracking-widest text-sand">
+                Max Tokens
+              </div>
+              <Input
+                value={maxTokensValue}
+                onChange={(e) => setMaxTokensValue(e.target.value)}
+                placeholder="1024"
+                type="number"
+                min="1"
+                step="1"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 font-mono text-[0.7rem] uppercase tracking-widest text-sand">
+              Theme
+            </div>
+            <select
+              value={themeValue}
+              onChange={(e) => setThemeValue(e.target.value as ThemeMode)}
+              className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+            >
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+
           <div className="flex justify-end gap-2">
             <Button
               variant="ghost"
@@ -222,6 +293,10 @@ export default function Sidebar() {
                 setApiKeyState("");
                 setOpenAIBaseUrl("");
                 setBaseUrlState(DEFAULT_OPENAI_BASE_URL);
+                setModelValue(DEFAULT_LLM_SETTINGS.model);
+                setTemperatureValue(DEFAULT_LLM_SETTINGS.temperature.toString());
+                setMaxTokensValue(DEFAULT_LLM_SETTINGS.maxTokens.toString());
+                setThemeValue("light");
               }}
             >
               Clear
@@ -231,6 +306,14 @@ export default function Sidebar() {
               onClick={() => {
                 setOpenAIApiKey(apiKey);
                 setOpenAIBaseUrl(baseUrl);
+                const nextTemperature = Number.parseFloat(temperatureValue);
+                const nextMaxTokens = Number.parseInt(maxTokensValue, 10);
+                setLLMSettings({
+                  model: modelValue,
+                  temperature: Number.isFinite(nextTemperature) ? nextTemperature : temperature,
+                  maxTokens: Number.isFinite(nextMaxTokens) ? nextMaxTokens : maxTokens,
+                });
+                setTheme(themeValue);
                 setSettingsOpen(false);
               }}
             >

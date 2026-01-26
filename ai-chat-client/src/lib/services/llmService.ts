@@ -5,6 +5,8 @@ import { getOpenAIBaseUrlOrDefault } from "./apiUrlService";
 
 export interface ChatParams {
   messages: ChatMessage[];
+  apiKey?: string;
+  baseUrl?: string;
   model?: string;
   temperature?: number;
   maxTokens?: number;
@@ -21,16 +23,17 @@ export interface ILLMService {
  */
 export class LLMService implements ILLMService {
   async chat(params: ChatParams): Promise<string> {
-    const apiKey = getOpenAIApiKey();
+    const { apiKey: apiKeyOverride, baseUrl: baseUrlOverride, ...rest } = params;
+    const apiKey = apiKeyOverride ?? getOpenAIApiKey();
     if (!apiKey) {
       throw new Error("Missing OpenAI API key. Add it in Settings.");
     }
 
-    const baseUrl = getOpenAIBaseUrlOrDefault();
+    const baseUrl = baseUrlOverride ?? getOpenAIBaseUrlOrDefault();
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apiKey, baseUrl, ...params }),
+      body: JSON.stringify({ apiKey, baseUrl, ...rest }),
     });
 
     if (!response.ok) {

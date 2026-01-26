@@ -8,7 +8,7 @@ import {
   setStoredLLMSettings,
   type LLMSettings,
 } from "@/lib/services/llmSettingsService";
-import type { ProviderModelSelection } from "@/types/provider";
+import { getPrimaryApiKey, type ProviderModelSelection } from "@/types/provider";
 
 import type { AppStoreDeps, AppStoreState } from "./useStore";
 
@@ -147,26 +147,111 @@ export function createLLMSlice(
           messages.push({ role: "user", content: trimmed });
         }
 
-        const assistantText = await deps.llmService.chat({
-          messages,
-          model: get().model,
-          temperature: get().temperature,
-          maxTokens: get().maxTokens,
-        });
+        const selectedModels = get().selectedModels;
+        const providers = get().providers;
 
-        const assistantNode = await deps.nodeService.create({
-          type: NodeType.ASSISTANT,
-          parentId: userNode.id,
-          content: assistantText,
-        });
+        type ModelRequest = {
+          modelId: string;
+          modelName: string;
+          providerId?: string;
+          providerName?: string;
+          apiKey?: string;
+          baseUrl?: string;
+        };
+
+        const requests: ModelRequest[] = [];
+        for (const selection of selectedModels) {
+          const provider = providers.find((item) => item.id === selection.providerId);
+          if (!provider) continue;
+          const primaryKey = getPrimaryApiKey(provider);
+          if (!primaryKey) continue;
+          const modelName = provider.name
+            ? `${provider.name} · ${selection.modelId}`
+            : selection.modelId;
+          requests.push({
+            modelId: selection.modelId,
+            modelName,
+            providerId: provider.id,
+            providerName: provider.name,
+            apiKey: primaryKey.value,
+            baseUrl: provider.baseUrl,
+          });
+        }
+
+        if (selectedModels.length > 0 && requests.length === 0) {
+          throw new Error("Selected models are missing API keys or providers.");
+        }
+
+        if (requests.length === 0) {
+          const fallbackModel = get().model;
+          requests.push({
+            modelId: fallbackModel,
+            modelName: fallbackModel,
+          });
+        }
+
+        const results = await Promise.allSettled(
+          requests.map(async (request) => {
+            const content = await deps.llmService.chat({
+              messages,
+              model: request.modelId,
+              temperature: get().temperature,
+              maxTokens: get().maxTokens,
+              apiKey: request.apiKey,
+              baseUrl: request.baseUrl,
+            });
+            return { request, content };
+          }),
+        );
+
+        const assistantNodes: Node[] = [];
+        const errors: string[] = [];
+
+        for (const [index, result] of results.entries()) {
+          const request = requests[index];
+          if (result.status === "rejected") {
+            const reason =
+              result.reason instanceof Error ? result.reason.message : "Failed to send message";
+            errors.push(`${request.modelName}: ${reason}`);
+            continue;
+          }
+
+          const assistantNode = await deps.nodeService.create({
+            type: NodeType.ASSISTANT,
+            parentId: userNode.id,
+            content: result.value.content,
+            metadata: {
+              modelId: request.modelId,
+              modelName: request.modelName,
+              providerId: request.providerId,
+              providerName: request.providerName,
+            },
+          });
+          assistantNodes.push(assistantNode);
+        }
+
+        if (assistantNodes.length === 0) {
+          throw new Error(errors[0] ?? "Failed to send message");
+        }
 
         set((state) => {
           const nodes = new Map(state.nodes);
-          nodes.set(assistantNode.id, assistantNode);
-          return { nodes, activeNodeId: assistantNode.id };
+          for (const node of assistantNodes) {
+            nodes.set(node.id, node);
+          }
+          return {
+            nodes,
+            activeNodeId: assistantNodes[assistantNodes.length - 1]?.id ?? userNode.id,
+          };
         });
 
-        await get().addToContext(assistantNode.id);
+        for (const node of assistantNodes) {
+          await get().addToContext(node.id);
+        }
+
+        if (errors.length > 0) {
+          set({ llmError: errors[0] });
+        }
 
         if (get().currentTreeId) {
           const touched = await deps.treeService.touch(get().currentTreeId!);
@@ -177,7 +262,7 @@ export function createLLMSlice(
           });
         }
 
-        return assistantNode;
+        return assistantNodes[assistantNodes.length - 1];
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to send message";

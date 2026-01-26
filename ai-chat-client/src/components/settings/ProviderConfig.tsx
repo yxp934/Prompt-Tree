@@ -6,10 +6,10 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useAppStore } from "@/store/useStore";
-import { maskApiKey, normalizeBaseUrl } from "@/lib/services/providerApiService";
+import { normalizeBaseUrl } from "@/lib/services/providerApiService";
 import type { ApiKey, ModelConfig } from "@/types/provider";
 
 import {
@@ -225,6 +225,95 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ComponentT
 }
 
 /**
+ * 添加 API 密钥对话框
+ */
+function AddApiKeyDialog({
+  open,
+  onClose,
+  onAdd,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (value: string, name?: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [value, setValue] = useState("");
+
+  useEffect(() => {
+    if (!open) {
+      setName("");
+      setValue("");
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const trimmedValue = value.trim();
+    const trimmedName = name.trim();
+    if (!trimmedValue) return;
+    onAdd(trimmedValue, trimmedName || undefined);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[220] flex items-center justify-center bg-ink-black/20 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl bg-shoji-white p-8 shadow-lg border border-parchment/10">
+        <h3 className="mb-6 font-zen-display text-2xl font-light text-ink-black tracking-wide">
+          添加 API 密钥
+        </h3>
+
+        <form onSubmit={handleSubmit}>
+          <div className="mb-5">
+            <label className="mb-2 block font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+              Key Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="主密钥 / 备用密钥"
+              className="w-full rounded-xl border border-parchment/20 bg-washi-cream px-5 py-4 font-zen-body text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="mb-2 block font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+              API Key
+            </label>
+            <input
+              type="password"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              placeholder="sk-..."
+              className="w-full rounded-xl border border-parchment/20 bg-washi-cream px-5 py-4 font-mono text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
+              autoFocus
+            />
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              className="rounded-xl border border-parchment/20 px-6 py-3 font-zen-body text-sm text-stone-gray transition-all duration-200 hover:border-stone-gray/30 hover:text-ink-black"
+              onClick={onClose}
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              className="rounded-xl bg-matcha-green px-6 py-3 font-zen-body text-sm text-shoji-white transition-all duration-200 hover:bg-bamboo-light"
+            >
+              添加
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/**
  * 提供商配置面板主组件
  */
 export function ProviderConfig() {
@@ -243,8 +332,21 @@ export function ProviderConfig() {
   const [providerName, setProviderName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [isChecking, setIsChecking] = useState(false);
+  const [showAddKeyDialog, setShowAddKeyDialog] = useState(false);
+  const [checkError, setCheckError] = useState<string | null>(null);
 
   const selectedProvider = providers.find((p) => p.id === selectedProviderId) || null;
+
+  useEffect(() => {
+    if (selectedProvider) {
+      setProviderName(selectedProvider.name);
+      setBaseUrl(selectedProvider.baseUrl);
+    } else {
+      setProviderName("");
+      setBaseUrl("");
+    }
+    setCheckError(null);
+  }, [selectedProviderId]);
 
   const handleUpdateName = (name: string) => {
     setProviderName(name);
@@ -262,20 +364,25 @@ export function ProviderConfig() {
 
   const handleAddApiKey = () => {
     if (!selectedProvider) return;
-    const value = prompt("请输入 API 密钥：");
-    if (value?.trim()) {
-      addApiKey(selectedProvider.id, value.trim());
-    }
+    setShowAddKeyDialog(true);
   };
 
   const handleCheckConnection = async () => {
     if (!selectedProvider) return;
     setIsChecking(true);
+    setCheckError(null);
     try {
       await checkProviderHealth(selectedProvider.id);
+    } catch (err) {
+      setCheckError(err instanceof Error ? err.message : "连接失败");
     } finally {
       setIsChecking(false);
     }
+  };
+
+  const handleConfirmAddKey = (value: string, name?: string) => {
+    if (!selectedProvider) return;
+    addApiKey(selectedProvider.id, value, name);
   };
 
   const enabledModels = selectedProvider?.models.filter((m) => m.enabled) ?? [];
@@ -300,201 +407,216 @@ export function ProviderConfig() {
   }
 
   return (
-    <div className="flex h-full flex-1 flex-col bg-shoji-white">
-      {/* 头部 */}
-      <div className="flex items-center justify-between border-b border-parchment/10 px-8 py-8">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-matcha-green text-xl font-medium text-shoji-white shadow-sm">
-            {selectedProvider.name.charAt(0).toUpperCase()}
+    <>
+      <div className="flex h-full flex-1 flex-col bg-shoji-white">
+        {/* 头部 */}
+        <div className="flex items-center justify-between border-b border-parchment/10 px-8 py-8">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-matcha-green text-xl font-medium text-shoji-white shadow-sm">
+              {selectedProvider.name.charAt(0).toUpperCase()}
+            </div>
+            <input
+              type="text"
+              value={providerName}
+              onChange={(e) => handleUpdateName(e.target.value)}
+              className="bg-transparent font-zen-display text-2xl font-light text-ink-black outline-none tracking-wide"
+            />
           </div>
-          <input
-            type="text"
-            value={providerName}
-            onChange={(e) => handleUpdateName(e.target.value)}
-            className="bg-transparent font-zen-display text-2xl font-light text-ink-black outline-none tracking-wide"
-          />
-        </div>
-        <button
-          type="button"
-          className={`flex items-center gap-2.5 rounded-lg px-5 py-3 font-zen-body text-sm transition-all duration-300 ${
-            isChecking
-              ? "bg-washi-cream text-stone-gray cursor-wait"
-              : "bg-matcha-green/10 text-matcha-green hover:bg-matcha-green/20 font-light"
-          }`}
-          onClick={handleCheckConnection}
-          disabled={isChecking}
-        >
-          {isChecking ? (
-            <>
-              <RefreshIcon />
-              检测中...
-            </>
-          ) : (
-            <>
-              <RefreshIcon />
-              检测连接
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* 内容区域 */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl px-8 py-8">
-          {/* API 密钥 */}
-          <section className="mb-10">
-            <div className="mb-5 flex items-center gap-3">
-              <div className="rounded-lg bg-washi-cream p-2.5 text-stone-gray">
-                <KeyIcon />
-              </div>
-              <h3 className="font-zen-display text-xl font-light text-ink-black tracking-wide">
-                API 密钥
-              </h3>
-            </div>
-
-            <div className="space-y-3">
-              {selectedProvider.apiKeys.map((apiKey) => (
-                <ApiKeyInput
-                  key={apiKey.id}
-                  apiKey={apiKey}
-                  onUpdate={(updates) =>
-                    updateApiKey(selectedProvider.id, apiKey.id, updates)
-                  }
-                  onDelete={() => deleteApiKey(selectedProvider.id, apiKey.id)}
-                  onSetPrimary={() => setPrimaryApiKey(selectedProvider.id, apiKey.id)}
-                  isPrimary={apiKey.isPrimary || selectedProvider.apiKeys.length === 1}
-                />
-              ))}
-            </div>
-
+          <div className="flex flex-col items-end gap-2">
             <button
               type="button"
-              className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-xl border-1.5 border-dashed border-parchment/30 bg-washi-cream/50 px-5 py-4 font-zen-body text-sm text-stone-gray transition-all duration-300 hover:border-matcha-green/50 hover:bg-matcha-green/5 hover:text-matcha-green font-light"
-              onClick={handleAddApiKey}
+              className={`flex items-center gap-2.5 rounded-lg px-5 py-3 font-zen-body text-sm transition-all duration-300 ${
+                isChecking
+                  ? "bg-washi-cream text-stone-gray cursor-wait"
+                  : "bg-matcha-green/10 text-matcha-green hover:bg-matcha-green/20 font-light"
+              }`}
+              onClick={handleCheckConnection}
+              disabled={isChecking}
             >
-              <PlusIcon />
-              添加密钥
+              {isChecking ? (
+                <>
+                  <RefreshIcon />
+                  检测中...
+                </>
+              ) : (
+                <>
+                  <RefreshIcon />
+                  检测连接
+                </>
+              )}
             </button>
-          </section>
-
-          {/* API 地址 */}
-          <section className="mb-10">
-            <div className="mb-5 flex items-center gap-3">
-              <div className="rounded-lg bg-washi-cream p-2.5 text-stone-gray">
-                <LinkIcon />
-              </div>
-              <h3 className="font-zen-display text-xl font-light text-ink-black tracking-wide">
-                API 地址
-              </h3>
-            </div>
-
-            <div>
-              <input
-                type="text"
-                value={baseUrl}
-                onChange={(e) => handleUpdateBaseUrl(e.target.value)}
-                placeholder="https://api.openai.com/v1"
-                className="w-full rounded-xl border border-parchment/20 bg-washi-cream px-5 py-4 font-mono text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
-              />
-              <p className="mt-3 font-zen-body text-xs text-stone-gray font-light">
-                预览: {normalizeBaseUrl(baseUrl)}/chat/completions
+            {checkError && (
+              <p className="font-zen-body text-xs text-red-500 font-light">
+                {checkError}
               </p>
-            </div>
-          </section>
+            )}
+          </div>
+        </div>
 
-          {/* 模型列表 */}
-          <section>
-            <div className="mb-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+        {/* 内容区域 */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl px-8 py-8">
+            {/* API 密钥 */}
+            <section className="mb-10">
+              <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-lg bg-washi-cream p-2.5 text-stone-gray">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
-                    <rect x="4" y="4" width="16" height="16" rx="2" />
-                    <path d="M9 9h6v6H9z" />
-                  </svg>
+                  <KeyIcon />
                 </div>
                 <h3 className="font-zen-display text-xl font-light text-ink-black tracking-wide">
-                  模型
+                  API 密钥
                 </h3>
-                <span className="rounded-full bg-washi-cream px-3 py-1 font-mono text-xs text-stone-gray font-light">
-                  {selectedProvider.models.length}
-                </span>
               </div>
+
+              <div className="space-y-3">
+                {selectedProvider.apiKeys.map((apiKey) => (
+                  <ApiKeyInput
+                    key={apiKey.id}
+                    apiKey={apiKey}
+                    onUpdate={(updates) =>
+                      updateApiKey(selectedProvider.id, apiKey.id, updates)
+                    }
+                    onDelete={() => deleteApiKey(selectedProvider.id, apiKey.id)}
+                    onSetPrimary={() => setPrimaryApiKey(selectedProvider.id, apiKey.id)}
+                    isPrimary={apiKey.isPrimary || selectedProvider.apiKeys.length === 1}
+                  />
+                ))}
+              </div>
+
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-lg border border-parchment/20 bg-washi-cream px-4 py-2.5 font-zen-body text-sm text-stone-gray transition-all duration-300 hover:border-matcha-green/50 hover:text-matcha-green font-light"
-                onClick={() => openModelSelector(selectedProvider.id)}
+                className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-xl border-1.5 border-dashed border-parchment/30 bg-washi-cream/50 px-5 py-4 font-zen-body text-sm text-stone-gray transition-all duration-300 hover:border-matcha-green/50 hover:bg-matcha-green/5 hover:text-matcha-green font-light"
+                onClick={handleAddApiKey}
               >
-                <SearchIcon />
-                选择模型
+                <PlusIcon />
+                添加密钥
               </button>
-            </div>
+            </section>
 
-            {selectedProvider.models.length === 0 ? (
-              <EmptyState
-                icon={(props) => (
-                  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                    <rect x="4" y="4" width="16" height="16" rx="2" />
-                    <path d="M9 9h6v6H9z" />
-                  </svg>
-                )}
-                title="暂无模型"
-                description="点击「选择模型」添加"
-              />
-            ) : (
-              <div className="space-y-6">
-                {/* 已启用的模型 */}
-                {enabledModels.length > 0 && (
-                  <div>
-                    <div className="mb-3 font-mono text-xs text-stone-gray font-light">
-                      已启用 ({enabledModels.length})
-                    </div>
-                    <div className="space-y-2">
-                      {enabledModels.map((model) => (
-                        <ModelItem
-                          key={model.id}
-                          model={model}
-                          onRemove={() => removeModel(selectedProvider.id, model.id)}
-                          onToggleEnabled={() =>
-                            toggleModelEnabled(selectedProvider.id, model.id)
-                          }
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 未启用的模型 */}
-                {disabledModels.length > 0 && (
-                  <div>
-                    <div className="mb-3 font-mono text-xs text-stone-gray font-light">
-                      未启用 ({disabledModels.length})
-                    </div>
-                    <div className="space-y-2">
-                      {disabledModels.map((model) => (
-                        <ModelItem
-                          key={model.id}
-                          model={model}
-                          onRemove={() => removeModel(selectedProvider.id, model.id)}
-                          onToggleEnabled={() =>
-                            toggleModelEnabled(selectedProvider.id, model.id)
-                          }
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
+            {/* API 地址 */}
+            <section className="mb-10">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="rounded-lg bg-washi-cream p-2.5 text-stone-gray">
+                  <LinkIcon />
+                </div>
+                <h3 className="font-zen-display text-xl font-light text-ink-black tracking-wide">
+                  API 地址
+                </h3>
               </div>
-            )}
-          </section>
+
+              <div>
+                <input
+                  type="text"
+                  value={baseUrl}
+                  onChange={(e) => handleUpdateBaseUrl(e.target.value)}
+                  placeholder="https://api.openai.com/v1"
+                  className="w-full rounded-xl border border-parchment/20 bg-washi-cream px-5 py-4 font-mono text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
+                />
+                <p className="mt-3 font-zen-body text-xs text-stone-gray font-light">
+                  预览: {normalizeBaseUrl(baseUrl)}/chat/completions
+                </p>
+              </div>
+            </section>
+
+            {/* 模型列表 */}
+            <section>
+              <div className="mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-washi-cream p-2.5 text-stone-gray">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <rect x="4" y="4" width="16" height="16" rx="2" />
+                      <path d="M9 9h6v6H9z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-zen-display text-xl font-light text-ink-black tracking-wide">
+                    模型
+                  </h3>
+                  <span className="rounded-full bg-washi-cream px-3 py-1 font-mono text-xs text-stone-gray font-light">
+                    {selectedProvider.models.length}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-lg border border-parchment/20 bg-washi-cream px-4 py-2.5 font-zen-body text-sm text-stone-gray transition-all duration-300 hover:border-matcha-green/50 hover:text-matcha-green font-light"
+                  onClick={() => openModelSelector(selectedProvider.id)}
+                >
+                  <SearchIcon />
+                  选择模型
+                </button>
+              </div>
+
+              {selectedProvider.models.length === 0 ? (
+                <EmptyState
+                  icon={(props) => (
+                    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                      <rect x="4" y="4" width="16" height="16" rx="2" />
+                      <path d="M9 9h6v6H9z" />
+                    </svg>
+                  )}
+                  title="暂无模型"
+                  description="点击「选择模型」添加"
+                />
+              ) : (
+                <div className="space-y-6">
+                  {/* 已启用的模型 */}
+                  {enabledModels.length > 0 && (
+                    <div>
+                      <div className="mb-3 font-mono text-xs text-stone-gray font-light">
+                        已启用 ({enabledModels.length})
+                      </div>
+                      <div className="space-y-2">
+                        {enabledModels.map((model) => (
+                          <ModelItem
+                            key={model.id}
+                            model={model}
+                            onRemove={() => removeModel(selectedProvider.id, model.id)}
+                            onToggleEnabled={() =>
+                              toggleModelEnabled(selectedProvider.id, model.id)
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 未启用的模型 */}
+                  {disabledModels.length > 0 && (
+                    <div>
+                      <div className="mb-3 font-mono text-xs text-stone-gray font-light">
+                        未启用 ({disabledModels.length})
+                      </div>
+                      <div className="space-y-2">
+                        {disabledModels.map((model) => (
+                          <ModelItem
+                            key={model.id}
+                            model={model}
+                            onRemove={() => removeModel(selectedProvider.id, model.id)}
+                            onToggleEnabled={() =>
+                              toggleModelEnabled(selectedProvider.id, model.id)
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
         </div>
       </div>
-    </div>
+
+      <AddApiKeyDialog
+        open={showAddKeyDialog}
+        onClose={() => setShowAddKeyDialog(false)}
+        onAdd={handleConfirmAddKey}
+      />
+    </>
   );
 }

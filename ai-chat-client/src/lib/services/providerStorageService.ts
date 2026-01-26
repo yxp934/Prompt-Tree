@@ -88,3 +88,13 @@ export function setStoredHealthChecks(checks: Record<string, unknown>): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(HEALTH_CHECKS_STORAGE_KEY, JSON.stringify(checks));
 }
+
+export function clearStoredProviders(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(PROVIDERS_STORAGE_KEY);
+}
+
+export function clearStoredHealthChecks(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(HEALTH_CHECKS_STORAGE_KEY);
+}

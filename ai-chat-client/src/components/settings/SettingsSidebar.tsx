@@ -4,8 +4,6 @@
 
 "use client";
 
-import { useState } from "react";
-
 import {
   CloudIcon,
   CpuIcon,
@@ -22,17 +20,28 @@ type NavItem = {
   icon: React.ReactNode;
 };
 
-const navItems: NavItem[] = [
+const configurationItems: NavItem[] = [
   { id: "providers", label: "模型服务", labelEn: "Configuration", icon: <CloudIcon /> },
   { id: "models", label: "默认模型", labelEn: "Default Model", icon: <CpuIcon /> },
   { id: "general", label: "常规设置", labelEn: "General", icon: <MonitorIcon /> },
   { id: "display", label: "显示设置", labelEn: "Display", icon: <PaletteIcon /> },
+];
+
+const dataItems: NavItem[] = [
   { id: "data", label: "数据设置", labelEn: "Data", icon: <DatabaseIcon /> },
   { id: "about", label: "关于", labelEn: "About", icon: <InfoIcon /> },
 ];
 
-export function SettingsSidebar() {
-  const [activeId, setActiveId] = useState("providers");
+type SettingsSidebarProps = {
+  activeId: string;
+  onSelect: (id: string) => void;
+};
+
+export function SettingsSidebar({ activeId, onSelect }: SettingsSidebarProps) {
+  const sections = [
+    { label: "Configuration", items: configurationItems },
+    { label: "Data", items: dataItems },
+  ];
 
   return (
     <nav className="flex h-full w-[240px] flex-shrink-0 flex-col border-r border-parchment/10 bg-shoji-white">
@@ -48,34 +57,38 @@ export function SettingsSidebar() {
 
       {/* 导航菜单 */}
       <div className="flex-1 overflow-y-auto px-6 py-8">
-        <div className="mb-5 px-3 font-zen-body text-[0.65rem] tracking-[0.25em] text-stone-gray uppercase font-light">
-          Configuration
-        </div>
+        {sections.map((section, sectionIndex) => (
+          <div key={section.label} className={sectionIndex === 0 ? "mb-8" : ""}>
+            <div className="mb-5 px-3 font-zen-body text-[0.65rem] tracking-[0.25em] text-stone-gray uppercase font-light">
+              {section.label}
+            </div>
 
-        <div className="space-y-1">
-          {navItems.map((item, index) => (
-            <button
-              key={item.id}
-              className={`group relative flex w-full items-center gap-3 rounded-lg px-5 py-3 font-zen-body text-sm font-light transition-all duration-300 ${
-                activeId === item.id
-                  ? "bg-washi-cream text-matcha-green border border-matcha-green/15 shadow-sm"
-                  : "text-stone-gray hover:bg-washi-cream/50 hover:text-ink-black"
-              }`}
-              style={{ animation: `fadeIn 0.8s ease-out ${index * 0.05}s backwards` }}
-              onClick={() => setActiveId(item.id)}
-            >
-              {/* 左侧指示条 */}
-              <div className={`absolute left-0 top-0 h-full w-0.5 bg-matcha-green transition-transform duration-300 ${
-                activeId === item.id ? "scale-y-100" : "scale-y-0"
-              }`} />
+            <div className="space-y-1">
+              {section.items.map((item, index) => (
+                <button
+                  key={item.id}
+                  className={`group relative flex w-full items-center gap-3 rounded-lg px-5 py-3 font-zen-body text-sm font-light transition-all duration-300 ${
+                    activeId === item.id
+                      ? "bg-washi-cream text-matcha-green border border-matcha-green/15 shadow-sm"
+                      : "text-stone-gray hover:bg-washi-cream/50 hover:text-ink-black"
+                  }`}
+                  style={{ animation: `fadeIn 0.8s ease-out ${index * 0.05}s backwards` }}
+                  onClick={() => onSelect(item.id)}
+                >
+                  {/* 左侧指示条 */}
+                  <div className={`absolute left-0 top-0 h-full w-0.5 bg-matcha-green transition-transform duration-300 ${
+                    activeId === item.id ? "scale-y-100" : "scale-y-0"
+                  }`} />
 
-              <span className="flex-shrink-0 text-base opacity-70 group-hover:opacity-100 transition-opacity">
-                {item.icon}
-              </span>
-              <span className="font-light tracking-wide">{item.label}</span>
-            </button>
-          ))}
-        </div>
+                  <span className="flex-shrink-0 text-base opacity-70 group-hover:opacity-100 transition-opacity">
+                    {item.icon}
+                  </span>
+                  <span className="font-light tracking-wide">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* 底部版本信息 */}

@@ -7,7 +7,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { appStore, useAppStore } from "@/store/useStore";
 
@@ -15,6 +15,13 @@ import { ProviderList } from "./ProviderList";
 import { ProviderConfig } from "./ProviderConfig";
 import { SettingsSidebar } from "./SettingsSidebar";
 import { ConnectedModelSelector } from "./ModelSelector";
+import {
+  AboutPanel,
+  DataSettingsPanel,
+  DefaultModelPanel,
+  DisplaySettingsPanel,
+  GeneralSettingsPanel,
+} from "./SettingsPanels";
 
 /**
  * 返回按钮 - 宁静禅意风格
@@ -51,6 +58,7 @@ export function SettingsPage() {
   const selectedProviderId = useAppStore((s) => s.selectedProviderId);
   const loadProviders = useAppStore((s) => s.loadProviders);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [activeSection, setActiveSection] = useState("providers");
 
   // 初始化时加载提供商列表
   useEffect(() => {
@@ -64,23 +72,59 @@ export function SettingsPage() {
     }
   }, [selectedProviderId, providers]);
 
+  const renderContent = () => {
+    if (activeSection === "providers") {
+      return <ProviderConfig />;
+    }
+
+    if (activeSection === "models") {
+      return <DefaultModelPanel />;
+    }
+
+    if (activeSection === "general") {
+      return <GeneralSettingsPanel />;
+    }
+
+    if (activeSection === "display") {
+      return <DisplaySettingsPanel />;
+    }
+
+    if (activeSection === "data") {
+      return <DataSettingsPanel />;
+    }
+
+    if (activeSection === "about") {
+      return <AboutPanel />;
+    }
+
+    return <ProviderConfig />;
+  };
+
+  const showsProviderList = activeSection === "providers" || activeSection === "models";
+
   return (
     <div
       ref={containerRef}
       className="fixed inset-0 z-[100] flex bg-shoji-white"
-      style={{ height: '100vh', maxHeight: '100vh' }}
+      style={{ height: "100vh", maxHeight: "100vh" }}
     >
       {/* 左侧导航菜单 */}
-      <SettingsSidebar />
+      <SettingsSidebar activeId={activeSection} onSelect={setActiveSection} />
 
-      {/* 中间提供商列表 */}
-      <ProviderList />
+      {showsProviderList ? (
+        <>
+          {/* 中间提供商列表 */}
+          <ProviderList />
 
-      {/* 右侧配置面板 */}
-      <ProviderConfig />
+          {/* 右侧配置面板 */}
+          {renderContent()}
 
-      {/* 模型选择器对话框 */}
-      <ConnectedModelSelector />
+          {/* 模型选择器对话框 */}
+          <ConnectedModelSelector />
+        </>
+      ) : (
+        renderContent()
+      )}
 
       {/* 浮动返回按钮 */}
       <BackButton />

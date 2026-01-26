@@ -6,7 +6,7 @@ import { Button } from "@/components/common/Button";
 
 function AttachIcon() {
   return (
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="h-full w-full">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -19,7 +19,7 @@ function AttachIcon() {
 
 function SendIcon() {
   return (
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="h-full w-full">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -99,7 +99,7 @@ export function InputArea({
             aria-label="Send"
             onClick={() => void submit()}
           >
-            <div className="h-[18px] w-[18px]">
+            <div className="h-5 w-5">
               <SendIcon />
             </div>
           </Button>
@@ -116,4 +116,3 @@ export function InputArea({
     </div>
   );
 }
-

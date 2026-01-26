@@ -48,7 +48,11 @@ function Toggle({
       className={`relative flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-300 ${
         enabled ? "bg-matcha-green" : "bg-stone-gray/30"
       }`}
-      onClick={onToggle}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      aria-pressed={enabled}
     >
       <span
         className={`block h-4.5 w-4.5 transform rounded-full bg-white shadow-sm transition-all duration-300 ${
@@ -75,8 +79,6 @@ function ProviderListItem({
   onToggle: () => void;
   onDelete: () => void;
 }) {
-  const [showDelete, setShowDelete] = useState(false);
-
   return (
     <div
       className={`group relative mb-2 cursor-pointer rounded-xl p-4 transition-all duration-300 ${
@@ -84,8 +86,6 @@ function ProviderListItem({
           ? "bg-washi-cream/70 border border-matcha-green/20 shadow-sm"
           : "hover:bg-washi-cream/30 border border-transparent"
       }`}
-      onMouseEnter={() => setShowDelete(true)}
-      onMouseLeave={() => setShowDelete(false)}
       onClick={onSelect}
       role="button"
       tabIndex={0}
@@ -98,22 +98,20 @@ function ProviderListItem({
           {provider.name}
         </span>
 
-        <div onClick={(e) => { e.stopPropagation(); onToggle(); }} role="button" tabIndex={0}>
+        <div className="flex items-center gap-2">
           <Toggle enabled={provider.enabled} onToggle={onToggle} />
-        </div>
-
-        {showDelete && (
           <button
             type="button"
-            className="ml-2 flex-shrink-0 rounded-lg p-2 text-stone-gray transition-colors hover:bg-sakura-pink/30 hover:text-red-500"
+            className="flex-shrink-0 rounded-lg p-2 text-stone-gray opacity-0 transition-all duration-200 hover:bg-sakura-pink/30 hover:text-red-500 group-hover:opacity-100 group-hover:pointer-events-auto pointer-events-none"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
+            aria-label="删除提供商"
           >
             <TrashIcon />
           </button>
-        )}
+        </div>
       </div>
     </div>
   );

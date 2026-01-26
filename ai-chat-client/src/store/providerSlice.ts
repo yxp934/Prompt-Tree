@@ -26,11 +26,7 @@ import {
   getStoredHealthChecks,
   setStoredHealthChecks,
 } from "@/lib/services/providerStorageService";
-import {
-  checkProviderHealth,
-  fetchAvailableModels,
-  maskApiKey,
-} from "@/lib/services/providerApiService";
+import { checkProviderHealth, fetchAvailableModels } from "@/lib/services/providerApiService";
 
 import type { AppStoreDeps, AppStoreState } from "./useStore";
 
@@ -384,7 +380,10 @@ export function createProviderSlice(
       }));
 
       try {
-        const result = await fetchAvailableModels(primaryKey.value, provider.baseUrl);
+        const result = await fetchAvailableModels(primaryKey.value, provider.baseUrl, {
+          headers: provider.headers,
+          timeout: provider.timeout,
+        });
         set((state) => ({
           modelSelector: {
             ...state.modelSelector,

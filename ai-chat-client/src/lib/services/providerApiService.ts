@@ -3,7 +3,20 @@
  * 处理 API 连接检测、模型列表获取等功能
  */
 
-import type { Provider, ApiKey, ProviderHealthCheck, ModelConfig } from "@/types/provider";
+import type { Provider, ProviderHealthCheck, ModelConfig } from "@/types/provider";
+
+type ProviderRequestOptions = {
+  headers?: Record<string, string>;
+  timeout?: number;
+  signal?: AbortSignal;
+};
+
+export type ProviderModelTestResult = {
+  status: "healthy" | "error";
+  error?: string;
+  responseTime?: number;
+  content?: string;
+};
 
 /**
  * API 密钥掩码显示
@@ -19,134 +32,57 @@ export function maskApiKey(key: string): string {
  */
 export function normalizeBaseUrl(url: string): string {
   const trimmed = url.trim();
-  // 移除末尾斜杠
   let normalized = trimmed.replace(/\/+$/, "");
-  // 如果没有 /v1 或类似路径，尝试添加
+
+  if (normalized.endsWith("/chat/completions")) {
+    normalized = normalized.replace(/\/chat\/completions$/, "");
+  }
+
+  if (normalized.endsWith("/models")) {
+    normalized = normalized.replace(/\/models$/, "");
+  }
+
   if (!normalized.includes("/v1") && !normalized.includes("/api")) {
-    // 检查是否是标准的 OpenAI 兼容端点
     if (normalized.includes("api.openai.com")) {
       normalized = `${normalized}/v1`;
     }
   }
+
   return normalized;
 }
 
-/**
- * 获取模型列表的 API 端点
- */
-export function getModelsEndpoint(baseUrl: string): string {
-  const normalized = normalizeBaseUrl(baseUrl);
-  return `${normalized}/models`;
-}
+async function postJson<T>(url: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
 
-/**
- * 获取聊天补全的 API 端点
- */
-export function getChatEndpoint(baseUrl: string): string {
-  const normalized = normalizeBaseUrl(baseUrl);
-  return `${normalized}/chat/completions`;
-}
-
-/**
- * 检测单个 API 密钥的可用性
- */
-export async function checkApiKey(
-  apiKey: ApiKey,
-  baseUrl: string,
-  signal?: AbortSignal,
-): Promise<{ status: "healthy" | "error"; error?: string; responseTime?: number }> {
-  const startTime = Date.now();
-
-  try {
-    // 尝试获取模型列表
-    const modelsUrl = getModelsEndpoint(baseUrl);
-    const response = await fetch(modelsUrl, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${apiKey.value}`,
-        "Content-Type": "application/json",
-      },
-      signal,
-    });
-
-    const responseTime = Date.now() - startTime;
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        return { status: "error", error: "API 密钥无效", responseTime };
-      }
-      if (response.status === 404) {
-        // 有些 API 不支持 /models 端点，尝试简单的 chat 请求
-        return await checkBySimpleChat(apiKey, baseUrl, signal, startTime);
-      }
-      return {
-        status: "error",
-        error: `HTTP ${response.status}: ${response.statusText}`,
-        responseTime,
-      };
-    }
-
-    return { status: "healthy", responseTime };
-  } catch (err) {
-    const responseTime = Date.now() - startTime;
-    if (err instanceof Error) {
-      if (err.name === "AbortError") {
-        return { status: "error", error: "请求超时", responseTime };
-      }
-      return { status: "error", error: err.message, responseTime };
-    }
-    return { status: "error", error: "未知错误", responseTime };
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Request failed (${response.status}): ${text || response.statusText}`);
   }
+
+  return (await response.json()) as T;
 }
 
-/**
- * 通过简单的 chat 请求检测 API
- */
-async function checkBySimpleChat(
-  apiKey: ApiKey,
+function buildRequestBody(
+  apiKey: string,
   baseUrl: string,
-  signal?: AbortSignal,
-  startTime?: number,
-): Promise<{ status: "healthy" | "error"; error?: string; responseTime?: number }> {
-  const start = startTime ?? Date.now();
-
-  try {
-    const chatUrl = getChatEndpoint(baseUrl);
-    const response = await fetch(chatUrl, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey.value}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: "hi" }],
-        max_tokens: 1,
-      }),
-      signal,
-    });
-
-    const responseTime = Date.now() - start;
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        return { status: "error", error: "API 密钥无效", responseTime };
-      }
-      return {
-        status: "error",
-        error: `HTTP ${response.status}: ${response.statusText}`,
-        responseTime,
-      };
-    }
-
-    return { status: "healthy", responseTime };
-  } catch (err) {
-    const responseTime = Date.now() - start;
-    if (err instanceof Error) {
-      return { status: "error", error: err.message, responseTime };
-    }
-    return { status: "error", error: "未知错误", responseTime };
-  }
+  options?: ProviderRequestOptions,
+): {
+  apiKey: string;
+  baseUrl: string;
+  headers?: Record<string, string>;
+  timeout?: number;
+} {
+  return {
+    apiKey,
+    baseUrl: normalizeBaseUrl(baseUrl),
+    headers: options?.headers,
+    timeout: options?.timeout,
+  };
 }
 
 /**
@@ -155,47 +91,102 @@ async function checkBySimpleChat(
 export async function fetchAvailableModels(
   apiKey: string,
   baseUrl: string,
-  signal?: AbortSignal,
+  options?: ProviderRequestOptions,
 ): Promise<{ models: ModelConfig[]; error?: string }> {
   try {
-    const modelsUrl = getModelsEndpoint(baseUrl);
-    const response = await fetch(modelsUrl, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      signal,
-    });
+    const response = await postJson<{
+      models?: Array<{ id: string; object?: string }>;
+      error?: string;
+    }>("/api/providers/models", buildRequestBody(apiKey, baseUrl, options), options?.signal);
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        // 不支持 /models 端点，返回空列表但不报错
-        return { models: [] };
-      }
-      return { models: [], error: `HTTP ${response.status}` };
+    if (response.error) {
+      return { models: [], error: response.error };
     }
 
-    const data = await response.json();
-    const rawModels = data.data || data.models || [];
+    const rawModels = response.models ?? [];
+    const models: ModelConfig[] = rawModels
+      .filter((model) => model && typeof model.id === "string")
+      .map((model) => ({
+        id: model.id,
+        name: model.id,
+        enabled: false,
+        category: inferModelCategory(model.id, model.object),
+      }));
 
-    // 转换为 ModelConfig 格式
-    const models: ModelConfig[] = rawModels.map((model: { id: string; object?: string }) => ({
-      id: model.id,
-      name: model.id,
-      enabled: false,
-      category: inferModelCategory(model.id, model.object),
-    }));
-
-    // 按名称排序
     models.sort((a, b) => a.id.localeCompare(b.id));
-
     return { models };
   } catch (err) {
     if (err instanceof Error) {
       return { models: [], error: err.message };
     }
     return { models: [], error: "未知错误" };
+  }
+}
+
+/**
+ * 检测整个提供商的健康状态
+ */
+export async function checkProviderHealth(
+  provider: Provider,
+  signal?: AbortSignal,
+): Promise<ProviderHealthCheck> {
+  try {
+    const response = await postJson<ProviderHealthCheck>(
+      "/api/providers/health",
+      {
+        providerId: provider.id,
+        baseUrl: normalizeBaseUrl(provider.baseUrl),
+        apiKeys: provider.apiKeys.map((key) => ({
+          id: key.id,
+          value: key.value,
+          isPrimary: key.isPrimary,
+        })),
+        headers: provider.headers,
+        timeout: provider.timeout,
+      },
+      signal,
+    );
+
+    return response;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "连接失败";
+    return {
+      providerId: provider.id,
+      status: "error",
+      keyResults: provider.apiKeys.map((key) => ({
+        keyId: key.id,
+        status: "error",
+        error: message,
+      })),
+      checkedAt: Date.now(),
+    };
+  }
+}
+
+/**
+ * 测试指定模型
+ */
+export async function testProviderModel(
+  apiKey: string,
+  baseUrl: string,
+  model: string,
+  options?: ProviderRequestOptions & { prompt?: string },
+): Promise<ProviderModelTestResult> {
+  try {
+    const response = await postJson<ProviderModelTestResult>(
+      "/api/providers/test",
+      {
+        ...buildRequestBody(apiKey, baseUrl, options),
+        model,
+        prompt: options?.prompt,
+      },
+      options?.signal,
+    );
+
+    return response;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "连接失败";
+    return { status: "error", error: message };
   }
 }
 
@@ -218,54 +209,11 @@ function inferModelCategory(modelId: string, objectType?: string): ModelConfig["
     return "tool";
   }
 
+  if (objectType === "embedding") {
+    return "embedding";
+  }
+
   return "chat";
-}
-
-/**
- * 检测整个提供商的健康状态
- */
-export async function checkProviderHealth(
-  provider: Provider,
-  signal?: AbortSignal,
-): Promise<ProviderHealthCheck> {
-  const keyResults = await Promise.all(
-    provider.apiKeys.map(async (key) => {
-      const result = await checkApiKey(key, provider.baseUrl, signal);
-      return {
-        keyId: key.id,
-        status: result.status,
-        error: result.error,
-        responseTime: result.responseTime,
-      };
-    }),
-  );
-
-  // 确定整体状态
-  const allHealthy = keyResults.every((r) => r.status === "healthy");
-  const someHealthy = keyResults.some((r) => r.status === "healthy");
-
-  let status: ProviderHealthCheck["status"] = "error";
-  if (allHealthy && keyResults.length > 0) {
-    status = "healthy";
-  } else if (someHealthy) {
-    status = "partial";
-  }
-
-  // 获取可用模型列表
-  let availableModels: string[] | undefined;
-  const primaryKey = provider.apiKeys.find((k) => k.isPrimary) || provider.apiKeys[0];
-  if (primaryKey && keyResults.find((r) => r.keyId === primaryKey.id)?.status === "healthy") {
-    const { models } = await fetchAvailableModels(primaryKey.value, provider.baseUrl, signal);
-    availableModels = models.map((m) => m.id);
-  }
-
-  return {
-    providerId: provider.id,
-    status,
-    keyResults,
-    availableModels,
-    checkedAt: Date.now(),
-  };
 }
 
 /**

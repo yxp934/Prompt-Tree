@@ -26,6 +26,27 @@ function buildPath(nodes: Map<string, Node>, activeNodeId: string | null): Node[
   return path;
 }
 
+function buildConversation(nodes: Map<string, Node>, activeNodeId: string | null): Node[] {
+  const path = buildPath(nodes, activeNodeId);
+  if (path.length === 0) return [];
+
+  const lastUserIndex = [...path]
+    .reverse()
+    .findIndex((node) => node.type === NodeType.USER);
+
+  if (lastUserIndex === -1) return path;
+
+  const index = path.length - 1 - lastUserIndex;
+  const lastUserNode = path[index];
+  const siblings = Array.from(nodes.values())
+    .filter((node) => node.parentId === lastUserNode.id && node.type === NodeType.ASSISTANT)
+    .sort((a, b) => a.createdAt - b.createdAt);
+
+  if (siblings.length <= 1) return path;
+
+  return [...path.slice(0, index + 1), ...siblings];
+}
+
 export function ChatView() {
   const nodes = useAppStore((s) => s.nodes);
   const activeNodeId = useAppStore((s) => s.activeNodeId);
@@ -45,8 +66,8 @@ export function ChatView() {
   const sendMessage = useAppStore((s) => s.sendMessage);
 
   const messages = useMemo(() => {
-    const path = buildPath(nodes, activeNodeId);
-    return path.filter((n) => n.type !== NodeType.SYSTEM);
+    const conversation = buildConversation(nodes, activeNodeId);
+    return conversation.filter((n) => n.type !== NodeType.SYSTEM);
   }, [nodes, activeNodeId]);
 
   const enabledModelOptions = useMemo(

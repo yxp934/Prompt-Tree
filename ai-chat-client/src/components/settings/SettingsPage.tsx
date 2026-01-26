@@ -17,13 +17,13 @@ import { SettingsSidebar } from "./SettingsSidebar";
 import { ConnectedModelSelector } from "./ModelSelector";
 
 /**
- * 返回按钮
+ * 返回按钮 - 宁静禅意风格
  */
 function BackButton() {
   return (
     <Link
       href="/"
-      className="fixed bottom-8 left-8 z-50 flex items-center gap-3 rounded-2xl border border-parchment bg-cream/95 backdrop-blur-sm px-5 py-3 font-body text-sm text-clay shadow-lg transition-all duration-200 hover:border-copper hover:text-copper hover:shadow-xl"
+      className="fixed bottom-8 left-8 z-50 flex items-center gap-3 rounded-2xl border border-parchment/30 bg-shoji-white/95 backdrop-blur-sm px-5 py-3 font-zen-body text-sm text-stone-gray shadow-lg transition-all duration-200 hover:border-matcha-green/50 hover:text-matcha-green hover:shadow-xl"
     >
       <svg
         width="16"

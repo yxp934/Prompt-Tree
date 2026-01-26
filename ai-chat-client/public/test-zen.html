@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zen Style Test</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --shoji-white: #FAFAF8;
+      --washi-cream: #F5F3EF;
+      --matcha-green: #7A8B6E;
+      --bamboo-light: #A8B5A0;
+      --stone-gray: #8B8680;
+      --ink-black: #2C2C2C;
+      --kintsugi-gold: #C9A962;
+      --sakura-pink: #E8D5D0;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--washi-cream);
+    }
+
+    .test-card {
+      background: var(--shoji-white);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .zen-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      font-weight: 300;
+      color: var(--ink-black);
+      letter-spacing: 0.15em;
+    }
+
+    .matcha-text {
+      color: var(--matcha-green);
+    }
+
+    .stone-text {
+      color: var(--stone-gray);
+    }
+
+    .zen-body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-weight: 300;
+      color: var(--stone-gray);
+    }
+
+    .kintsugi-badge {
+      background: var(--kintsugi-gold);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-card">
+    <h1 class="zen-title">設定</h1>
+    <p class="matcha-text">这是抹茶绿色的文字</p>
+    <p class="stone-text">这是石灰色的文字</p>
+    <p class="zen-body">这是正文文本，应该使用Inter字体。</p>
+    <span class="kintsugi-badge">主密钥</span>
+  </div>
+
+  <div class="test-card">
+    <h2 style="font-family: 'Cormorant Garamond', serif; color: var(--ink-black);">
+      如果你能看到优雅的衬线字体和柔和的色彩，说明Zen风格已正确加载！
+    </h2>
+    <ul style="color: var(--stone-gray); font-family: 'Inter', sans-serif;">
+      <li>✅ 抹茶绿: <span style="color: var(--matcha-green);">这个文字应该是绿色</span></li>
+      <li>✅ 和纸白背景: 整个卡片应该是米白色</li>
+      <li>✅ Cormorant Garamond字体: 标题应该是优雅的衬线体</li>
+      <li>✅ Inter字体: 这里应该是现代无衬线体</li>
+    </ul>
+  </div>
+</body>
+</html>

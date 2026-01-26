@@ -101,6 +101,19 @@
   --font-mono: "IBM Plex Mono", monospace;
   --font-zen-display: "Cormorant Garamond", serif;
   --font-zen-body: "Inter", -apple-system, sans-serif;
+
+  /* Spacing for Zen Serenity */
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2rem;
+  --space-xl: 3rem;
+  --space-2xl: 4rem;
+
+  /* Animation durations */
+  --animate-fade-in: fadeIn 0.8s ease-out;
+  --animate-slide-in-up: slideInUp 0.5s ease-out;
+  --animate-fade-in-right: fadeInRight 0.8s ease-out;
 }
 
 /* ========== Base Styles ========== */
@@ -154,6 +167,17 @@ body {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes slideInUp {

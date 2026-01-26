@@ -8,6 +8,7 @@ import {
   setStoredLLMSettings,
   type LLMSettings,
 } from "@/lib/services/llmSettingsService";
+import type { ProviderModelSelection } from "@/types/provider";
 
 import type { AppStoreDeps, AppStoreState } from "./useStore";
 
@@ -19,7 +20,9 @@ export interface LLMSlice {
   model: string;
   temperature: number;
   maxTokens: number;
+  selectedModels: ProviderModelSelection[];
   setLLMSettings: (settings: Partial<LLMSettings>) => void;
+  setSelectedModels: (models: ProviderModelSelection[]) => void;
   sendMessage: (content: string, contextNodeIds?: string[]) => Promise<Node>;
   compressNodes: (
     nodeIds: string[],
@@ -63,6 +66,7 @@ export function createLLMSlice(
     model: initialSettings.model,
     temperature: initialSettings.temperature,
     maxTokens: initialSettings.maxTokens,
+    selectedModels: initialSettings.selectedModels,
     setLLMSettings: (settings) =>
       set((state) => {
         const next = normalizeLLMSettings(
@@ -70,11 +74,26 @@ export function createLLMSlice(
             model: settings.model ?? state.model,
             temperature: settings.temperature ?? state.temperature,
             maxTokens: settings.maxTokens ?? state.maxTokens,
+            selectedModels: settings.selectedModels ?? state.selectedModels,
           },
           DEFAULT_LLM_SETTINGS,
         );
         setStoredLLMSettings(next);
         return next;
+      }),
+    setSelectedModels: (models) =>
+      set((state) => {
+        const next = normalizeLLMSettings(
+          {
+            model: state.model,
+            temperature: state.temperature,
+            maxTokens: state.maxTokens,
+            selectedModels: models,
+          },
+          DEFAULT_LLM_SETTINGS,
+        );
+        setStoredLLMSettings(next);
+        return { selectedModels: next.selectedModels };
       }),
     sendMessage: async (content: string, contextNodeIds?: string[]) => {
       const trimmed = content.trim();

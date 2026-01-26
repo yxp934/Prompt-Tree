@@ -43,6 +43,14 @@ export interface ModelConfig {
 }
 
 /**
+ * 模型选择引用
+ */
+export interface ProviderModelSelection {
+  providerId: string;
+  modelId: string;
+}
+
+/**
  * API 提供商配置
  */
 export interface Provider {

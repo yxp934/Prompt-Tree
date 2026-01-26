@@ -1,19 +1,47 @@
+import type { ProviderModelSelection } from "@/types/provider";
+
 export interface LLMSettings {
   model: string;
   temperature: number;
   maxTokens: number;
+  selectedModels: ProviderModelSelection[];
 }
 
 export const DEFAULT_LLM_SETTINGS: LLMSettings = {
   model: "gpt-4o-mini",
   temperature: 0.7,
   maxTokens: 1024,
+  selectedModels: [],
 };
 
 const LLM_SETTINGS_STORAGE_KEY = "new-chat.llm_settings";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function normalizeSelectedModels(
+  value: unknown,
+  fallback: ProviderModelSelection[],
+): ProviderModelSelection[] {
+  if (!Array.isArray(value)) return fallback;
+  const seen = new Set<string>();
+  const selections: ProviderModelSelection[] = [];
+
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const { providerId, modelId } = item as {
+      providerId?: unknown;
+      modelId?: unknown;
+    };
+    if (typeof providerId !== "string" || typeof modelId !== "string") continue;
+    const key = `${providerId}:${modelId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    selections.push({ providerId, modelId });
+  }
+
+  return selections;
 }
 
 export function normalizeLLMSettings(
@@ -33,7 +61,12 @@ export function normalizeLLMSettings(
       ? Math.max(1, Math.round(settings.maxTokens))
       : fallback.maxTokens;
 
-  return { model, temperature, maxTokens };
+  const selectedModels = normalizeSelectedModels(
+    settings.selectedModels,
+    fallback.selectedModels,
+  );
+
+  return { model, temperature, maxTokens, selectedModels };
 }
 
 export function getStoredLLMSettings(): LLMSettings | null {

@@ -20,6 +20,10 @@ export interface NodeMetadata {
   compressedNodeIds?: string[];
   collapsed?: boolean;
   branchLabel?: string;
+  modelId?: string;
+  modelName?: string;
+  providerId?: string;
+  providerName?: string;
 }
 
 export interface NodePosition {

@@ -12,6 +12,10 @@ function normalizeMetadata(metadata: Partial<NodeMetadata> | undefined): NodeMet
     compressedNodeIds: metadata?.compressedNodeIds,
     collapsed: metadata?.collapsed,
     branchLabel: metadata?.branchLabel,
+    modelId: metadata?.modelId,
+    modelName: metadata?.modelName,
+    providerId: metadata?.providerId,
+    providerName: metadata?.providerName,
   };
 }
 

@@ -6,6 +6,7 @@ import { Handle, Position, type NodeProps } from "reactflow";
 import type { TreeFlowNodeData } from "@/lib/services/dagService";
 import { DND_NODE_ID } from "@/lib/utils/dnd";
 import { NodeType } from "@/types";
+import { getNodeDisplayName } from "@/lib/utils/nodeDisplay";
 
 function GripIcon() {
   return (
@@ -26,17 +27,8 @@ function GripIcon() {
   );
 }
 
-function typeLabel(type: NodeType): string {
-  switch (type) {
-    case NodeType.SYSTEM:
-      return "System";
-    case NodeType.USER:
-      return "Human";
-    case NodeType.ASSISTANT:
-      return "Machine";
-    case NodeType.COMPRESSED:
-      return "Compressed";
-  }
+function typeLabel(node: TreeFlowNodeData["node"]): string {
+  return getNodeDisplayName(node);
 }
 
 function typeClass(type: NodeType): string {
@@ -108,7 +100,7 @@ const TreeNode = memo(function TreeNode({ data }: NodeProps<TreeFlowNodeData>) {
 
         <div className="flex-1">
           <div className="font-mono text-[0.65rem] uppercase tracking-wide opacity-75">
-            {typeLabel(node.type)}
+            {typeLabel(node)}
           </div>
         </div>
 

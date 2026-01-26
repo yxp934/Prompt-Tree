@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 
 import { NodeType, type Node } from "@/types";
+import { getNodeAvatarLetter, getNodeDisplayName } from "@/lib/utils/nodeDisplay";
 
 interface MessageItemProps {
   node: Node;
@@ -13,15 +14,18 @@ function getMessageMeta(node: Node): {
   author: string;
   avatar: string;
 } {
+  const author = getNodeDisplayName(node);
+  const avatar = getNodeAvatarLetter(node);
+
   switch (node.type) {
     case NodeType.USER:
-      return { role: "human", author: "You", avatar: "Y" };
+      return { role: "human", author, avatar };
     case NodeType.ASSISTANT:
-      return { role: "machine", author: "Cortex", avatar: "C" };
+      return { role: "machine", author, avatar };
     case NodeType.SYSTEM:
-      return { role: "system", author: "System", avatar: "S" };
+      return { role: "system", author, avatar };
     case NodeType.COMPRESSED:
-      return { role: "system", author: "Compressed", avatar: "Z" };
+      return { role: "system", author, avatar };
   }
 }
 

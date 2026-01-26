@@ -7,6 +7,7 @@ import { Input } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
 import { orderCompressedChainIds } from "@/lib/services/compressionService";
 import { DND_NODE_ID } from "@/lib/utils/dnd";
+import { getNodeDisplayName } from "@/lib/utils/nodeDisplay";
 import { useAppStore } from "@/store/useStore";
 import { NodeType, type Node, type NodeMetaInstructions } from "@/types";
 
@@ -177,7 +178,7 @@ function nodeToCard(node: Node): ContextCard {
       : type === "human"
         ? "User Message"
         : type === "machine"
-          ? "AI Response"
+          ? getNodeDisplayName(node)
           : "Compressed";
 
   const preview =

@@ -11,7 +11,7 @@ function TypingIndicator() {
     <div className="mb-8 max-w-[680px]">
       <div className="mb-3 flex items-center gap-3">
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-machine font-display text-[0.9rem] italic text-cream">
-          C
+          …
         </div>
       </div>
       <div className="flex items-center gap-3 pl-11 text-[0.85rem] text-sand">
@@ -56,4 +56,3 @@ export function MessageList({ messages, isSending, error }: MessageListProps) {
     </div>
   );
 }
-

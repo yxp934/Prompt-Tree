@@ -13,15 +13,20 @@ import {
   DEFAULT_LLM_SETTINGS,
   type LLMSettings,
 } from "@/lib/services/llmSettingsService";
+import {
+  buildModelSelectionKey,
+  getEnabledModelOptions,
+  type EnabledModelOption,
+} from "@/lib/services/providerModelService";
 import { testProviderModel } from "@/lib/services/providerApiService";
 import {
   clearStoredHealthChecks,
   clearStoredProviders,
 } from "@/lib/services/providerStorageService";
-import { getPrimaryApiKey, type ModelConfig } from "@/types/provider";
+import { getPrimaryApiKey, type ProviderModelSelection } from "@/types/provider";
 import { useAppStore } from "@/store/useStore";
 
-import { CheckIcon, EyeIcon, EyeOffIcon, RefreshIcon, SearchIcon } from "./icons";
+import { CheckIcon, EyeIcon, EyeOffIcon, RefreshIcon } from "./icons";
 
 type PanelShellProps = {
   title: string;
@@ -75,24 +80,54 @@ function PanelEmptyState({ title, description }: { title: string; description: s
 
 export function DefaultModelPanel() {
   const providers = useAppStore((s) => s.providers);
-  const selectedProviderId = useAppStore((s) => s.selectedProviderId);
   const model = useAppStore((s) => s.model);
   const setLLMSettings = useAppStore((s) => s.setLLMSettings);
-  const openModelSelector = useAppStore((s) => s.openModelSelector);
+  const selectedModels = useAppStore((s) => s.selectedModels);
+  const setSelectedModels = useAppStore((s) => s.setSelectedModels);
 
   const [modelValue, setModelValue] = useState(model);
   const [testStatus, setTestStatus] = useState<"idle" | "running" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState<string | null>(null);
   const [testLatency, setTestLatency] = useState<number | null>(null);
 
-  const selectedProvider = providers.find((p) => p.id === selectedProviderId) ?? null;
+  const enabledOptions = useMemo(
+    () => getEnabledModelOptions(providers),
+    [providers],
+  );
+  const selectedKeys = useMemo(
+    () => new Set(selectedModels.map(buildModelSelectionKey)),
+    [selectedModels],
+  );
 
-  const availableModels = useMemo(() => {
-    if (!selectedProvider) return [];
-    const enabled = selectedProvider.models.filter((m) => m.enabled);
-    const models = enabled.length > 0 ? enabled : selectedProvider.models;
-    return [...models].sort((a, b) => a.id.localeCompare(b.id));
-  }, [selectedProvider]);
+  const groupedOptions = useMemo(() => {
+    const grouped = new Map<
+      string,
+      { providerId: string; providerName: string; models: EnabledModelOption[] }
+    >();
+    for (const option of enabledOptions) {
+      if (!grouped.has(option.providerId)) {
+        grouped.set(option.providerId, {
+          providerId: option.providerId,
+          providerName: option.providerName,
+          models: [],
+        });
+      }
+      grouped.get(option.providerId)!.models.push(option);
+    }
+    return Array.from(grouped.values()).sort((a, b) =>
+      a.providerName.localeCompare(b.providerName),
+    );
+  }, [enabledOptions]);
+
+  useEffect(() => {
+    const availableKeys = new Set(enabledOptions.map(buildModelSelectionKey));
+    const next = selectedModels.filter((selection) =>
+      availableKeys.has(buildModelSelectionKey(selection)),
+    );
+    if (next.length !== selectedModels.length) {
+      setSelectedModels(next);
+    }
+  }, [enabledOptions, selectedModels, setSelectedModels]);
 
   useEffect(() => {
     setModelValue(model);
@@ -103,19 +138,47 @@ export function DefaultModelPanel() {
     setLLMSettings({ model: value });
   };
 
+  const toSelection = (option: EnabledModelOption): ProviderModelSelection => ({
+    providerId: option.providerId,
+    modelId: option.modelId,
+  });
+
+  const handleToggleSelection = (option: EnabledModelOption) => {
+    const key = buildModelSelectionKey(option);
+    const exists = selectedKeys.has(key);
+    const next = exists
+      ? selectedModels.filter((selection) => buildModelSelectionKey(selection) !== key)
+      : [...selectedModels, toSelection(option)];
+    setSelectedModels(next);
+  };
+
+  const handleSelectAll = () => {
+    setSelectedModels(enabledOptions.map((option) => toSelection(option)));
+  };
+
+  const handleClearAll = () => {
+    setSelectedModels([]);
+  };
+
   const handleTestModel = async () => {
-    if (!selectedProvider) return;
-    const primaryKey = getPrimaryApiKey(selectedProvider);
-    if (!primaryKey) {
+    const selection = selectedModels[0];
+    if (!selection) {
       setTestStatus("error");
-      setTestMessage("请先配置 API 密钥");
+      setTestMessage("请先选择模型");
       return;
     }
 
-    const modelToTest = modelValue.trim() || model;
-    if (!modelToTest) {
+    const provider = providers.find((item) => item.id === selection.providerId) ?? null;
+    if (!provider) {
       setTestStatus("error");
-      setTestMessage("请先选择模型");
+      setTestMessage("模型服务商不存在");
+      return;
+    }
+
+    const primaryKey = getPrimaryApiKey(provider);
+    if (!primaryKey) {
+      setTestStatus("error");
+      setTestMessage("请先配置 API 密钥");
       return;
     }
 
@@ -123,9 +186,9 @@ export function DefaultModelPanel() {
     setTestMessage(null);
     setTestLatency(null);
 
-    const result = await testProviderModel(primaryKey.value, selectedProvider.baseUrl, modelToTest, {
-      headers: selectedProvider.headers,
-      timeout: selectedProvider.timeout,
+    const result = await testProviderModel(primaryKey.value, provider.baseUrl, selection.modelId, {
+      headers: provider.headers,
+      timeout: provider.timeout,
       prompt: "ping",
     });
 
@@ -147,47 +210,95 @@ export function DefaultModelPanel() {
     error: "text-red-500",
   }[testStatus];
 
-  if (!selectedProvider) {
-    return (
-      <PanelShell title="默认模型" description="为对话选择默认的推理模型。">
-        <PanelEmptyState title="尚未选择提供商" description="请先在模型服务中添加并选择一个提供商。" />
-      </PanelShell>
-    );
-  }
-
   return (
     <PanelShell
       title="默认模型"
-      description="选择对话默认使用的模型，并进行连接测试。"
-      action={
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-lg border border-parchment/20 bg-washi-cream px-4 py-2.5 font-zen-body text-sm text-stone-gray transition-all duration-300 hover:border-matcha-green/50 hover:text-matcha-green font-light"
-          onClick={() => openModelSelector(selectedProvider.id)}
-        >
-          <SearchIcon />
-          选择模型
-        </button>
-      }
+      description="从已启用的模型中选择默认使用的模型集合。"
     >
       <div className="space-y-8">
         <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
-          <div className="mb-3 font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
-            当前提供商
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="font-zen-display text-xl font-light text-ink-black">
-                {selectedProvider.name}
-              </p>
-              <p className="mt-1 font-mono text-xs text-stone-gray">
-                {selectedProvider.baseUrl}
+              <div className="font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+                已启用模型
+              </div>
+              <p className="mt-2 font-zen-body text-sm text-stone-gray font-light">
+                选择多个模型后，发送消息将并行生成多个分支回复。
               </p>
             </div>
-            <div className="rounded-full bg-shoji-white px-3 py-1 font-mono text-xs text-stone-gray">
-              {selectedProvider.models.length} models
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-parchment/20 bg-shoji-white px-3 py-2 text-xs text-stone-gray transition-all duration-200 hover:border-matcha-green/40 hover:text-matcha-green"
+                onClick={handleSelectAll}
+                disabled={enabledOptions.length === 0}
+              >
+                全选
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-parchment/20 bg-shoji-white px-3 py-2 text-xs text-stone-gray transition-all duration-200 hover:border-matcha-green/40 hover:text-matcha-green"
+                onClick={handleClearAll}
+                disabled={selectedModels.length === 0}
+              >
+                清空
+              </button>
             </div>
           </div>
+
+          {enabledOptions.length === 0 ? (
+            <div className="mt-6">
+              <PanelEmptyState
+                title="暂无启用模型"
+                description="请先在模型服务中启用模型。"
+              />
+            </div>
+          ) : (
+            <div className="mt-6 space-y-6">
+              {groupedOptions.map((group) => (
+                <div key={group.providerId}>
+                  <div className="mb-3 font-zen-body text-xs text-stone-gray font-light">
+                    {group.providerName}
+                  </div>
+                  <div className="space-y-2">
+                    {group.models.map((option) => {
+                      const isSelected = selectedKeys.has(buildModelSelectionKey(option));
+                      return (
+                        <button
+                          key={option.modelId}
+                          type="button"
+                          className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
+                            isSelected
+                              ? "border-matcha-green/40 bg-matcha-green/10"
+                              : "border-parchment/20 bg-shoji-white hover:border-matcha-green/30"
+                          }`}
+                          onClick={() => handleToggleSelection(option)}
+                        >
+                          <span
+                            className={`flex h-5 w-5 items-center justify-center rounded border text-[0.7rem] ${
+                              isSelected
+                                ? "border-matcha-green bg-matcha-green text-shoji-white"
+                                : "border-parchment bg-transparent text-transparent"
+                            }`}
+                          >
+                            ✓
+                          </span>
+                          <div className="flex-1">
+                            <div className="font-mono text-sm text-ink-black">
+                              {option.modelId}
+                            </div>
+                            <div className="text-xs text-stone-gray font-light">
+                              {option.label}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
@@ -202,14 +313,15 @@ export function DefaultModelPanel() {
             className="w-full rounded-xl border border-parchment/20 bg-shoji-white px-5 py-4 font-mono text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
           />
           <datalist id="default-model-options">
-            {availableModels.map((m: ModelConfig) => (
-              <option key={m.id} value={m.id} />
+            {enabledOptions.map((option) => (
+              <option
+                key={`${option.providerId}-${option.modelId}`}
+                value={option.modelId}
+              />
             ))}
           </datalist>
           <p className="mt-3 font-zen-body text-xs text-stone-gray font-light">
-            {availableModels.length > 0
-              ? "支持手动输入自定义模型 ID"
-              : "尚未添加模型，可通过“选择模型”从 API 获取"}
+            该字段用于兼容单模型场景或压缩/摘要任务。
           </p>
         </section>
 
@@ -233,7 +345,7 @@ export function DefaultModelPanel() {
                   : "bg-matcha-green/10 text-matcha-green hover:bg-matcha-green/20 font-light"
               }`}
               onClick={handleTestModel}
-              disabled={testStatus === "running"}
+              disabled={testStatus === "running" || selectedModels.length === 0}
             >
               {testStatus === "running" ? (
                 <>

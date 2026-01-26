@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { useAppStore } from "@/store/useStore";
 
@@ -86,19 +86,21 @@ function ProviderListItem({
       }`}
       onMouseEnter={() => setShowDelete(true)}
       onMouseLeave={() => setShowDelete(false)}
+      onClick={onSelect}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onSelect()}
     >
-      <button
-        type="button"
-        className="flex w-full items-center gap-4 text-left"
-        onClick={onSelect}
-      >
+      <div className="flex w-full items-center gap-4 text-left">
         <ProviderIcon name={provider.name} />
 
         <span className="flex-1 truncate font-zen-body text-sm font-normal text-ink-black">
           {provider.name}
         </span>
 
-        <Toggle enabled={provider.enabled} onToggle={onToggle} />
+        <div onClick={(e) => { e.stopPropagation(); onToggle(); }} role="button" tabIndex={0}>
+          <Toggle enabled={provider.enabled} onToggle={onToggle} />
+        </div>
 
         {showDelete && (
           <button
@@ -112,7 +114,7 @@ function ProviderListItem({
             <TrashIcon />
           </button>
         )}
-      </button>
+      </div>
     </div>
   );
 }
@@ -198,6 +200,12 @@ export function ProviderList() {
   const addProvider = useAppStore((s) => s.addProvider);
 
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // 避免hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <>
@@ -208,7 +216,7 @@ export function ProviderList() {
             服务提供商
           </div>
           <div className="flex h-7 min-h-7 w-7 min-w-7 items-center justify-center rounded-full bg-washi-cream font-zen-body text-xs text-stone-gray font-light">
-            {providers.length}
+            {mounted ? providers.length : '-'}
           </div>
         </div>
 

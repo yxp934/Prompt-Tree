@@ -67,8 +67,8 @@ export function SettingsPage() {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[100] flex bg-paper"
-      style={{ height: '100dvh', maxHeight: '100dvh' }}
+      className="fixed inset-0 z-[100] flex bg-shoji-white"
+      style={{ height: '100vh', maxHeight: '100vh' }}
     >
       {/* 左侧导航菜单 */}
       <SettingsSidebar />

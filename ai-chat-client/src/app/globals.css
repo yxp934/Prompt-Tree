@@ -67,40 +67,40 @@
 
 /* ========== Tailwind Theme Integration ========== */
 @theme inline {
-  /* Zen Colors */
-  --color-shoji-white: var(--shoji-white);
-  --color-washi-cream: var(--washi-cream);
-  --color-matcha-green: var(--matcha-green);
-  --color-bamboo-light: var(--bamboo-light);
-  --color-stone-gray: var(--stone-gray);
-  --color-ink-black: var(--ink-black);
-  --color-kintsugi-gold: var(--kintsugi-gold);
-  --color-sakura-pink: var(--sakura-pink);
+  /* Zen Colors - 直接定义值 */
+  --color-shoji-white: #FAFAF8;
+  --color-washi-cream: #F5F3EF;
+  --color-matcha-green: #7A8B6E;
+  --color-bamboo-light: #A8B5A0;
+  --color-stone-gray: #8B8680;
+  --color-ink-black: #2C2C2C;
+  --color-kintsugi-gold: #C9A962;
+  --color-sakura-pink: #E8D5D0;
 
   /* Original Colors */
-  --color-ink: var(--ink);
-  --color-charcoal: var(--charcoal);
-  --color-stone: var(--stone);
-  --color-clay: var(--clay);
-  --color-sand: var(--sand);
-  --color-parchment: var(--parchment);
-  --color-cream: var(--cream);
-  --color-paper: var(--paper);
+  --color-ink: #1a1816;
+  --color-charcoal: #2d2926;
+  --color-stone: #3d3835;
+  --color-clay: #5c5550;
+  --color-sand: #8a8279;
+  --color-parchment: #c4bdb4;
+  --color-cream: #f5f2ed;
+  --color-paper: #faf9f7;
 
-  --color-copper: var(--copper);
-  --color-copper-light: var(--copper-light);
-  --color-copper-glow: var(--copper-glow);
+  --color-copper: #b87333;
+  --color-copper-light: #d4956a;
+  --color-copper-glow: rgba(184, 115, 51, 0.15);
 
-  --color-human: var(--human);
-  --color-machine: var(--machine);
-  --color-system: var(--system);
+  --color-human: #6b5b4f;
+  --color-machine: #4a6741;
+  --color-system: #4f5b6b;
 
-  /* Fonts */
-  --font-display: var(--font-display);
-  --font-body: var(--font-body);
-  --font-mono: var(--font-mono);
-  --font-zen-display: var(--font-zen-display);
-  --font-zen-body: var(--font-zen-body);
+  /* Fonts - 直接定义字体族 */
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-body: "DM Sans", -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+  --font-zen-display: "Cormorant Garamond", serif;
+  --font-zen-body: "Inter", -apple-system, sans-serif;
 }
 
 /* ========== Base Styles ========== */

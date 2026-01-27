@@ -133,12 +133,12 @@ export function InputArea({
 
           <Button
             variant="primary"
-            className="h-9 w-9 rounded-[10px] px-0 hover:scale-105"
+            className="h-10 w-10 rounded-[10px] px-0 hover:scale-105"
             disabled={disabled || !value.trim()}
             aria-label="Send"
             onClick={() => void submit()}
           >
-            <div className="h-6 w-6">
+            <div className="h-7 w-7">
               <SendIcon />
             </div>
           </Button>

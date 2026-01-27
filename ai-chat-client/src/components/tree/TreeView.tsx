@@ -80,6 +80,11 @@ export function TreeView() {
   const openCompression = useAppStore((s) => s.openCompression);
   const decompressNode = useAppStore((s) => s.decompressNode);
 
+  const [flowNodes, setFlowNodes, onNodesChange] =
+    useNodesState<TreeFlowNodeData>([]);
+  const [flowEdges, setFlowEdges, onEdgesChange] =
+    useEdgesState<TreeFlowEdgeData>([]);
+
   const applyAutoLayout = useCallback(
     (overrideNodes?: Iterable<Node>) => {
       if (!currentTree) return;
@@ -156,11 +161,6 @@ export function TreeView() {
       onToggleCollapse: toggleCompressedNode,
     });
   }, [currentTree, nodesMap, activeNodeId, selectedNodeIds, toggleCompressedNode]);
-
-  const [flowNodes, setFlowNodes, onNodesChange] =
-    useNodesState<TreeFlowNodeData>([]);
-  const [flowEdges, setFlowEdges, onEdgesChange] =
-    useEdgesState<TreeFlowEdgeData>([]);
 
   useEffect(() => {
     setFlowNodes(graph.nodes);

@@ -26,6 +26,7 @@ export interface LLMSlice {
   setLLMSettings: (settings: Partial<LLMSettings>) => void;
   setSelectedModels: (models: ProviderModelSelection[]) => void;
   sendMessage: (content: string, contextNodeIds?: string[]) => Promise<Node>;
+  retryAssistant: (nodeId: string) => Promise<Node>;
   compressNodes: (
     nodeIds: string[],
     options?: { summary?: string; metaInstructions?: NodeMetaInstructions },
@@ -174,7 +175,7 @@ export function createLLMSlice(
           setStoredLLMSettings(next);
           return { selectedModels: next.selectedModels };
         }),
-      sendMessage: async (content: string, contextNodeIds?: string[]) => {
+    sendMessage: async (content: string, contextNodeIds?: string[]) => {
       const trimmed = content.trim();
       if (!trimmed) throw new Error("Message is empty.");
 
@@ -368,6 +369,181 @@ export function createLLMSlice(
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to send message";
+        set({ llmError: message });
+        throw err;
+      } finally {
+        set({ isSending: false });
+      }
+    },
+    retryAssistant: async (nodeId) => {
+      const tree = get().getCurrentTree();
+      if (!tree) throw new Error("No active conversation tree loaded.");
+
+      const assistantNode =
+        get().nodes.get(nodeId) ?? (await deps.nodeService.read(nodeId));
+      if (!assistantNode || assistantNode.type !== NodeType.ASSISTANT) {
+        throw new Error("Selected node is not an assistant message.");
+      }
+
+      const userNodeId = assistantNode.parentId;
+      if (!userNodeId) {
+        throw new Error("Assistant message has no parent user node.");
+      }
+
+      const userNode =
+        get().nodes.get(userNodeId) ?? (await deps.nodeService.read(userNodeId));
+      if (!userNode || userNode.type !== NodeType.USER) {
+        throw new Error("Parent user node not found.");
+      }
+
+      set({ isSending: true, llmError: null });
+      try {
+        const resolvedContextIds = get().contextBox?.nodeIds?.length
+          ? get().contextBox!.nodeIds
+          : null;
+
+        const contextNodes: Node[] = resolvedContextIds
+          ? (
+              await Promise.all(
+                resolvedContextIds.map(
+                  async (id) => get().nodes.get(id) ?? deps.nodeService.read(id),
+                ),
+              )
+            ).filter((n): n is Node => Boolean(n))
+          : await deps.nodeService.getPath(userNode.id);
+
+        const messages: ChatMessage[] = [];
+        for (const node of contextNodes) {
+          const msg = nodeToChatMessage(node);
+          if (msg) messages.push(msg);
+        }
+
+        const last = messages[messages.length - 1];
+        if (!last || last.role !== "user" || last.content !== userNode.content) {
+          messages.push({ role: "user", content: userNode.content });
+        }
+
+        const selectedModels = get().selectedModels;
+        const providers = get().providers;
+
+        type ModelRequest = {
+          modelId: string;
+          modelName: string;
+          providerId?: string;
+          providerName?: string;
+          apiKey?: string;
+          baseUrl?: string;
+        };
+
+        const requests: ModelRequest[] = [];
+        for (const selection of selectedModels) {
+          const provider = providers.find((item) => item.id === selection.providerId);
+          if (!provider) continue;
+          const primaryKey = getPrimaryApiKey(provider);
+          if (!primaryKey) continue;
+          const modelName = provider.name
+            ? `${provider.name} · ${selection.modelId}`
+            : selection.modelId;
+          requests.push({
+            modelId: selection.modelId,
+            modelName,
+            providerId: provider.id,
+            providerName: provider.name,
+            apiKey: primaryKey.value,
+            baseUrl: provider.baseUrl,
+          });
+        }
+
+        if (selectedModels.length > 0 && requests.length === 0) {
+          throw new Error("Selected models are missing API keys or providers.");
+        }
+
+        if (requests.length === 0) {
+          const fallbackModel = get().model;
+          requests.push({
+            modelId: fallbackModel,
+            modelName: fallbackModel,
+          });
+        }
+
+        const results = await Promise.allSettled(
+          requests.map(async (request) => {
+            const content = await deps.llmService.chat({
+              messages,
+              model: request.modelId,
+              temperature: get().temperature,
+              maxTokens: get().maxTokens,
+              apiKey: request.apiKey,
+              baseUrl: request.baseUrl,
+            });
+            return { request, content };
+          }),
+        );
+
+        const assistantNodes: Node[] = [];
+        const errors: string[] = [];
+
+        for (const [index, result] of results.entries()) {
+          const request = requests[index];
+          if (result.status === "rejected") {
+            const reason =
+              result.reason instanceof Error
+                ? result.reason.message
+                : "Failed to retry message";
+            errors.push(`${request.modelName}: ${reason}`);
+            continue;
+          }
+
+          const assistantNode = await deps.nodeService.create({
+            type: NodeType.ASSISTANT,
+            parentId: userNode.id,
+            content: result.value.content,
+            metadata: {
+              modelId: request.modelId,
+              modelName: request.modelName,
+              providerId: request.providerId,
+              providerName: request.providerName,
+            },
+          });
+          assistantNodes.push(assistantNode);
+        }
+
+        if (assistantNodes.length === 0) {
+          throw new Error(errors[0] ?? "Failed to retry message");
+        }
+
+        set((state) => {
+          const nodes = new Map(state.nodes);
+          for (const node of assistantNodes) {
+            nodes.set(node.id, node);
+          }
+          return {
+            nodes,
+            activeNodeId: assistantNodes[assistantNodes.length - 1]?.id ?? userNode.id,
+          };
+        });
+
+        for (const node of assistantNodes) {
+          await get().addToContext(node.id);
+        }
+
+        if (errors.length > 0) {
+          set({ llmError: errors[0] });
+        }
+
+        if (get().currentTreeId) {
+          const touched = await deps.treeService.touch(get().currentTreeId!);
+          set((state) => {
+            const trees = new Map(state.trees);
+            trees.set(touched.id, touched);
+            return { trees };
+          });
+        }
+
+        return assistantNodes[assistantNodes.length - 1];
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to retry message";
         set({ llmError: message });
         throw err;
       } finally {

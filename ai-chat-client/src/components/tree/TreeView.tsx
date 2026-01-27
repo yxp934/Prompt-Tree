@@ -176,9 +176,15 @@ export function TreeView() {
 
   const onSelectionChange: OnSelectionChangeFunc = useCallback(
     ({ nodes }) => {
-      setSelectedNodeIds(nodes.map((n) => n.id));
+      const nextIds = nodes.map((n) => n.id);
+      if (nextIds.length === selectedNodeIds.length) {
+        const nextSet = new Set(nextIds);
+        const isSame = selectedNodeIds.every((id) => nextSet.has(id));
+        if (isSame) return;
+      }
+      setSelectedNodeIds(nextIds);
     },
-    [setSelectedNodeIds],
+    [selectedNodeIds, setSelectedNodeIds],
   );
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);

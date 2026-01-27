@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { useEffect, useRef, useState } from "react";
 
 import { NodeType, type Node } from "@/types";
 import { getNodeAvatarLetter, getNodeDisplayName } from "@/lib/utils/nodeDisplay";
@@ -50,6 +51,19 @@ function RetryIcon() {
   );
 }
 
+function CheckIcon() {
+  return (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M5 12l5 5L19 7"
+      />
+    </svg>
+  );
+}
+
 function getMessageMeta(node: Node): {
   role: "human" | "machine" | "system";
   author: string;
@@ -78,6 +92,16 @@ export function MessageItem({ node }: MessageItemProps) {
   const isAssistant = node.type === NodeType.ASSISTANT;
   const isSending = useAppStore((s) => s.isSending);
   const retryAssistant = useAppStore((s) => s.retryAssistant);
+  const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="animate-message-in mb-8 max-w-[680px]">
@@ -108,14 +132,29 @@ export function MessageItem({ node }: MessageItemProps) {
           <button
             type="button"
             className="flex items-center gap-1.5 rounded-full border border-parchment px-3 py-1 text-[0.65rem] text-sand transition-all duration-150 hover:border-copper hover:text-ink disabled:opacity-50"
-            onClick={() => void navigator.clipboard.writeText(body)}
+            onClick={() => {
+              void (async () => {
+                try {
+                  await navigator.clipboard.writeText(body);
+                  setCopied(true);
+                  if (copyTimeoutRef.current) {
+                    window.clearTimeout(copyTimeoutRef.current);
+                  }
+                  copyTimeoutRef.current = window.setTimeout(() => {
+                    setCopied(false);
+                  }, 1600);
+                } catch {
+                  // ignore copy failures
+                }
+              })();
+            }}
             disabled={isSending}
             aria-label="Copy response"
           >
             <div className="h-3.5 w-3.5">
-              <CopyIcon />
+              {copied ? <CheckIcon /> : <CopyIcon />}
             </div>
-            复制
+            {copied ? "已复制" : "复制"}
           </button>
           <button
             type="button"

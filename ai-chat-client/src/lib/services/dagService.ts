@@ -8,6 +8,7 @@ export interface TreeFlowNodeData {
   isActive: boolean;
   isSelected: boolean;
   isInActivePath: boolean;
+  onToggleCollapse?: (nodeId: string) => void;
 }
 
 export interface TreeFlowEdgeData {
@@ -30,6 +31,14 @@ const DEFAULT_LAYOUT: Required<LayoutOptions> = {
 function filterCollapsedNodes(nodes: Iterable<ConversationNode>): ConversationNode[] {
   const all = Array.from(nodes);
   const byId = new Map(all.map((node) => [node.id, node] as const));
+  const childrenByParent = new Map<string, ConversationNode[]>();
+
+  for (const node of all) {
+    if (!node.parentId) continue;
+    const bucket = childrenByParent.get(node.parentId);
+    if (bucket) bucket.push(node);
+    else childrenByParent.set(node.parentId, [node]);
+  }
 
   const hidden = new Set<string>();
   const hiddenParentToCompressed = new Map<string, string>();
@@ -46,6 +55,24 @@ function filterCollapsedNodes(nodes: Iterable<ConversationNode>): ConversationNo
     for (const id of ids) {
       hidden.add(id);
       hiddenParentToCompressed.set(id, node.id);
+    }
+    const visited = new Set<string>();
+    const stack = [...ids];
+    while (stack.length > 0) {
+      const currentId = stack.pop();
+      if (!currentId) continue;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const children = childrenByParent.get(currentId) ?? [];
+      for (const child of children) {
+        if (child.id === node.id) continue;
+        if (!hidden.has(child.id)) {
+          hidden.add(child.id);
+          hiddenParentToCompressed.set(child.id, node.id);
+        }
+        stack.push(child.id);
+      }
     }
 
     const entryId = ids.find((id) => {
@@ -202,6 +229,7 @@ export interface BuildFlowGraphParams {
   selectedNodeIds?: string[];
   forceAutoLayout?: boolean;
   layout?: LayoutOptions;
+  onToggleCollapse?: (nodeId: string) => void;
 }
 
 export function buildFlowGraph({
@@ -211,6 +239,7 @@ export function buildFlowGraph({
   selectedNodeIds,
   forceAutoLayout = false,
   layout,
+  onToggleCollapse,
 }: BuildFlowGraphParams): {
   nodes: TreeFlowNode[];
   edges: TreeFlowEdge[];
@@ -273,6 +302,7 @@ export function buildFlowGraph({
         isActive: activeNodeId === node.id,
         isSelected: selected.has(node.id),
         isInActivePath: activePath.has(node.id),
+        onToggleCollapse,
       },
     };
   });

@@ -80,32 +80,9 @@ export function TreeView() {
   const openCompression = useAppStore((s) => s.openCompression);
   const decompressNode = useAppStore((s) => s.decompressNode);
 
-  const graph = useMemo(() => {
-    if (!currentTree) return { nodes: [], edges: [], branchCount: 0 };
-
-    return buildFlowGraph({
-      nodes: nodesMap.values(),
-      rootId: currentTree.rootId,
-      activeNodeId,
-      selectedNodeIds,
-    });
-  }, [currentTree, nodesMap, activeNodeId, selectedNodeIds]);
-
-  const [flowNodes, setFlowNodes, onNodesChange] =
-    useNodesState<TreeFlowNodeData>([]);
-  const [flowEdges, setFlowEdges, onEdgesChange] =
-    useEdgesState<TreeFlowEdgeData>([]);
-
-  useEffect(() => {
-    setFlowNodes(graph.nodes);
-    setFlowEdges(graph.edges);
-  }, [graph.nodes, graph.edges, setFlowNodes, setFlowEdges]);
-
-  const onNodeClick: NodeMouseHandler = useCallback(
-    (_event, node) => {
-      setActiveNode(node.id);
-
-      const conversationNode = nodesMap.get(node.id);
+  const toggleCompressedNode = useCallback(
+    (nodeId: string) => {
+      const conversationNode = nodesMap.get(nodeId);
       if (!conversationNode) return;
       if (conversationNode.type !== NodeType.COMPRESSED) return;
 
@@ -123,19 +100,66 @@ export function TreeView() {
             ? { ...anchor }
             : null;
 
-      void updateNode(node.id, {
+      void updateNode(nodeId, {
         metadata: { ...conversationNode.metadata, collapsed: nextCollapsed },
         ...(nextPosition ? { position: nextPosition } : {}),
       });
 
       if (nextCollapsed) {
         if (activeNodeId && compressedIds.includes(activeNodeId)) {
-          setActiveNode(node.id);
+          setActiveNode(nodeId);
         }
         clearSelection();
       }
     },
     [activeNodeId, clearSelection, nodesMap, setActiveNode, updateNode],
+  );
+
+  const applyAutoLayout = useCallback(() => {
+    if (!currentTree) return;
+
+    const positions = computeAutoLayout(nodesMap.values(), currentTree.rootId);
+    setFlowNodes((prev) =>
+      prev.map((node) => ({
+        ...node,
+        position: positions.get(node.id) ?? node.position,
+      })),
+    );
+
+    void (async () => {
+      for (const [id, position] of positions) {
+        await updateNode(id, { position });
+      }
+    })();
+  }, [currentTree, nodesMap, setFlowNodes, updateNode]);
+
+  const graph = useMemo(() => {
+    if (!currentTree) return { nodes: [], edges: [], branchCount: 0 };
+
+    return buildFlowGraph({
+      nodes: nodesMap.values(),
+      rootId: currentTree.rootId,
+      activeNodeId,
+      selectedNodeIds,
+      onToggleCollapse: toggleCompressedNode,
+    });
+  }, [currentTree, nodesMap, activeNodeId, selectedNodeIds, toggleCompressedNode]);
+
+  const [flowNodes, setFlowNodes, onNodesChange] =
+    useNodesState<TreeFlowNodeData>([]);
+  const [flowEdges, setFlowEdges, onEdgesChange] =
+    useEdgesState<TreeFlowEdgeData>([]);
+
+  useEffect(() => {
+    setFlowNodes(graph.nodes);
+    setFlowEdges(graph.edges);
+  }, [graph.nodes, graph.edges, setFlowNodes, setFlowEdges]);
+
+  const onNodeClick: NodeMouseHandler = useCallback(
+    (_event, node) => {
+      setActiveNode(node.id);
+    },
+    [setActiveNode],
   );
 
   const onSelectionChange: OnSelectionChangeFunc = useCallback(
@@ -340,24 +364,6 @@ export function TreeView() {
     },
     [addToContext, dragOrigin, nodesMap, setFlowNodes, updateNode],
   );
-
-  const applyAutoLayout = useCallback(() => {
-    if (!currentTree) return;
-
-    const positions = computeAutoLayout(nodesMap.values(), currentTree.rootId);
-    setFlowNodes((prev) =>
-      prev.map((node) => ({
-        ...node,
-        position: positions.get(node.id) ?? node.position,
-      })),
-    );
-
-    void (async () => {
-      for (const [id, position] of positions) {
-        await updateNode(id, { position });
-      }
-    })();
-  }, [currentTree, nodesMap, setFlowNodes, updateNode]);
 
   const menuNode = contextMenu ? nodesMap.get(contextMenu.nodeId) ?? null : null;
   const isRoot = Boolean(menuNode && currentTree && menuNode.id === currentTree.rootId);

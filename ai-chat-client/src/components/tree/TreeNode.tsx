@@ -105,9 +105,18 @@ const TreeNode = memo(function TreeNode({ data }: NodeProps<TreeFlowNodeData>) {
         </div>
 
         {isCompressed && (
-          <div className="flex h-5 w-5 items-center justify-center rounded-full border border-[rgba(255,255,255,0.4)] text-[0.7rem] font-semibold text-cream/80">
+          <button
+            type="button"
+            className="flex h-5 w-5 items-center justify-center rounded-full border border-[rgba(255,255,255,0.4)] text-[0.7rem] font-semibold text-cream/80 transition-colors hover:border-[rgba(255,255,255,0.7)]"
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onToggleCollapse?.(node.id);
+            }}
+            aria-label={isCollapsed ? "Expand compressed node" : "Collapse compressed node"}
+          >
             {isCollapsed ? "+" : "−"}
-          </div>
+          </button>
         )}
 
         <div className="font-mono text-[0.7rem] opacity-80">

@@ -101,11 +101,11 @@ export function InputArea({
   }, [modelMenuOpen]);
 
   return (
-    <div className="input-area-gradient px-8 pb-8 pt-6">
+    <div className="input-area-gradient shrink-0 px-8 pb-6 pt-5">
       <div className="relative max-w-[680px]">
         <textarea
           ref={textareaRef}
-          className="min-h-[60px] max-h-[180px] w-full resize-none rounded-2xl border border-parchment bg-paper px-6 py-[18px] pr-[120px] font-body text-[0.95rem] text-ink outline-none transition-all duration-200 placeholder:text-sand focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+          className="min-h-[60px] max-h-[180px] w-full resize-none rounded-2xl border border-parchment bg-paper px-6 py-4 pr-[120px] font-body text-[0.95rem] text-ink outline-none transition-all duration-200 placeholder:text-sand focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
           placeholder="Type your message..."
           rows={1}
           value={value}
@@ -221,14 +221,14 @@ export function InputArea({
             aria-label="Send"
             onClick={() => void submit()}
           >
-            <div className="h-5 w-5">
+            <div className="h-6 w-6">
               <SendIcon />
             </div>
           </Button>
         </div>
       </div>
 
-      <div className="mt-3 flex max-w-[680px] justify-between px-1 font-mono text-[0.7rem] text-sand">
+      <div className="mt-2 flex max-w-[680px] justify-between px-1 font-mono text-[0.7rem] text-sand">
         <span>
           {modelLabel ? `Model: ${modelLabel}` : "Model: —"}
           {temperatureLabel ? ` - Temp: ${temperatureLabel}` : ""}

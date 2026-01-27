@@ -120,11 +120,42 @@ export function InputArea({
         />
 
         <div className="absolute bottom-3 right-3 flex gap-2">
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-transparent text-sand transition-all duration-150 hover:bg-cream hover:text-ink disabled:opacity-50"
+            disabled={disabled}
+            aria-label="Attach"
+          >
+            <div className="h-[18px] w-[18px]">
+              <AttachIcon />
+            </div>
+          </button>
+
+          <Button
+            variant="primary"
+            className="h-9 w-9 rounded-[10px] px-0 hover:scale-105"
+            disabled={disabled || !value.trim()}
+            aria-label="Send"
+            onClick={() => void submit()}
+          >
+            <div className="h-6 w-6">
+              <SendIcon />
+            </div>
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-2 flex max-w-[680px] items-center gap-3 px-1 font-mono text-[0.7rem] text-sand">
+        <div className="flex items-center gap-3">
+          <span>
+            {modelLabel ? `Model: ${modelLabel}` : "Model: —"}
+            {temperatureLabel ? ` - Temp: ${temperatureLabel}` : ""}
+          </span>
           {modelOptions.length > 0 && onSelectedModelsChange ? (
             <div ref={menuRef} className="relative">
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-[10px] border border-parchment bg-paper px-3 py-2 text-[0.7rem] text-sand transition-all duration-150 hover:border-copper hover:text-ink"
+                className="flex items-center gap-2 rounded-[10px] border border-parchment bg-paper px-3 py-1.5 text-[0.7rem] text-sand transition-all duration-150 hover:border-copper hover:text-ink"
                 onClick={() => setModelMenuOpen((prev) => !prev)}
                 disabled={disabled}
               >
@@ -135,7 +166,7 @@ export function InputArea({
               </button>
 
               {modelMenuOpen && (
-                <div className="absolute bottom-full right-0 mb-2 w-[260px] rounded-xl border border-parchment bg-paper p-3 shadow-[0_16px_40px_rgba(35,31,28,0.18)]">
+                <div className="absolute bottom-full left-0 mb-2 w-[260px] rounded-xl border border-parchment bg-paper p-3 shadow-[0_16px_40px_rgba(35,31,28,0.18)]">
                   <div className="mb-2 flex items-center justify-between text-[0.65rem] uppercase tracking-[0.12em] text-sand">
                     <span>Enabled Models</span>
                     <div className="flex items-center gap-2">
@@ -203,37 +234,8 @@ export function InputArea({
               )}
             </div>
           ) : null}
-          <button
-            type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-transparent text-sand transition-all duration-150 hover:bg-cream hover:text-ink disabled:opacity-50"
-            disabled={disabled}
-            aria-label="Attach"
-          >
-            <div className="h-[18px] w-[18px]">
-              <AttachIcon />
-            </div>
-          </button>
-
-          <Button
-            variant="primary"
-            className="h-9 w-9 rounded-[10px] px-0 hover:scale-105"
-            disabled={disabled || !value.trim()}
-            aria-label="Send"
-            onClick={() => void submit()}
-          >
-            <div className="h-6 w-6">
-              <SendIcon />
-            </div>
-          </Button>
         </div>
-      </div>
-
-      <div className="mt-2 flex max-w-[680px] justify-between px-1 font-mono text-[0.7rem] text-sand">
-        <span>
-          {modelLabel ? `Model: ${modelLabel}` : "Model: —"}
-          {temperatureLabel ? ` - Temp: ${temperatureLabel}` : ""}
-        </span>
-        <span>{tokenLabel ?? ""}</span>
+        <span className="ml-auto">{tokenLabel ?? ""}</span>
       </div>
     </div>
   );

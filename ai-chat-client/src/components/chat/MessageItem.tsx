@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { NodeType, type Node } from "@/types";
 import { getNodeAvatarLetter, getNodeDisplayName } from "@/lib/utils/nodeDisplay";
 
+import { MarkdownContent } from "./MarkdownContent";
 interface MessageItemProps {
   node: Node;
 }
@@ -56,7 +57,7 @@ export function MessageItem({ node }: MessageItemProps) {
       </div>
 
       <div className="prose-cortex pl-11 text-[0.95rem] leading-relaxed text-charcoal">
-        <p className="whitespace-pre-wrap">{body}</p>
+        <MarkdownContent content={body} />
       </div>
     </div>
   );

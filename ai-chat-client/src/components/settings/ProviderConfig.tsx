@@ -159,11 +159,14 @@ function ModelItem({
   model,
   onRemove,
   onToggleEnabled,
+  onToggleStreaming,
 }: {
   model: ModelConfig;
   onRemove: () => void;
   onToggleEnabled: () => void;
+  onToggleStreaming: () => void;
 }) {
+  const streamingEnabled = model.supportsStreaming ?? false;
   return (
     <div className="group flex items-center gap-3 rounded-lg border border-parchment/10 bg-washi-cream px-4 py-3 transition-all duration-300 hover:border-matcha-green/20">
       {/* 启用开关 */}
@@ -192,6 +195,25 @@ function ModelItem({
           </div>
         )}
       </div>
+
+      <button
+        type="button"
+        className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[0.65rem] transition-all ${
+          streamingEnabled
+            ? "border-copper/50 bg-copper/10 text-copper"
+            : "border-parchment/40 text-sand hover:border-copper/40 hover:text-ink"
+        }`}
+        onClick={onToggleStreaming}
+      >
+        <span
+          className={`h-2 w-2 rounded-full border ${
+            streamingEnabled
+              ? "border-copper bg-copper"
+              : "border-parchment/60 bg-transparent"
+          }`}
+        />
+        流式
+      </button>
 
       {/* 删除按钮 */}
       <button
@@ -320,6 +342,7 @@ export function ProviderConfig() {
   const providers = useAppStore((s) => s.providers);
   const selectedProviderId = useAppStore((s) => s.selectedProviderId);
   const updateProvider = useAppStore((s) => s.updateProvider);
+  const updateModel = useAppStore((s) => s.updateModel);
   const addApiKey = useAppStore((s) => s.addApiKey);
   const updateApiKey = useAppStore((s) => s.updateApiKey);
   const deleteApiKey = useAppStore((s) => s.deleteApiKey);
@@ -579,6 +602,11 @@ export function ProviderConfig() {
                             onToggleEnabled={() =>
                               toggleModelEnabled(selectedProvider.id, model.id)
                             }
+                            onToggleStreaming={() =>
+                              updateModel(selectedProvider.id, model.id, {
+                                supportsStreaming: !(model.supportsStreaming ?? false),
+                              })
+                            }
                           />
                         ))}
                       </div>
@@ -599,6 +627,11 @@ export function ProviderConfig() {
                             onRemove={() => removeModel(selectedProvider.id, model.id)}
                             onToggleEnabled={() =>
                               toggleModelEnabled(selectedProvider.id, model.id)
+                            }
+                            onToggleStreaming={() =>
+                              updateModel(selectedProvider.id, model.id, {
+                                supportsStreaming: !(model.supportsStreaming ?? false),
+                              })
                             }
                           />
                         ))}

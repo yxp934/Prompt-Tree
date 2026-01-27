@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { openAIChatCompletion } from "@/lib/services/openaiClient";
+import {
+  openAIChatCompletion,
+  openAIChatCompletionStream,
+} from "@/lib/services/openaiClient";
 import {
   DEFAULT_OPENAI_BASE_URL,
   normalizeOpenAIBaseUrl,
@@ -47,6 +50,7 @@ export async function POST(request: Request) {
       temperature?: unknown;
       maxTokens?: unknown;
       responseFormat?: unknown;
+      stream?: unknown;
     };
 
     const apiKey =
@@ -70,6 +74,28 @@ export async function POST(request: Request) {
         { error: "Invalid messages payload." },
         { status: 400 },
       );
+    }
+
+    const stream = typeof b.stream === "boolean" ? b.stream : false;
+
+    if (stream) {
+      const upstream = await openAIChatCompletionStream({
+        apiKey,
+        baseUrl,
+        messages: b.messages,
+        model: typeof b.model === "string" ? b.model : undefined,
+        temperature: typeof b.temperature === "number" ? b.temperature : undefined,
+        maxTokens: typeof b.maxTokens === "number" ? b.maxTokens : undefined,
+        responseFormat: b.responseFormat,
+      });
+
+      return new Response(upstream.body, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+        },
+      });
     }
 
     const content = await openAIChatCompletion({

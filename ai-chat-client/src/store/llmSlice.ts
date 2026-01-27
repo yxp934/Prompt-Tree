@@ -111,6 +111,150 @@ export function createLLMSlice(
       return Array.from(compact).slice(0, 6).join("");
     };
 
+    type ModelRequest = {
+      modelId: string;
+      modelName: string;
+      providerId?: string;
+      providerName?: string;
+      apiKey?: string;
+      baseUrl?: string;
+      supportsStreaming?: boolean;
+    };
+
+    const getModelStreamingSupport = (
+      providerId: string | undefined,
+      modelId: string,
+    ): boolean => {
+      if (!providerId) return false;
+      const provider = get().providers.find((item) => item.id === providerId);
+      if (!provider) return false;
+      const config = provider.models.find((model) => model.id === modelId);
+      return config?.supportsStreaming ?? false;
+    };
+
+    const buildRequestFromSelection = (
+      selection: ProviderModelSelection,
+    ): ModelRequest | null => {
+      const providers = get().providers;
+      const provider = providers.find((item) => item.id === selection.providerId);
+      if (!provider) return null;
+      const primaryKey = getPrimaryApiKey(provider);
+      if (!primaryKey) return null;
+      const modelName = provider.name
+        ? `${provider.name} · ${selection.modelId}`
+        : selection.modelId;
+      return {
+        modelId: selection.modelId,
+        modelName,
+        providerId: provider.id,
+        providerName: provider.name,
+        apiKey: primaryKey.value,
+        baseUrl: provider.baseUrl,
+        supportsStreaming: getModelStreamingSupport(provider.id, selection.modelId),
+      };
+    };
+
+    const updateStreamingContent = (nodeId: string, content: string) => {
+      set((state) => {
+        const nodes = new Map(state.nodes);
+        const existing = nodes.get(nodeId);
+        if (!existing) return state;
+        nodes.set(nodeId, { ...existing, content });
+        return { nodes };
+      });
+    };
+
+    const runModelRequest = async (
+      request: ModelRequest,
+      parentId: string,
+      messages: ChatMessage[],
+    ): Promise<Node> => {
+      if (request.supportsStreaming) {
+        const assistantNode = await deps.nodeService.create({
+          type: NodeType.ASSISTANT,
+          parentId,
+          content: "",
+          metadata: {
+            modelId: request.modelId,
+            modelName: request.modelName,
+            providerId: request.providerId,
+            providerName: request.providerName,
+          },
+        });
+
+        set((state) => {
+          const nodes = new Map(state.nodes);
+          nodes.set(assistantNode.id, assistantNode);
+          return { nodes };
+        });
+
+        let content = "";
+        let lastFlush = 0;
+        const flush = (force = false) => {
+          const now = Date.now();
+          if (!force && now - lastFlush < 50) return;
+          lastFlush = now;
+          updateStreamingContent(assistantNode.id, content);
+        };
+
+        try {
+          await deps.llmService.chat({
+            messages,
+            model: request.modelId,
+            temperature: get().temperature,
+            maxTokens: get().maxTokens,
+            apiKey: request.apiKey,
+            baseUrl: request.baseUrl,
+            stream: true,
+            onToken: (delta) => {
+              content += delta;
+              flush();
+            },
+          });
+        } catch (err) {
+          if (!content) {
+            await deps.nodeService.delete(assistantNode.id);
+            set((state) => {
+              const nodes = new Map(state.nodes);
+              nodes.delete(assistantNode.id);
+              return { nodes };
+            });
+          }
+          throw err;
+        }
+
+        flush(true);
+        const updated = await deps.nodeService.update(assistantNode.id, { content });
+        set((state) => {
+          const nodes = new Map(state.nodes);
+          nodes.set(updated.id, updated);
+          return { nodes };
+        });
+        return updated;
+      }
+
+      const content = await deps.llmService.chat({
+        messages,
+        model: request.modelId,
+        temperature: get().temperature,
+        maxTokens: get().maxTokens,
+        apiKey: request.apiKey,
+        baseUrl: request.baseUrl,
+      });
+
+      return deps.nodeService.create({
+        type: NodeType.ASSISTANT,
+        parentId,
+        content,
+        metadata: {
+          modelId: request.modelId,
+          modelName: request.modelName,
+          providerId: request.providerId,
+          providerName: request.providerName,
+        },
+      });
+    };
+
     return {
       isSending: false,
       llmError: null,
@@ -251,35 +395,9 @@ export function createLLMSlice(
         }
 
         const selectedModels = get().selectedModels;
-        const providers = get().providers;
-
-        type ModelRequest = {
-          modelId: string;
-          modelName: string;
-          providerId?: string;
-          providerName?: string;
-          apiKey?: string;
-          baseUrl?: string;
-        };
-
-        const requests: ModelRequest[] = [];
-        for (const selection of selectedModels) {
-          const provider = providers.find((item) => item.id === selection.providerId);
-          if (!provider) continue;
-          const primaryKey = getPrimaryApiKey(provider);
-          if (!primaryKey) continue;
-          const modelName = provider.name
-            ? `${provider.name} · ${selection.modelId}`
-            : selection.modelId;
-          requests.push({
-            modelId: selection.modelId,
-            modelName,
-            providerId: provider.id,
-            providerName: provider.name,
-            apiKey: primaryKey.value,
-            baseUrl: provider.baseUrl,
-          });
-        }
+        const requests = selectedModels
+          .map((selection) => buildRequestFromSelection(selection))
+          .filter((request): request is ModelRequest => Boolean(request));
 
         if (selectedModels.length > 0 && requests.length === 0) {
           throw new Error("Selected models are missing API keys or providers.");
@@ -290,20 +408,14 @@ export function createLLMSlice(
           requests.push({
             modelId: fallbackModel,
             modelName: fallbackModel,
+            supportsStreaming: false,
           });
         }
 
         const results = await Promise.allSettled(
           requests.map(async (request) => {
-            const content = await deps.llmService.chat({
-              messages,
-              model: request.modelId,
-              temperature: get().temperature,
-              maxTokens: get().maxTokens,
-              apiKey: request.apiKey,
-              baseUrl: request.baseUrl,
-            });
-            return { request, content };
+            const node = await runModelRequest(request, userNode.id, messages);
+            return { request, node };
           }),
         );
 
@@ -318,19 +430,7 @@ export function createLLMSlice(
             errors.push(`${request.modelName}: ${reason}`);
             continue;
           }
-
-          const assistantNode = await deps.nodeService.create({
-            type: NodeType.ASSISTANT,
-            parentId: userNode.id,
-            content: result.value.content,
-            metadata: {
-              modelId: request.modelId,
-              modelName: request.modelName,
-              providerId: request.providerId,
-              providerName: request.providerName,
-            },
-          });
-          assistantNodes.push(assistantNode);
+          assistantNodes.push(result.value.node);
         }
 
         if (assistantNodes.length === 0) {

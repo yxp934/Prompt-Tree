@@ -11,6 +11,8 @@ export interface ChatParams {
   temperature?: number;
   maxTokens?: number;
   responseFormat?: unknown;
+  stream?: boolean;
+  onToken?: (chunk: string) => void;
 }
 
 export interface ILLMService {
@@ -23,7 +25,13 @@ export interface ILLMService {
  */
 export class LLMService implements ILLMService {
   async chat(params: ChatParams): Promise<string> {
-    const { apiKey: apiKeyOverride, baseUrl: baseUrlOverride, ...rest } = params;
+    const {
+      apiKey: apiKeyOverride,
+      baseUrl: baseUrlOverride,
+      onToken,
+      stream,
+      ...rest
+    } = params;
     const apiKey = apiKeyOverride ?? getOpenAIApiKey();
     if (!apiKey) {
       throw new Error("Missing OpenAI API key. Add it in Settings.");
@@ -33,12 +41,71 @@ export class LLMService implements ILLMService {
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apiKey, baseUrl, ...rest }),
+      body: JSON.stringify({ apiKey, baseUrl, ...rest, stream: Boolean(stream) }),
     });
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       throw new Error(`LLM request failed (${response.status}): ${text}`);
+    }
+
+    if (stream) {
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!response.body || contentType.includes("application/json")) {
+        const json = (await response.json()) as unknown;
+        if (
+          typeof json === "object" &&
+          json !== null &&
+          "content" in json &&
+          typeof (json as { content: unknown }).content === "string"
+        ) {
+          return (json as { content: string }).content;
+        }
+        throw new Error("Invalid LLM response payload.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let content = "";
+      let done = false;
+
+      while (!done) {
+        const result = await reader.read();
+        if (result.done) break;
+
+        buffer += decoder.decode(result.value, { stream: true });
+        const parts = buffer.split(/\r?\n\r?\n/);
+        buffer = parts.pop() ?? "";
+
+        for (const part of parts) {
+          const lines = part.split(/\r?\n/);
+          for (const line of lines) {
+            if (!line.startsWith("data:")) continue;
+            const data = line.replace(/^data:\s*/, "");
+            if (!data) continue;
+            if (data === "[DONE]") {
+              done = true;
+              break;
+            }
+            try {
+              const json = JSON.parse(data) as {
+                choices?: Array<{ delta?: { content?: string | null } }>;
+              };
+              const delta = json.choices?.[0]?.delta?.content ?? "";
+              if (delta) {
+                content += delta;
+                onToken?.(delta);
+              }
+            } catch {
+              // ignore malformed stream payloads
+            }
+          }
+          if (done) break;
+        }
+      }
+
+      return content;
     }
 
     const json = (await response.json()) as unknown;

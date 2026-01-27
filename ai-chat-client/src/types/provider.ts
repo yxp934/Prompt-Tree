@@ -171,6 +171,7 @@ export function createModelConfig(id: string, name?: string): ModelConfig {
     id,
     name: name || id,
     enabled: true,
+    supportsStreaming: false,
   };
 }
 

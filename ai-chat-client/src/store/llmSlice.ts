@@ -523,113 +523,55 @@ export function createLLMSlice(
           messages.push({ role: "user", content: userNode.content });
         }
 
-        const selectedModels = get().selectedModels;
-        const providers = get().providers;
+        const request = (() => {
+          const modelId = assistantNode.metadata.modelId ?? get().model;
+          const providerId = assistantNode.metadata.providerId;
+          if (!providerId) {
+            return {
+              modelId,
+              modelName: assistantNode.metadata.modelName ?? modelId,
+              supportsStreaming: false,
+            } satisfies ModelRequest;
+          }
 
-        type ModelRequest = {
-          modelId: string;
-          modelName: string;
-          providerId?: string;
-          providerName?: string;
-          apiKey?: string;
-          baseUrl?: string;
-        };
-
-        const requests: ModelRequest[] = [];
-        for (const selection of selectedModels) {
-          const provider = providers.find((item) => item.id === selection.providerId);
-          if (!provider) continue;
+          const provider = get().providers.find((item) => item.id === providerId);
+          if (!provider) {
+            throw new Error("Selected model provider is missing.");
+          }
           const primaryKey = getPrimaryApiKey(provider);
-          if (!primaryKey) continue;
-          const modelName = provider.name
-            ? `${provider.name} · ${selection.modelId}`
-            : selection.modelId;
-          requests.push({
-            modelId: selection.modelId,
+          if (!primaryKey) {
+            throw new Error("Selected model is missing API key.");
+          }
+          const modelName =
+            assistantNode.metadata.modelName ??
+            (provider.name ? `${provider.name} · ${modelId}` : modelId);
+
+          return {
+            modelId,
             modelName,
             providerId: provider.id,
             providerName: provider.name,
             apiKey: primaryKey.value,
             baseUrl: provider.baseUrl,
-          });
-        }
-
-        if (selectedModels.length > 0 && requests.length === 0) {
-          throw new Error("Selected models are missing API keys or providers.");
-        }
-
-        if (requests.length === 0) {
-          const fallbackModel = get().model;
-          requests.push({
-            modelId: fallbackModel,
-            modelName: fallbackModel,
-          });
-        }
-
-        const results = await Promise.allSettled(
-          requests.map(async (request) => {
-            const content = await deps.llmService.chat({
-              messages,
-              model: request.modelId,
-              temperature: get().temperature,
-              maxTokens: get().maxTokens,
-              apiKey: request.apiKey,
-              baseUrl: request.baseUrl,
-            });
-            return { request, content };
-          }),
+            supportsStreaming: getModelStreamingSupport(provider.id, modelId),
+          } satisfies ModelRequest;
+        })();
+        const assistantReply = await runModelRequest(
+          request,
+          userNode.id,
+          messages,
         );
-
-        const assistantNodes: Node[] = [];
-        const errors: string[] = [];
-
-        for (const [index, result] of results.entries()) {
-          const request = requests[index];
-          if (result.status === "rejected") {
-            const reason =
-              result.reason instanceof Error
-                ? result.reason.message
-                : "Failed to retry message";
-            errors.push(`${request.modelName}: ${reason}`);
-            continue;
-          }
-
-          const assistantNode = await deps.nodeService.create({
-            type: NodeType.ASSISTANT,
-            parentId: userNode.id,
-            content: result.value.content,
-            metadata: {
-              modelId: request.modelId,
-              modelName: request.modelName,
-              providerId: request.providerId,
-              providerName: request.providerName,
-            },
-          });
-          assistantNodes.push(assistantNode);
-        }
-
-        if (assistantNodes.length === 0) {
-          throw new Error(errors[0] ?? "Failed to retry message");
-        }
 
         set((state) => {
           const nodes = new Map(state.nodes);
-          for (const node of assistantNodes) {
-            nodes.set(node.id, node);
-          }
+          nodes.set(assistantReply.id, assistantReply);
           return {
             nodes,
-            activeNodeId: assistantNodes[assistantNodes.length - 1]?.id ?? userNode.id,
+            activeNodeId: assistantReply.id,
           };
         });
 
-        for (const node of assistantNodes) {
-          await get().addToContext(node.id);
-        }
-
-        if (errors.length > 0) {
-          set({ llmError: errors[0] });
-        }
+        await get().addToContext(assistantReply.id);
 
         if (get().currentTreeId) {
           const touched = await deps.treeService.touch(get().currentTreeId!);
@@ -640,7 +582,7 @@ export function createLLMSlice(
           });
         }
 
-        return assistantNodes[assistantNodes.length - 1];
+        return assistantReply;
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to retry message";

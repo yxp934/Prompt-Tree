@@ -102,7 +102,7 @@ export function ChatView() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
       <MessageList messages={messages} isSending={isSending} error={error} />
       <InputArea
         onSend={async (content) => {

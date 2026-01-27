@@ -115,7 +115,7 @@ export default function Sidebar() {
   );
 
   return (
-    <aside className="flex h-full flex-col border-r border-parchment bg-cream">
+    <aside className="flex h-full min-h-0 flex-col border-r border-parchment bg-cream">
       <div className="border-b border-parchment px-7 pb-6 pt-8">
         <h1 className="brand-dot flex items-baseline gap-2 font-display text-[1.75rem] font-normal tracking-tight text-ink">
           Cortex
@@ -133,7 +133,7 @@ export default function Sidebar() {
         New Thread
       </button>
 
-      <div className="flex-1 overflow-y-auto px-3 py-5">
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-5">
         <div className="mb-3 px-4 font-mono text-[0.65rem] uppercase tracking-[0.15em] text-sand">
           Threads
         </div>

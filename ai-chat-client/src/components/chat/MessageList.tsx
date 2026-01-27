@@ -33,14 +33,16 @@ interface MessageListProps {
 }
 
 export function MessageList({ messages, isSending, error }: MessageListProps) {
-  const endRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    const list = listRef.current;
+    if (!list) return;
+    list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, [messages.length, isSending]);
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div ref={listRef} className="min-h-0 overflow-y-auto p-8">
       {messages.map((node) => (
         <MessageItem key={node.id} node={node} />
       ))}
@@ -52,7 +54,6 @@ export function MessageList({ messages, isSending, error }: MessageListProps) {
       ) : null}
 
       {isSending ? <TypingIndicator /> : null}
-      <div ref={endRef} />
     </div>
   );
 }

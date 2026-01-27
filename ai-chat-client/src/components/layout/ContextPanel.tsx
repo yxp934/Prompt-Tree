@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
-import { orderCompressedChainIds } from "@/lib/services/compressionService";
+import { computePathIds } from "@/lib/services/dagService";
 import { DND_NODE_ID } from "@/lib/utils/dnd";
 import { getNodeDisplayName } from "@/lib/utils/nodeDisplay";
 import { useAppStore } from "@/store/useStore";
@@ -193,6 +193,60 @@ function nodeToCard(node: Node): ContextCard {
   };
 }
 
+function buildCompressionChainIds(
+  nodeIds: string[],
+  nodes: Map<string, Node>,
+  rootId: string | null,
+  tailId?: string | null,
+): string[] {
+  const unique = Array.from(new Set(nodeIds)).filter((id) => nodes.has(id));
+  if (unique.length < 2) {
+    throw new Error("Select at least 2 nodes from the same path to compress.");
+  }
+
+  const candidateSet = new Set(unique);
+  let tailPath: string[] | null = null;
+
+  if (tailId && nodes.has(tailId)) {
+    const path = computePathIds(nodes, tailId);
+    const coversAll = unique.every((candidate) => path.includes(candidate));
+    if (!coversAll) {
+      throw new Error("Selection must be a single continuous path (no gaps).");
+    }
+    tailPath = path;
+  } else {
+    for (const id of unique) {
+      const path = computePathIds(nodes, id);
+      const coversAll = unique.every((candidate) => path.includes(candidate));
+      if (!coversAll) continue;
+      if (tailPath) {
+        throw new Error("Selection must be a single continuous path (no branches).");
+      }
+      tailPath = path;
+    }
+  }
+
+  if (!tailPath) {
+    throw new Error("Selection must be a single continuous path (no gaps).");
+  }
+
+  const entryIndex = tailPath.findIndex((id) => candidateSet.has(id));
+  if (entryIndex === -1) {
+    throw new Error("Selection must be a single continuous path (no gaps).");
+  }
+
+  let chain = tailPath.slice(entryIndex);
+  if (rootId) {
+    chain = chain.filter((id) => id !== rootId);
+  }
+
+  if (chain.length < 2) {
+    throw new Error("Select at least 2 nodes from the same path to compress.");
+  }
+
+  return chain;
+}
+
 interface ContextCardItemProps {
   card: ContextCard;
   onRemove: (id: string) => void;
@@ -263,6 +317,7 @@ export default function ContextPanel() {
   const nodes = useAppStore((s) => s.nodes);
   const contextBox = useAppStore((s) => s.contextBox);
   const currentTree = useAppStore((s) => s.getCurrentTree());
+  const activeNodeId = useAppStore((s) => s.activeNodeId);
   const selectedNodeIds = useAppStore((s) => s.selectedNodeIds);
   const addToContext = useAppStore((s) => s.addToContext);
   const removeFromContext = useAppStore((s) => s.removeFromContext);
@@ -311,15 +366,20 @@ export default function ContextPanel() {
     return ids.filter((id) => id !== rootId);
   }, [contextBox?.nodeIds, currentTree?.rootId]);
 
+  const contextTailId =
+    activeNodeId ?? contextCandidateIds[contextCandidateIds.length - 1] ?? null;
+  const selectionEligible =
+    selectedNodeIds.length >= 2 &&
+    Boolean(contextTailId && selectedNodeIds.includes(contextTailId)) &&
+    selectedNodeIds.every((id) => contextCandidateIds.includes(id));
   const compressionTargetIds = useMemo(
-    () => (selectedNodeIds.length >= 2 ? selectedNodeIds : contextCandidateIds),
-    [selectedNodeIds, contextCandidateIds],
+    () => (selectionEligible ? selectedNodeIds : contextCandidateIds),
+    [selectionEligible, selectedNodeIds, contextCandidateIds],
   );
   const canCompress = compressionTargetIds.length >= 2;
-  const compressButtonLabel =
-    selectedNodeIds.length >= 2
-      ? `Compress Selected (${selectedNodeIds.length})`
-      : `Compress Context (${contextCandidateIds.length})`;
+  const compressButtonLabel = selectionEligible
+    ? `Compress Selected (${selectedNodeIds.length})`
+    : `Compress Context (${contextCandidateIds.length})`;
 
   const { compressionNodeIds, compressionSelectionError } = useMemo(() => {
     if (!compressionOpen) {
@@ -328,7 +388,12 @@ export default function ContextPanel() {
 
     try {
       return {
-        compressionNodeIds: orderCompressedChainIds(compressionTargetIds, nodes),
+        compressionNodeIds: buildCompressionChainIds(
+          compressionTargetIds,
+          nodes,
+          currentTree?.rootId ?? null,
+          selectionEligible ? null : contextTailId,
+        ),
         compressionSelectionError: null,
       };
     } catch (err) {
@@ -365,7 +430,7 @@ export default function ContextPanel() {
   };
 
   return (
-    <aside className="flex h-full flex-col border-l border-parchment bg-cream">
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden border-l border-parchment bg-cream">
       <div className="border-b border-parchment px-6 pb-5 pt-7">
         <div className="font-display text-[1.1rem] text-ink">
           Context Assembly
@@ -402,7 +467,7 @@ export default function ContextPanel() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5">
+      <div className="flex-1 min-h-0 p-5">
         <div className="mb-3 flex items-center justify-between font-mono text-[0.65rem] uppercase tracking-[0.15em] text-sand">
           <span>Active Nodes</span>
           <button
@@ -413,37 +478,39 @@ export default function ContextPanel() {
           </button>
         </div>
 
-        {cards.map((card) => (
-          <ContextCardItem
-            key={card.id}
-            card={card}
-            onRemove={removeFromContext}
-            draggable
-            onDragStart={() => {
-              setDraggingId(card.id);
-              setLocalOrder(orderedIds);
-            }}
-            onDragEnter={() => {
-              if (!draggingId) return;
-              setLocalOrder((prev) => {
-                const base = prev ?? orderedIds;
-                const from = base.indexOf(draggingId);
-                const to = base.indexOf(card.id);
-                if (from === -1 || to === -1 || from === to) return base;
-                return moveCard(base, from, to);
-              });
-            }}
-            onDragEnd={() => {
-              const next = localOrder ?? orderedIds;
-              reorderContext(next);
-              setDraggingId(null);
-              setLocalOrder(null);
-            }}
-          />
-        ))}
+        <div className="h-[180px] overflow-y-auto pr-1 md:h-[200px] lg:h-[220px]">
+          {cards.map((card) => (
+            <ContextCardItem
+              key={card.id}
+              card={card}
+              onRemove={removeFromContext}
+              draggable
+              onDragStart={() => {
+                setDraggingId(card.id);
+                setLocalOrder(orderedIds);
+              }}
+              onDragEnter={() => {
+                if (!draggingId) return;
+                setLocalOrder((prev) => {
+                  const base = prev ?? orderedIds;
+                  const from = base.indexOf(draggingId);
+                  const to = base.indexOf(card.id);
+                  if (from === -1 || to === -1 || from === to) return base;
+                  return moveCard(base, from, to);
+                });
+              }}
+              onDragEnd={() => {
+                const next = localOrder ?? orderedIds;
+                reorderContext(next);
+                setDraggingId(null);
+                setLocalOrder(null);
+              }}
+            />
+          ))}
+        </div>
 
         <div
-          className={`mt-4 rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200 ${
+          className={`mt-3 rounded-2xl border-2 border-dashed px-6 py-4 text-center transition-all duration-200 ${
             isDragOver
               ? "border-copper bg-copper-glow"
               : "border-parchment hover:border-copper hover:bg-copper-glow"
@@ -463,8 +530,8 @@ export default function ContextPanel() {
             if (nodeId) void addToContext(nodeId);
           }}
         >
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-paper text-sand">
-            <div className="h-6 w-6">
+          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-paper text-sand">
+            <div className="h-5 w-5">
               <UploadIcon />
             </div>
           </div>

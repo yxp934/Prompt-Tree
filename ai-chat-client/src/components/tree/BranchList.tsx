@@ -44,7 +44,11 @@ function defaultBranchLabel(node: Node): string {
   return `${node.type} branch`;
 }
 
-export function BranchList() {
+interface BranchListProps {
+  floating?: boolean;
+}
+
+export function BranchList({ floating = false }: BranchListProps) {
   const nodes = useAppStore((s) => s.nodes);
   const currentTree = useAppStore((s) => s.getCurrentTree());
   const activeNodeId = useAppStore((s) => s.activeNodeId);
@@ -81,88 +85,100 @@ export function BranchList() {
 
   if (!currentTree) return null;
 
+  const wrapperClass = floating
+    ? "relative z-20 px-6 lg:absolute lg:left-0 lg:right-0 lg:top-0 lg:px-8"
+    : "";
+  const sectionClass = floating
+    ? "group pointer-events-auto rounded-2xl border border-parchment bg-cream/95 px-5 py-2 shadow-[0_12px_32px_rgba(26,24,22,0.08)] backdrop-blur-sm transition-all duration-200 hover:shadow-[0_18px_40px_rgba(26,24,22,0.12)] focus-within:shadow-[0_18px_40px_rgba(26,24,22,0.12)] lg:py-2"
+    : "border-b border-parchment bg-cream px-8 py-4";
+  const listClass = floating
+    ? "mt-2 flex gap-3 overflow-x-auto pb-2 transition-all duration-200 max-h-[240px] opacity-100 lg:max-h-0 lg:opacity-0 lg:group-hover:max-h-[240px] lg:group-hover:opacity-100 lg:group-focus-within:max-h-[240px] lg:group-focus-within:opacity-100"
+    : "mt-3 flex gap-3 overflow-x-auto pb-1";
+
   return (
-    <section className="border-b border-parchment bg-cream px-8 py-4">
-      <div className="flex items-center justify-between">
-        <div className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-sand">
-          Branches
+    <div className={wrapperClass}>
+      <section className={sectionClass}>
+        <div className="flex items-center justify-between">
+          <div className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-sand">
+            Branches
+          </div>
+          <div className="text-[0.75rem] text-sand">
+            {branches.length} active
+          </div>
         </div>
-        <div className="text-[0.75rem] text-sand">
-          {branches.length} active
-        </div>
-      </div>
-      <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
-        {branches.map((node) => {
-          const isActive = node.id === activeNodeId;
-          const label = node.metadata.branchLabel ?? defaultBranchLabel(node);
+        <div className={listClass}>
+          {branches.map((node) => {
+            const isActive = node.id === activeNodeId;
+            const label = node.metadata.branchLabel ?? defaultBranchLabel(node);
 
-          return (
-            <div
-              key={node.id}
-              className={`min-w-[180px] flex-1 rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
-                isActive
-                  ? "border-copper bg-copper-glow text-ink"
-                  : "border-parchment bg-paper text-clay hover:border-copper"
-              }`}
-              onClick={() => setActiveNode(node.id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  setActiveNode(node.id);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              data-branch-id={node.id}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <div className="text-[0.85rem] font-medium text-ink">
-                    {editingId === node.id ? (
-                      <Input
-                        value={draftLabel}
-                        onChange={(e) => setDraftLabel(e.target.value)}
-                        onBlur={() => void commitEditing()}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            void commitEditing();
-                          }
-                          if (e.key === "Escape") {
-                            e.preventDefault();
-                            setEditingId(null);
-                          }
-                        }}
-                        className="h-8 rounded-lg px-2 py-1 text-[0.8rem]"
-                        autoFocus
-                      />
-                    ) : (
-                      <span className="line-clamp-1">{label}</span>
-                    )}
+            return (
+              <div
+                key={node.id}
+                className={`min-w-[180px] flex-1 rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
+                  isActive
+                    ? "border-copper bg-copper-glow text-ink"
+                    : "border-parchment bg-paper text-clay hover:border-copper"
+                }`}
+                onClick={() => setActiveNode(node.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setActiveNode(node.id);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                data-branch-id={node.id}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="text-[0.85rem] font-medium text-ink">
+                      {editingId === node.id ? (
+                        <Input
+                          value={draftLabel}
+                          onChange={(e) => setDraftLabel(e.target.value)}
+                          onBlur={() => void commitEditing()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              void commitEditing();
+                            }
+                            if (e.key === "Escape") {
+                              e.preventDefault();
+                              setEditingId(null);
+                            }
+                          }}
+                          className="h-8 rounded-lg px-2 py-1 text-[0.8rem]"
+                          autoFocus
+                        />
+                      ) : (
+                        <span className="line-clamp-1">{label}</span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-[0.7rem] uppercase tracking-[0.15em] text-sand">
+                      {node.type}
+                    </div>
                   </div>
-                  <div className="mt-1 text-[0.7rem] uppercase tracking-[0.15em] text-sand">
-                    {node.type}
-                  </div>
+
+                  {editingId !== node.id && (
+                    <Button
+                      variant="ghost"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        startEditing(node);
+                      }}
+                    >
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-parchment bg-paper text-sand">
+                        <PencilIcon />
+                      </span>
+                    </Button>
+                  )}
                 </div>
-
-                {editingId !== node.id && (
-                  <Button
-                    variant="ghost"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      startEditing(node);
-                    }}
-                  >
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-parchment bg-paper text-sand">
-                      <PencilIcon />
-                    </span>
-                  </Button>
-                )}
               </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
+            );
+          })}
+        </div>
+      </section>
+    </div>
   );
 }

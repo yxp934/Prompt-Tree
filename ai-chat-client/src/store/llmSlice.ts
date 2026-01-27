@@ -21,6 +21,8 @@ export interface LLMSlice {
   temperature: number;
   maxTokens: number;
   selectedModels: ProviderModelSelection[];
+  compressionModel: ProviderModelSelection | null;
+  summaryModel: ProviderModelSelection | null;
   setLLMSettings: (settings: Partial<LLMSettings>) => void;
   setSelectedModels: (models: ProviderModelSelection[]) => void;
   sendMessage: (content: string, contextNodeIds?: string[]) => Promise<Node>;
@@ -58,44 +60,121 @@ export function createLLMSlice(
   const storedSettings = getStoredLLMSettings();
   const initialSettings = storedSettings ?? DEFAULT_LLM_SETTINGS;
 
-  return (set, get) => ({
-    isSending: false,
-    llmError: null,
-    isCompressing: false,
-    compressionError: null,
-    model: initialSettings.model,
-    temperature: initialSettings.temperature,
-    maxTokens: initialSettings.maxTokens,
-    selectedModels: initialSettings.selectedModels,
-    setLLMSettings: (settings) =>
-      set((state) => {
-        const next = normalizeLLMSettings(
-          {
-            model: settings.model ?? state.model,
-            temperature: settings.temperature ?? state.temperature,
-            maxTokens: settings.maxTokens ?? state.maxTokens,
-            selectedModels: settings.selectedModels ?? state.selectedModels,
-          },
-          DEFAULT_LLM_SETTINGS,
-        );
-        setStoredLLMSettings(next);
-        return next;
-      }),
-    setSelectedModels: (models) =>
-      set((state) => {
-        const next = normalizeLLMSettings(
-          {
-            model: state.model,
-            temperature: state.temperature,
-            maxTokens: state.maxTokens,
-            selectedModels: models,
-          },
-          DEFAULT_LLM_SETTINGS,
-        );
-        setStoredLLMSettings(next);
-        return { selectedModels: next.selectedModels };
-      }),
-    sendMessage: async (content: string, contextNodeIds?: string[]) => {
+  return (set, get) => {
+    const resolveSingleModelRequest = (
+      selection: ProviderModelSelection | null,
+    ): {
+      modelId: string;
+      modelName: string;
+      providerId?: string;
+      providerName?: string;
+      apiKey?: string;
+      baseUrl?: string;
+    } => {
+      const fallbackModel = get().model;
+      if (!selection) {
+        return { modelId: fallbackModel, modelName: fallbackModel };
+      }
+
+      const providers = get().providers;
+      const provider = providers.find((item) => item.id === selection.providerId);
+      if (!provider) {
+        throw new Error("Selected model provider is missing.");
+      }
+      const primaryKey = getPrimaryApiKey(provider);
+      if (!primaryKey) {
+        throw new Error("Selected model is missing API key.");
+      }
+
+      const modelName = provider.name
+        ? `${provider.name} · ${selection.modelId}`
+        : selection.modelId;
+
+      return {
+        modelId: selection.modelId,
+        modelName,
+        providerId: provider.id,
+        providerName: provider.name,
+        apiKey: primaryKey.value,
+        baseUrl: provider.baseUrl,
+      };
+    };
+
+    const isDefaultTitle = (title: string): boolean =>
+      title.trim().toLowerCase() === "new chat";
+
+    const normalizeSummaryTitle = (text: string): string => {
+      const cleaned = text.replace(/[\r\n]+/g, " ").trim();
+      const stripped = cleaned.replace(/[，,。.!！?？；;：:"“”'‘’、()[\]{}]/g, "");
+      const compact = stripped.replace(/\s+/g, "");
+      return Array.from(compact).slice(0, 6).join("");
+    };
+
+    return {
+      isSending: false,
+      llmError: null,
+      isCompressing: false,
+      compressionError: null,
+      model: initialSettings.model,
+      temperature: initialSettings.temperature,
+      maxTokens: initialSettings.maxTokens,
+      selectedModels: initialSettings.selectedModels,
+      compressionModel: initialSettings.compressionModel,
+      summaryModel: initialSettings.summaryModel,
+      setLLMSettings: (settings) =>
+        set((state) => {
+          const next = normalizeLLMSettings(
+            {
+              model: Object.prototype.hasOwnProperty.call(settings, "model")
+                ? settings.model
+                : state.model,
+              temperature: Object.prototype.hasOwnProperty.call(settings, "temperature")
+                ? settings.temperature
+                : state.temperature,
+              maxTokens: Object.prototype.hasOwnProperty.call(settings, "maxTokens")
+                ? settings.maxTokens
+                : state.maxTokens,
+              selectedModels: Object.prototype.hasOwnProperty.call(
+                settings,
+                "selectedModels",
+              )
+                ? settings.selectedModels
+                : state.selectedModels,
+              compressionModel: Object.prototype.hasOwnProperty.call(
+                settings,
+                "compressionModel",
+              )
+                ? settings.compressionModel
+                : state.compressionModel,
+              summaryModel: Object.prototype.hasOwnProperty.call(
+                settings,
+                "summaryModel",
+              )
+                ? settings.summaryModel
+                : state.summaryModel,
+            },
+            DEFAULT_LLM_SETTINGS,
+          );
+          setStoredLLMSettings(next);
+          return next;
+        }),
+      setSelectedModels: (models) =>
+        set((state) => {
+          const next = normalizeLLMSettings(
+            {
+              model: state.model,
+              temperature: state.temperature,
+              maxTokens: state.maxTokens,
+              selectedModels: models,
+              compressionModel: state.compressionModel,
+              summaryModel: state.summaryModel,
+            },
+            DEFAULT_LLM_SETTINGS,
+          );
+          setStoredLLMSettings(next);
+          return { selectedModels: next.selectedModels };
+        }),
+      sendMessage: async (content: string, contextNodeIds?: string[]) => {
       const trimmed = content.trim();
       if (!trimmed) throw new Error("Message is empty.");
 
@@ -118,6 +197,29 @@ export function createLLMSlice(
         });
 
         await get().addToContext(userNode.id);
+
+        if (isDefaultTitle(tree.title)) {
+          void (async () => {
+            try {
+              const summary = await get().generateSummary(trimmed);
+              const nextTitle = normalizeSummaryTitle(summary);
+              if (!nextTitle) return;
+
+              const latest = get().getCurrentTree();
+              if (!latest || latest.id !== tree.id) return;
+              if (!isDefaultTitle(latest.title)) return;
+
+              const updated = await deps.treeService.updateTitle(tree.id, nextTitle);
+              set((state) => {
+                const trees = new Map(state.trees);
+                trees.set(updated.id, updated);
+                return { trees };
+              });
+            } catch {
+              // ignore title generation errors
+            }
+          })();
+        }
 
         const resolvedContextIds =
           contextNodeIds?.length
@@ -395,14 +497,17 @@ export function createLLMSlice(
           nodeIds.map(async (id) => get().nodes.get(id) ?? deps.nodeService.read(id)),
         ).then((items) => items.filter((n): n is Node => Boolean(n)));
 
+        const request = resolveSingleModelRequest(get().compressionModel);
         const suggestion = await deps.compressionService.generateSuggestion(
           deps.llmService,
           nodes,
           {
-            model: get().model,
+            model: request.modelId,
             temperature: 0.2,
             maxTokens: 512,
             responseFormat: { type: "json_object" },
+            apiKey: request.apiKey,
+            baseUrl: request.baseUrl,
           },
         );
 
@@ -418,19 +523,26 @@ export function createLLMSlice(
     },
     generateSummary: async (content) => {
       const prompt = [
-        "You are a helpful assistant. Summarize the following content in 2-3 sentences.",
+        "你是一个标题生成器。",
+        "请根据下面的内容生成不超过6个汉字的主题标题。",
+        "只输出标题本身，不要解释，不要标点。",
         "",
         content,
       ].join("\n");
 
+      const selection = get().summaryModel ?? get().compressionModel;
+      const request = resolveSingleModelRequest(selection ?? null);
       const text = await deps.llmService.chat({
         messages: [{ role: "user", content: prompt }],
-        model: get().model,
+        model: request.modelId,
         temperature: 0.2,
-        maxTokens: 256,
+        maxTokens: 64,
+        apiKey: request.apiKey,
+        baseUrl: request.baseUrl,
       });
 
       return text.trim();
     },
-  });
+  };
+};
 }

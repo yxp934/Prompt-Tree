@@ -30,7 +30,6 @@ export default function Header() {
   const currentTree = useAppStore((s) => s.getCurrentTree());
   const nodesCount = useAppStore((s) => s.nodes.size);
   const nodes = useAppStore((s) => s.nodes);
-  const model = useAppStore((s) => s.model);
   const theme = useAppStore((s) => s.theme);
   const toggleTheme = useAppStore((s) => s.toggleTheme);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
@@ -73,9 +72,6 @@ export default function Header() {
           </div>
           <div className="flex items-center gap-1.5">
             <span className="font-medium text-ink">{branchCount}</span> branches
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="font-medium text-ink">{model}</span>
           </div>
         </div>
         <Link

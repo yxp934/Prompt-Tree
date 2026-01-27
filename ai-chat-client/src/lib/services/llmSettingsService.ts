@@ -5,6 +5,8 @@ export interface LLMSettings {
   temperature: number;
   maxTokens: number;
   selectedModels: ProviderModelSelection[];
+  compressionModel: ProviderModelSelection | null;
+  summaryModel: ProviderModelSelection | null;
 }
 
 export const DEFAULT_LLM_SETTINGS: LLMSettings = {
@@ -12,6 +14,8 @@ export const DEFAULT_LLM_SETTINGS: LLMSettings = {
   temperature: 0.7,
   maxTokens: 1024,
   selectedModels: [],
+  compressionModel: null,
+  summaryModel: null,
 };
 
 const LLM_SETTINGS_STORAGE_KEY = "new-chat.llm_settings";
@@ -44,6 +48,16 @@ function normalizeSelectedModels(
   return selections;
 }
 
+function normalizeModelSelection(value: unknown): ProviderModelSelection | null {
+  if (!value || typeof value !== "object") return null;
+  const { providerId, modelId } = value as {
+    providerId?: unknown;
+    modelId?: unknown;
+  };
+  if (typeof providerId !== "string" || typeof modelId !== "string") return null;
+  return { providerId, modelId };
+}
+
 export function normalizeLLMSettings(
   settings: Partial<LLMSettings>,
   fallback: LLMSettings = DEFAULT_LLM_SETTINGS,
@@ -66,7 +80,24 @@ export function normalizeLLMSettings(
     fallback.selectedModels,
   );
 
-  return { model, temperature, maxTokens, selectedModels };
+  const compressionModel = Object.prototype.hasOwnProperty.call(
+    settings,
+    "compressionModel",
+  )
+    ? normalizeModelSelection(settings.compressionModel)
+    : fallback.compressionModel;
+  const summaryModel = Object.prototype.hasOwnProperty.call(settings, "summaryModel")
+    ? normalizeModelSelection(settings.summaryModel)
+    : fallback.summaryModel;
+
+  return {
+    model,
+    temperature,
+    maxTokens,
+    selectedModels,
+    compressionModel,
+    summaryModel,
+  };
 }
 
 export function getStoredLLMSettings(): LLMSettings | null {

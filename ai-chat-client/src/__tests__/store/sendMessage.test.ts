@@ -33,10 +33,13 @@ describe("sendMessage flow", () => {
     const contextBox = store.getState().contextBox;
     expect(contextBox?.nodeIds).toContain(assistantNode.id);
 
-    expect(chatMock).toHaveBeenCalledOnce();
-    const arg = chatMock.mock.calls[0]![0];
-    expect(arg.messages.some((m) => m.role === "system")).toBe(true);
-    expect(arg.messages.some((m) => m.role === "user")).toBe(true);
+    expect(chatMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+    const calls = chatMock.mock.calls.map((call) => call[0]);
+    const messageCall = calls.find((params) =>
+      params.messages.some((m) => m.role === "user" && m.content === "Hello"),
+    );
+    expect(messageCall).toBeDefined();
+    expect(messageCall?.messages.some((m) => m.role === "system")).toBe(true);
   });
 
   it("supports explicit context node ids", async () => {
@@ -55,9 +58,12 @@ describe("sendMessage flow", () => {
       .sendMessage("Hello", [tree!.rootId]);
 
     expect(assistantNode.type).toBe(NodeType.ASSISTANT);
-    expect(chatMock).toHaveBeenCalledOnce();
-    const params = chatMock.mock.calls[0]![0];
-    expect(params.messages.some((m) => m.role === "system")).toBe(true);
-    expect(params.messages.some((m) => m.role === "user")).toBe(true);
+    expect(chatMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+    const calls = chatMock.mock.calls.map((call) => call[0]);
+    const messageCall = calls.find((params) =>
+      params.messages.some((m) => m.role === "user" && m.content === "Hello"),
+    );
+    expect(messageCall).toBeDefined();
+    expect(messageCall?.messages.some((m) => m.role === "system")).toBe(true);
   });
 });

@@ -80,12 +80,12 @@ function PanelEmptyState({ title, description }: { title: string; description: s
 
 export function DefaultModelPanel() {
   const providers = useAppStore((s) => s.providers);
-  const model = useAppStore((s) => s.model);
+  const compressionModel = useAppStore((s) => s.compressionModel);
+  const summaryModel = useAppStore((s) => s.summaryModel);
   const setLLMSettings = useAppStore((s) => s.setLLMSettings);
   const selectedModels = useAppStore((s) => s.selectedModels);
   const setSelectedModels = useAppStore((s) => s.setSelectedModels);
 
-  const [modelValue, setModelValue] = useState(model);
   const [testStatus, setTestStatus] = useState<"idle" | "running" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState<string | null>(null);
   const [testLatency, setTestLatency] = useState<number | null>(null);
@@ -130,13 +130,18 @@ export function DefaultModelPanel() {
   }, [enabledOptions, selectedModels, setSelectedModels]);
 
   useEffect(() => {
-    setModelValue(model);
-  }, [model]);
-
-  const handleModelChange = (value: string) => {
-    setModelValue(value);
-    setLLMSettings({ model: value });
-  };
+    const availableKeys = new Set(enabledOptions.map(buildModelSelectionKey));
+    const compressionKey = compressionModel
+      ? buildModelSelectionKey(compressionModel)
+      : null;
+    if (compressionKey && !availableKeys.has(compressionKey)) {
+      setLLMSettings({ compressionModel: null });
+    }
+    const summaryKey = summaryModel ? buildModelSelectionKey(summaryModel) : null;
+    if (summaryKey && !availableKeys.has(summaryKey)) {
+      setLLMSettings({ summaryModel: null });
+    }
+  }, [compressionModel, enabledOptions, setLLMSettings, summaryModel]);
 
   const toSelection = (option: EnabledModelOption): ProviderModelSelection => ({
     providerId: option.providerId,
@@ -210,10 +215,32 @@ export function DefaultModelPanel() {
     error: "text-red-500",
   }[testStatus];
 
+  const compressionKey = compressionModel
+    ? buildModelSelectionKey(compressionModel)
+    : "";
+  const summaryKey = summaryModel ? buildModelSelectionKey(summaryModel) : "";
+
+  const handleCompressionChange = (value: string) => {
+    const option = enabledOptions.find(
+      (item) => buildModelSelectionKey(item) === value,
+    );
+    setLLMSettings({
+      compressionModel: option ? toSelection(option) : null,
+      ...(option ? { model: option.modelId } : {}),
+    });
+  };
+
+  const handleSummaryChange = (value: string) => {
+    const option = enabledOptions.find(
+      (item) => buildModelSelectionKey(item) === value,
+    );
+    setLLMSettings({ summaryModel: option ? toSelection(option) : null });
+  };
+
   return (
     <PanelShell
-      title="默认模型"
-      description="从已启用的模型中选择默认使用的模型集合。"
+      title="模型设置"
+      description="选择对话分支模型，并配置压缩与标题总结模型。"
     >
       <div className="space-y-8">
         <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
@@ -303,25 +330,51 @@ export function DefaultModelPanel() {
 
         <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
           <div className="mb-3 font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
-            默认模型
+            压缩模型
           </div>
-          <input
-            list="default-model-options"
-            value={modelValue}
-            onChange={(event) => handleModelChange(event.target.value)}
-            placeholder="gpt-4o-mini"
-            className="w-full rounded-xl border border-parchment/20 bg-shoji-white px-5 py-4 font-mono text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
-          />
-          <datalist id="default-model-options">
+          <select
+            value={compressionKey}
+            onChange={(event) => handleCompressionChange(event.target.value)}
+            disabled={enabledOptions.length === 0}
+            className="w-full rounded-xl border border-parchment/20 bg-shoji-white px-5 py-4 font-mono text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50 disabled:opacity-60"
+          >
+            <option value="">请选择压缩模型</option>
             {enabledOptions.map((option) => (
               <option
                 key={`${option.providerId}-${option.modelId}`}
-                value={option.modelId}
-              />
+                value={buildModelSelectionKey(option)}
+              >
+                {option.label}
+              </option>
             ))}
-          </datalist>
+          </select>
           <p className="mt-3 font-zen-body text-xs text-stone-gray font-light">
-            该字段用于兼容单模型场景或压缩/摘要任务。
+            用于生成压缩节点的摘要与元指令建议。
+          </p>
+        </section>
+
+        <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
+          <div className="mb-3 font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+            总结模型
+          </div>
+          <select
+            value={summaryKey}
+            onChange={(event) => handleSummaryChange(event.target.value)}
+            disabled={enabledOptions.length === 0}
+            className="w-full rounded-xl border border-parchment/20 bg-shoji-white px-5 py-4 font-mono text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50 disabled:opacity-60"
+          >
+            <option value="">请选择总结模型</option>
+            {enabledOptions.map((option) => (
+              <option
+                key={`${option.providerId}-${option.modelId}`}
+                value={buildModelSelectionKey(option)}
+              >
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-3 font-zen-body text-xs text-stone-gray font-light">
+            用于首条消息后生成不超过 6 个字的对话标题。
           </p>
         </section>
 

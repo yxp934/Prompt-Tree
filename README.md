@@ -186,10 +186,10 @@ npm run typecheck
 
 ## Docs
 
-- Product: [需求文档](./需求文档.md)
-- Technical design: [TECHNICAL_DESIGN](./TECHNICAL_DESIGN.md)
-- API design: [API_DESIGN](./API_DESIGN.md)
-- Roadmap: [ROADMAP](./ROADMAP.md)
+- Product: [需求文档](./ai-chat-client/docs/需求文档.md)
+- Technical design: [TECHNICAL_DESIGN](./ai-chat-client/docs/TECHNICAL_DESIGN.md)
+- API design: [API_DESIGN](./ai-chat-client/docs/API_DESIGN.md)
+- Roadmap: [ROADMAP](./ai-chat-client/docs/ROADMAP.md)
 
 ## Contact
 

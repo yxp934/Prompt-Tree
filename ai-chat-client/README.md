@@ -185,10 +185,10 @@ npm run typecheck
 
 ## Docs
 
-- Product: [需求文档](../需求文档.md)
-- Technical design: [TECHNICAL_DESIGN](../TECHNICAL_DESIGN.md)
-- API design: [API_DESIGN](../API_DESIGN.md)
-- Roadmap: [ROADMAP](../ROADMAP.md)
+- Product: [需求文档](./docs/需求文档.md)
+- Technical design: [TECHNICAL_DESIGN](./docs/TECHNICAL_DESIGN.md)
+- API design: [API_DESIGN](./docs/API_DESIGN.md)
+- Roadmap: [ROADMAP](./docs/ROADMAP.md)
 
 ## Contact
 

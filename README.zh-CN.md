@@ -186,10 +186,10 @@ npm run typecheck
 
 ## 文档
 
-- 产品：[`需求文档.md`](./需求文档.md)
-- 技术设计：[`TECHNICAL_DESIGN.md`](./TECHNICAL_DESIGN.md)
-- API 设计：[`API_DESIGN.md`](./API_DESIGN.md)
-- 路线图：[`ROADMAP.md`](./ROADMAP.md)
+- 产品：[`需求文档.md`](./ai-chat-client/docs/需求文档.md)
+- 技术设计：[`TECHNICAL_DESIGN.md`](./ai-chat-client/docs/TECHNICAL_DESIGN.md)
+- API 设计：[`API_DESIGN.md`](./ai-chat-client/docs/API_DESIGN.md)
+- 路线图：[`ROADMAP.md`](./ai-chat-client/docs/ROADMAP.md)
 
 ## 联系方式
 

@@ -1,3 +1,20 @@
+#
+# Root allowlist
+# - Track only: README(s), screenshots, and the app folder `ai-chat-client/`
+# - Everything else at the repo root is ignored (including `AGENTS.md` and docs)
+#
+/*
+!/.gitignore
+!/README.md
+!/README.zh-CN.md
+!/*.png
+!/*.jpg
+!/*.jpeg
+!/*.gif
+!/*.webp
+!/ai-chat-client/
+
+# OS / IDE
 .DS_Store
 .idea/
 .vscode/
@@ -6,10 +23,10 @@
 # Local tooling / caches
 .eslintcache
 .turbo
+.ace-tool/
 
-# Ignore common generated artifacts in subprojects (defensive)
+# Generated artifacts in subprojects (defensive)
 ai-chat-client/node_modules/
 ai-chat-client/.next/
 ai-chat-client/out/
 ai-chat-client/build/
-.ace-tool/

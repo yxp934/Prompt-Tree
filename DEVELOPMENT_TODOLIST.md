@@ -1,4 +1,4 @@
-# 开发进度日志 - AI Chat Client (Cortex)
+# 开发进度日志 - AI Chat Client (Prompt Tree)
 
 ## 项目概述
 基于拓扑节点的上下文可视化AI客户端，让用户像管理Git树一样管理AI对话历史。
@@ -87,7 +87,7 @@
 | 日期 | 提交信息 | 阶段 |
 |------|---------|------|
 | 2025-01-23 | `chore: initial scaffold` | 阶段0 |
-| 2025-01-23 | `feat: implement Phase 0 foundation - three-column layout with Cortex design system` | 阶段0 |
+| 2025-01-23 | `feat: implement Phase 0 foundation - three-column layout with Prompt Tree design system` | 阶段0 |
 | 2025-01-25 | `feat: add provider-based settings page with model management` | 设置页 |
 
 ---

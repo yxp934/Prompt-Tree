@@ -104,8 +104,8 @@ pnpm dlx --package @yxp934/prompt-tree tree
 - Create a folder (Library) to group threads.
 - Optionally set a **Unified System Prompt** for the folder (applies to every new thread in that folder).
 
-<img src="../folder-light.png" alt="Folders (Light)" width="900" />
-<img src="../folder-dark.png" alt="Folders (Dark)" width="900" />
+<img src="./folder-light.png" alt="Folders (Light)" width="900" />
+<img src="./folder-dark.png" alt="Folders (Dark)" width="900" />
 
 ### 2) Configure providers (Model Service)
 
@@ -124,21 +124,21 @@ In `Settings → Default Model`:
 - Pick a compression model (for summaries/meta instructions)
 - Pick a title model (for thread titles)
 
-<img src="../settings-model.png" alt="Settings - Models" width="900" />
+<img src="./settings-model.png" alt="Settings - Models" width="900" />
 
 ### 4) Chat + branches
 
 - Send a message once; if multiple models are selected, you’ll get multiple assistant branches.
 - Use the branch list to switch, or continue from any node.
 
-<img src="../thread.png" alt="Chat & branches" width="900" />
+<img src="./thread.png" alt="Chat & branches" width="900" />
 
 ### 5) Navigate on the canvas
 
 - The canvas shows the node graph of the current thread.
 - Common actions: continue from here, compress branch, decompress, edit node, delete subtree.
 
-<img src="../canva.png" alt="Canvas" width="900" />
+<img src="./canva.png" alt="Canvas" width="900" />
 
 ### 6) Context Box (prompt assembly)
 
@@ -155,7 +155,7 @@ In `Settings → Tools`, configure:
 - MCP: add server JSON + token
 - Python: python command, timeouts, output limits
 
-<img src="../settings-tools.png" alt="Settings - Tools" width="900" />
+<img src="./settings-tools.png" alt="Settings - Tools" width="900" />
 
 ## Privacy & Data (based on current code)
 
@@ -167,6 +167,7 @@ In `Settings → Tools`, configure:
 ## Development
 
 ```bash
+cd ai-chat-client
 npm install
 npm run dev
 ```
@@ -185,10 +186,10 @@ npm run typecheck
 
 ## Docs
 
-- Product: [需求文档](../需求文档.md)
-- Technical design: [TECHNICAL_DESIGN](../TECHNICAL_DESIGN.md)
-- API design: [API_DESIGN](../API_DESIGN.md)
-- Roadmap: [ROADMAP](../ROADMAP.md)
+- Product: [需求文档](./需求文档.md)
+- Technical design: [TECHNICAL_DESIGN](./TECHNICAL_DESIGN.md)
+- API design: [API_DESIGN](./API_DESIGN.md)
+- Roadmap: [ROADMAP](./ROADMAP.md)
 
 ## Contact
 

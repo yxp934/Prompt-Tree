@@ -4,12 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Modal } from "@/components/common/Modal";
 import { deleteDB } from "@/lib/db/indexedDB";
-import { getOpenAIApiKey, setOpenAIApiKey } from "@/lib/services/apiKeyService";
-import {
-  DEFAULT_OPENAI_BASE_URL,
-  getOpenAIBaseUrlOrDefault,
-  setOpenAIBaseUrl,
-} from "@/lib/services/apiUrlService";
+import { setOpenAIApiKey } from "@/lib/services/apiKeyService";
+import { setOpenAIBaseUrl } from "@/lib/services/apiUrlService";
 import {
   DEFAULT_LLM_SETTINGS,
   type LLMSettings,
@@ -437,17 +433,9 @@ export function GeneralSettingsPanel() {
   const maxTokens = useAppStore((s) => s.maxTokens);
   const setLLMSettings = useAppStore((s) => s.setLLMSettings);
 
-  const [apiKey, setApiKey] = useState("");
-  const [baseUrl, setBaseUrl] = useState(DEFAULT_OPENAI_BASE_URL);
   const [temperatureValue, setTemperatureValue] = useState(temperature.toString());
   const [maxTokensValue, setMaxTokensValue] = useState(maxTokens.toString());
-  const [showKey, setShowKey] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    setApiKey(getOpenAIApiKey() ?? "");
-    setBaseUrl(getOpenAIBaseUrlOrDefault());
-  }, []);
 
   useEffect(() => {
     setTemperatureValue(temperature.toString());
@@ -465,8 +453,6 @@ export function GeneralSettingsPanel() {
       maxTokens: Number.isFinite(parsedMaxTokens) ? parsedMaxTokens : maxTokens,
     };
 
-    setOpenAIApiKey(apiKey);
-    setOpenAIBaseUrl(baseUrl);
     setLLMSettings(nextSettings);
 
     setSaveMessage(t("settings.general.saved"));
@@ -476,47 +462,6 @@ export function GeneralSettingsPanel() {
   return (
     <PanelShell title={t("settings.general.title")} description={t("settings.general.description")}>
       <div className="space-y-8">
-        <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
-          <div className="mb-4 font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
-            {t("settings.general.api.title")}
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label className="mb-2 block font-zen-body text-xs text-stone-gray font-light">
-                {t("settings.general.api.apiKeyLabel")}
-              </label>
-              <div className="relative">
-                <input
-                  type={showKey ? "text" : "password"}
-                  value={apiKey}
-                  onChange={(event) => setApiKey(event.target.value)}
-                  placeholder="sk-..."
-                  className="w-full rounded-xl border border-parchment/20 bg-shoji-white px-5 py-4 pr-10 font-mono text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
-                />
-                <button
-                  type="button"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-gray transition-colors hover:text-ink-black"
-                  onClick={() => setShowKey((prev) => !prev)}
-                >
-                  {showKey ? <EyeOffIcon /> : <EyeIcon />}
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="mb-2 block font-zen-body text-xs text-stone-gray font-light">
-                {t("settings.general.api.baseUrlLabel")}
-              </label>
-              <input
-                type="text"
-                value={baseUrl}
-                onChange={(event) => setBaseUrl(event.target.value)}
-                placeholder={DEFAULT_OPENAI_BASE_URL}
-                className="w-full rounded-xl border border-parchment/20 bg-shoji-white px-5 py-4 font-mono text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
-              />
-            </div>
-          </div>
-        </section>
-
         <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
           <div className="mb-4 font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
             {t("settings.general.generation.title")}
@@ -803,7 +748,8 @@ export function AboutPanel() {
     { label: t("settings.about.version.label"), value: t("settings.about.version.value") },
     { label: t("settings.about.framework.label"), value: t("settings.about.framework.value") },
     { label: t("settings.about.storage.label"), value: t("settings.about.storage.value") },
-    { label: t("settings.about.ui.label"), value: t("settings.about.ui.value") },
+    { label: t("settings.about.contact.email"), value: "yxp934@outlook.com" },
+    { label: t("settings.about.contact.wechat"), value: "WanguA8" },
   ];
 
   return (

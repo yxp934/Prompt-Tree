@@ -99,7 +99,7 @@ export function SettingsSidebar({ activeId, onSelect }: SettingsSidebarProps) {
       {/* 底部版本信息 */}
       <div className="border-t border-parchment/10 px-8 py-7">
         <div className="font-zen-display text-sm text-stone-gray font-light tracking-[0.1em]">
-          {t("common.appName")} v1.0.0
+          {t("common.appName")} v0.3.0
         </div>
       </div>
     </nav>

@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Tree — AI Chat Client</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --black: #0a0a0a;
+            --white: #fafafa;
+            --accent: #ff3d00;
+            --gray-100: #f5f5f5;
+            --gray-200: #e5e5e5;
+            --gray-400: #a3a3a3;
+            --gray-600: #525252;
+            --gray-800: #262626;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background: var(--white);
+            color: var(--black);
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        /* Grid Layout System */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Header */
+        header {
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--black);
+        }
+
+        .header-inner {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+        }
+
+        .logo span {
+            color: var(--gray-400);
+        }
+
+        nav {
+            display: flex;
+            gap: 2rem;
+        }
+
+        nav a {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--black);
+            text-decoration: none;
+            position: relative;
+        }
+
+        nav a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: var(--black);
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+
+        nav a:hover::after {
+            transform: scaleX(1);
+        }
+
+        .header-meta {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            text-align: right;
+            color: var(--gray-600);
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 85vh;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: center;
+            border-bottom: 1px solid var(--black);
+        }
+
+        .hero-left {
+            padding: 6rem 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .hero-overline {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            margin-bottom: 2rem;
+        }
+
+        .hero h1 {
+            font-size: clamp(3.5rem, 8vw, 7rem);
+            font-weight: 700;
+            line-height: 0.95;
+            letter-spacing: -0.04em;
+            margin-bottom: 2rem;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--gray-600);
+            max-width: 450px;
+            line-height: 1.6;
+            margin-bottom: 2.5rem;
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.25rem 2rem;
+            background: var(--black);
+            color: var(--white);
+            text-decoration: none;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.3s;
+            width: fit-content;
+        }
+
+        .cta-button:hover {
+            background: var(--accent);
+            transform: translateX(4px);
+        }
+
+        .cta-button::after {
+            content: '→';
+            transition: transform 0.3s;
+        }
+
+        .cta-button:hover::after {
+            transform: translateX(4px);
+        }
+
+        .hero-right {
+            background: var(--gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-visual {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Hero Case — Example Conversation Tree (Swiss v3 visual) */
+        .hero-case {
+            width: min(560px, 92%);
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            padding: 2rem;
+        }
+
+        .hero-case-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--gray-600);
+        }
+
+        .case-tree {
+            position: relative;
+            width: 100%;
+            height: clamp(280px, 40vw, 520px);
+        }
+
+        .case-tree-lines {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: visible;
+        }
+
+        .case-line {
+            fill: none;
+            stroke: rgba(10, 10, 10, 0.35);
+            stroke-width: 2;
+            stroke-linecap: square;
+            stroke-dasharray: 1;
+            stroke-dashoffset: 1;
+            animation: caseLineDraw 1s ease forwards;
+        }
+
+        .case-line.delay-1 { animation-delay: 0.12s; }
+        .case-line.delay-2 { animation-delay: 0.24s; }
+        .case-line.delay-3 { animation-delay: 0.36s; }
+        .case-line.delay-4 { animation-delay: 0.48s; }
+        .case-line.delay-5 { animation-delay: 0.6s; }
+
+        @keyframes caseLineDraw {
+            to { stroke-dashoffset: 0; }
+        }
+
+        .case-node {
+            position: absolute;
+            left: var(--x);
+            top: var(--y);
+            width: clamp(160px, 22vw, 240px);
+            background: var(--white);
+            border: 1px solid var(--black);
+            padding: 0.95rem 1rem;
+            z-index: 1;
+            opacity: 0;
+            transform: translate(-50%, -50%) translateY(10px);
+            animation: caseNodeIn 0.55s cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
+            animation-delay: var(--delay, 0s);
+        }
+
+        @media (min-width: 1025px) and (max-width: 1200px) {
+            .case-node.is-branch {
+                width: clamp(150px, 18vw, 200px);
+            }
+        }
+
+        .case-node.is-user {
+            border-left: 4px solid var(--accent);
+        }
+
+        .case-node-meta {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .case-node-role {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--gray-600);
+        }
+
+        .case-node.is-user .case-node-role {
+            color: var(--accent);
+        }
+
+        .case-node-id {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--gray-400);
+        }
+
+        .case-node-text {
+            font-size: 0.95rem;
+            color: var(--black);
+            line-height: 1.4;
+        }
+
+        @keyframes caseNodeIn {
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) translateY(0);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .case-line {
+                animation: none;
+                stroke-dashoffset: 0;
+            }
+
+            .case-node {
+                animation: none;
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        /* Manifesto Section */
+        .manifesto {
+            padding: 6rem 0;
+            border-bottom: 1px solid var(--black);
+        }
+
+        .manifesto-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 2rem;
+        }
+
+        .manifesto-label {
+            grid-column: span 2;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--gray-600);
+            padding-top: 0.5rem;
+        }
+
+        .manifesto-content {
+            grid-column: span 10;
+        }
+
+        .manifesto-content h2 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            line-height: 1.3;
+            margin-bottom: 2rem;
+        }
+
+        .manifesto-content p {
+            font-size: 1.1rem;
+            color: var(--gray-600);
+            line-height: 1.7;
+            max-width: 700px;
+        }
+
+        /* Features Grid */
+        .features {
+            padding: 6rem 0;
+            border-bottom: 1px solid var(--black);
+        }
+
+        .features-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        .features-header h2 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+        }
+
+        .features-header p {
+            font-size: 1.1rem;
+            color: var(--gray-600);
+            padding-top: 1rem;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1px;
+            background: var(--gray-200);
+        }
+
+        .feature-item {
+            background: var(--white);
+            padding: 3rem;
+            transition: background 0.3s;
+        }
+
+        .feature-item:hover {
+            background: var(--gray-100);
+        }
+
+        .feature-number {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-item h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 1rem;
+        }
+
+        .feature-item p {
+            font-size: 1rem;
+            color: var(--gray-600);
+            line-height: 1.7;
+        }
+
+        /* Technical Specs */
+        .specs {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border-bottom: 1px solid var(--black);
+        }
+
+        .spec-item {
+            padding: 2rem;
+            border-right: 1px solid var(--gray-200);
+        }
+
+        .spec-item:last-child {
+            border-right: none;
+        }
+
+        .spec-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--gray-600);
+            margin-bottom: 0.5rem;
+        }
+
+        .spec-value {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        /* Installation */
+        .installation {
+            padding: 6rem 0;
+            border-bottom: 1px solid var(--black);
+        }
+
+        .installation-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+        }
+
+        .installation-info h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 1.5rem;
+        }
+
+        .installation-info p {
+            color: var(--gray-600);
+            line-height: 1.7;
+            margin-bottom: 2rem;
+        }
+
+        .code-block {
+            background: var(--black);
+            color: var(--white);
+            padding: 2rem;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            overflow-x: auto;
+        }
+
+        .code-line {
+            display: block;
+        }
+
+        .code-comment {
+            color: var(--gray-600);
+        }
+
+        .code-command {
+            color: var(--white);
+        }
+
+        /* Footer */
+        footer {
+            padding: 3rem 0;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .footer-left {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .footer-links a {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--black);
+            text-decoration: none;
+        }
+
+        .footer-links a:hover {
+            color: var(--accent);
+        }
+
+        .footer-right {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--gray-600);
+            text-align: right;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .hero {
+                grid-template-columns: 1fr;
+                min-height: auto;
+            }
+
+            .hero-right {
+                min-height: 400px;
+                order: -1;
+            }
+
+            .features-header {
+                grid-template-columns: 1fr;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .manifesto-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .manifesto-label,
+            .manifesto-content {
+                grid-column: span 1;
+            }
+
+            .installation-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .specs {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-inner {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            nav {
+                justify-content: center;
+            }
+
+            .header-meta {
+                text-align: center;
+            }
+
+            footer {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .footer-right {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-inner">
+                <div class="logo">Prompt<span>Tree</span></div>
+                <nav>
+                    <a href="#features">Features</a>
+                    <a href="#concept">Concept</a>
+                    <a href="#install">Install</a>
+                </nav>
+                <div class="header-meta">
+                    v0.3.0
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-left">
+            <div class="container">
+                <div class="hero-overline">AI Chat Client</div>
+                <h1>Conversations that branch like thoughts</h1>
+                <p>A local-first, DAG-based AI chat client. Explore conversations organically, never lose a train of thought.</p>
+                <a href="#install" class="cta-button">Get Started</a>
+            </div>
+        </div>
+        <div class="hero-right">
+            <div class="hero-visual">
+                <div class="hero-case" aria-label="Example conversation tree">
+                    <div class="hero-case-label">Case — A conversation that branches</div>
+                    <div class="case-tree" role="img" aria-label="A vertical conversation tree with multiple dialogue levels">
+                        <svg class="case-tree-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                            <path class="case-line" pathLength="1" d="M50 12 L50 28" />
+                            <path class="case-line delay-1" pathLength="1" d="M50 28 L50 38 L25 38 L25 48" />
+                            <path class="case-line delay-2" pathLength="1" d="M50 28 L50 38 L75 38 L75 48" />
+                            <path class="case-line delay-3" pathLength="1" d="M25 48 L25 68" />
+                            <path class="case-line delay-4" pathLength="1" d="M75 48 L75 68" />
+                            <path class="case-line delay-5" pathLength="1" d="M25 68 L25 78 L50 78 L50 88 M75 68 L75 78 L50 78" />
+                        </svg>
+
+                        <div class="case-node is-user" style="--x: 50%; --y: 12%; --delay: 0.05s;">
+                            <div class="case-node-meta">
+                                <div class="case-node-role">User</div>
+                                <div class="case-node-id">01</div>
+                            </div>
+                            <div class="case-node-text">Design a node-based AI chat flow.</div>
+                        </div>
+
+                        <div class="case-node" style="--x: 50%; --y: 28%; --delay: 0.15s;">
+                            <div class="case-node-meta">
+                                <div class="case-node-role">gpt-5.2</div>
+                                <div class="case-node-id">02</div>
+                            </div>
+                            <div class="case-node-text">Start with data model + interaction rules.</div>
+                        </div>
+
+                        <div class="case-node is-user is-branch" style="--x: 25%; --y: 48%; --delay: 0.25s;">
+                            <div class="case-node-meta">
+                                <div class="case-node-role">User</div>
+                                <div class="case-node-id">03A</div>
+                            </div>
+                            <div class="case-node-text">Branch: How should context be pinned?</div>
+                        </div>
+
+                        <div class="case-node is-user is-branch" style="--x: 75%; --y: 48%; --delay: 0.3s;">
+                            <div class="case-node-meta">
+                                <div class="case-node-role">User</div>
+                                <div class="case-node-id">03B</div>
+                            </div>
+                            <div class="case-node-text">Branch: How should nodes be navigated?</div>
+                        </div>
+
+                        <div class="case-node is-branch" style="--x: 25%; --y: 68%; --delay: 0.4s;">
+                            <div class="case-node-meta">
+                                <div class="case-node-role">gpt-5.2</div>
+                                <div class="case-node-id">04A</div>
+                            </div>
+                            <div class="case-node-text">Context Box + summaries + citations.</div>
+                        </div>
+
+                        <div class="case-node is-branch" style="--x: 75%; --y: 68%; --delay: 0.45s;">
+                            <div class="case-node-meta">
+                                <div class="case-node-role">glm-4.7</div>
+                                <div class="case-node-id">04B</div>
+                            </div>
+                            <div class="case-node-text">Keyboard-first tree + quick branch compare.</div>
+                        </div>
+
+                        <div class="case-node is-user" style="--x: 50%; --y: 88%; --delay: 0.55s;">
+                            <div class="case-node-meta">
+                                <div class="case-node-role">User</div>
+                                <div class="case-node-id">05</div>
+                            </div>
+                            <div class="case-node-text">Pick a path and keep exploring.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="specs">
+            <div class="spec-item">
+                <div class="spec-label">Architecture</div>
+                <div class="spec-value">DAG-based</div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">Storage</div>
+                <div class="spec-value">Local-first</div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">Framework</div>
+                <div class="spec-value">Next.js 16</div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">License</div>
+                <div class="spec-value">MIT</div>
+            </div>
+        </div>
+    </div>
+
+    <section class="manifesto">
+        <div class="container">
+            <div class="manifesto-grid">
+                <div class="manifesto-label">01 — Manifesto</div>
+                <div class="manifesto-content">
+                    <h2>Linear conversations limit thinking. DAGs liberate it.</h2>
+                    <p>Traditional chat apps force your thoughts into a straight line. Prompt Tree uses a Directed Acyclic Graph structure, letting conversations branch naturally. Every idea can spawn multiple explorations. No backtracking, no losing context—just pure, unfiltered thinking.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="features">
+        <div class="container">
+            <div class="features-header">
+                <h2>Designed for clarity, built for depth</h2>
+                <p>Every feature serves one purpose: giving you complete control over your AI conversations.</p>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-number">01</div>
+                    <h3>Local-first storage</h3>
+                    <p>Your conversations stay on your machine. No cloud dependencies, no privacy concerns, complete ownership of your data.</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-number">02</div>
+                    <h3>DAG architecture</h3>
+                    <p>Visualize conversations as trees. Branch from any message, compare responses, and never lose context.</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-number">03</div>
+                    <h3>Multi-model support</h3>
+                    <p>Switch between OpenAI, Anthropic, DeepSeek, and more. Different models for different conversations.</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-number">04</div>
+                    <h3>Modern stack</h3>
+                    <p>Built with Next.js 16, React 19, and TypeScript. Blazing fast, type-safe, and future-proof.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="concept" class="manifesto">
+        <div class="container">
+            <div class="manifesto-grid">
+                <div class="manifesto-label">02 — Concept</div>
+                <div class="manifesto-content">
+                    <h2>The tree is the perfect metaphor for conversation.</h2>
+                    <p>A conversation starts with a seed—a prompt. It grows branches—questions, explorations, detours. Some branches wither; others blossom into new insights. Prompt Tree captures this organic process, giving you a visual representation of how ideas evolve and connect.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="install" class="installation">
+        <div class="container">
+            <div class="installation-grid">
+                <div class="installation-info">
+                    <h2>Install Prompt Tree</h2>
+                    <p>Get started in seconds. Available as an npm package for quick installation and updates.</p>
+                </div>
+                <div class="code-block">
+                    <span class="code-line"><span class="code-comment"># Install globally</span></span>
+                    <span class="code-line"><span class="code-command">npm install -g @yxp934/prompt-tree</span></span>
+                    <span class="code-line"></span>
+                    <span class="code-line"><span class="code-comment"># Or run with npx</span></span>
+                    <span class="code-line"><span class="code-command">npx @yxp934/prompt-tree</span></span>
+                    <span class="code-line"></span>
+                    <span class="code-line"><span class="code-comment"># Start the application</span></span>
+                    <span class="code-line"><span class="code-command">prompt-tree</span></span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-left">
+                © 2026 Prompt Tree
+            </div>
+            <div class="footer-links">
+                <a href="https://github.com/yxp934/prompt-tree">GitHub</a>
+                <a href="https://www.npmjs.com/package/@yxp934/prompt-tree">NPM</a>
+            </div>
+            <div class="footer-right">
+                Made with Next.js & React 19
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

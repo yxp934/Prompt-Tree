@@ -3,10 +3,12 @@
 import { memo, useMemo } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 
+import { useT } from "@/lib/i18n/useT";
 import type { TreeFlowNodeData } from "@/lib/services/dagService";
+import { stripModelThinkingTags } from "@/lib/services/messageContentService";
 import { DND_NODE_ID } from "@/lib/utils/dnd";
+import { useAppStore } from "@/store/useStore";
 import { NodeType } from "@/types";
-import { getNodeDisplayName } from "@/lib/utils/nodeDisplay";
 
 function GripIcon() {
   return (
@@ -27,10 +29,6 @@ function GripIcon() {
   );
 }
 
-function typeLabel(node: TreeFlowNodeData["node"]): string {
-  return getNodeDisplayName(node);
-}
-
 function typeClass(type: NodeType): string {
   switch (type) {
     case NodeType.SYSTEM:
@@ -45,14 +43,28 @@ function typeClass(type: NodeType): string {
 }
 
 const TreeNode = memo(function TreeNode({ data }: NodeProps<TreeFlowNodeData>) {
+  const t = useT();
+  const locale = useAppStore((s) => s.locale);
   const node = data.node;
   const isCompressed = node.type === NodeType.COMPRESSED;
   const isCollapsed = node.metadata.collapsed ?? false;
 
+  const displayName =
+    node.type === NodeType.ASSISTANT
+      ? node.metadata.modelName ?? t("node.author.assistant")
+      : node.type === NodeType.USER
+        ? t("node.author.you")
+        : node.type === NodeType.SYSTEM
+          ? t("node.author.system")
+          : t("node.author.compressed");
+
   const preview = useMemo(() => {
-    if (node.type === NodeType.COMPRESSED) return node.summary ?? "(empty summary)";
-    return node.content.trim() ? node.content : "(empty)";
-  }, [node]);
+    if (node.type === NodeType.COMPRESSED) {
+      return node.summary ?? t("tree.node.emptySummary");
+    }
+    const raw = node.content.trim() ? node.content : t("tree.node.emptyContent");
+    return node.type === NodeType.ASSISTANT ? stripModelThinkingTags(raw).visible : raw;
+  }, [node, t]);
 
   const chrome = data.isActive
     ? "shadow-[0_10px_36px_rgba(184,115,51,0.32),0_0_0_2px_var(--copper)]"
@@ -67,7 +79,7 @@ const TreeNode = memo(function TreeNode({ data }: NodeProps<TreeFlowNodeData>) {
       className={`node-transition group relative w-[200px] cursor-pointer rounded-[18px] px-4 py-3 ${typeClass(
         node.type,
       )} ${chrome}`}
-      data-cortex-node-type={node.type}
+      data-prompt-tree-node-type={node.type}
       data-node-id={node.id}
     >
       <Handle
@@ -85,7 +97,7 @@ const TreeNode = memo(function TreeNode({ data }: NodeProps<TreeFlowNodeData>) {
         <button
           className="flex h-6 w-6 items-center justify-center rounded-md bg-[rgba(255,255,255,0.12)] text-cream opacity-0 transition-opacity duration-150 group-hover:opacity-100"
           draggable
-          aria-label="Drag node to context"
+          aria-label={t("tree.node.dragToContextAria")}
           onPointerDown={(e) => {
             e.stopPropagation();
           }}
@@ -100,7 +112,7 @@ const TreeNode = memo(function TreeNode({ data }: NodeProps<TreeFlowNodeData>) {
 
         <div className="flex-1">
           <div className="font-mono text-[0.65rem] uppercase tracking-wide opacity-75">
-            {typeLabel(node)}
+            {displayName}
           </div>
         </div>
 
@@ -108,19 +120,24 @@ const TreeNode = memo(function TreeNode({ data }: NodeProps<TreeFlowNodeData>) {
           <button
             type="button"
             className="flex h-5 w-5 items-center justify-center rounded-full border border-[rgba(255,255,255,0.4)] text-[0.7rem] font-semibold text-cream/80 transition-colors hover:border-[rgba(255,255,255,0.7)]"
+            onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
               data.onToggleCollapse?.(node.id);
             }}
-            aria-label={isCollapsed ? "Expand compressed node" : "Collapse compressed node"}
+            aria-label={
+              isCollapsed
+                ? t("tree.node.expandCompressedAria")
+                : t("tree.node.collapseCompressedAria")
+            }
           >
             {isCollapsed ? "+" : "−"}
           </button>
         )}
 
         <div className="font-mono text-[0.7rem] opacity-80">
-          {node.tokenCount.toLocaleString()}
+          {node.tokenCount.toLocaleString(locale)}
         </div>
       </div>
 

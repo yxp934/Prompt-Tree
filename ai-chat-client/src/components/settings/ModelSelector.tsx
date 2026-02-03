@@ -8,7 +8,8 @@
 import { useEffect, useState } from "react";
 
 import { useAppStore } from "@/store/useStore";
-import { MODEL_CATEGORIES, getModelCategoryName } from "@/lib/services/providerApiService";
+import { useT } from "@/lib/i18n/useT";
+import { isMessageKey } from "@/lib/i18n/translate";
 import type { ModelConfig } from "@/types/provider";
 
 import { CloseIcon, SearchIcon, RefreshIcon, PlusIcon, CheckIcon } from "./icons";
@@ -34,11 +35,24 @@ function ModelGroup({
   onToggle: (modelId: string) => void;
   onAddSelected: () => void;
 }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(true);
 
   if (models.length === 0) return null;
 
   const selectedInGroup = models.filter((m) => selectedIds.has(m.id));
+  const categoryLabel =
+    category === "chat"
+      ? t("modelCategory.chat")
+      : category === "reasoning"
+        ? t("modelCategory.reasoning")
+        : category === "vision"
+          ? t("modelCategory.vision")
+          : category === "embedding"
+            ? t("modelCategory.embedding")
+            : category === "tool"
+              ? t("modelCategory.tool")
+              : t("modelCategory.other");
 
   return (
     <div className="mb-3 rounded-xl border border-parchment bg-cream overflow-hidden">
@@ -56,7 +70,7 @@ function ModelGroup({
           </svg>
         </span>
         <span className="flex-1 font-body text-[0.9rem] font-medium text-ink">
-          {getModelCategoryName(category as ModelConfig["category"])}
+          {categoryLabel}
         </span>
         <span className="rounded-full bg-parchment px-2 py-0.5 font-mono text-[0.7rem] text-clay">
           {models.length}
@@ -70,7 +84,7 @@ function ModelGroup({
               onAddSelected();
             }}
           >
-            添加 {selectedInGroup.length}
+            {t("modelSelector.addCount", { count: selectedInGroup.length })}
           </button>
         )}
       </button>
@@ -128,6 +142,7 @@ function ModelGroup({
  * 模型选择器对话框
  */
 export function ModelSelector({ open, onClose }: ModelSelectorProps) {
+  const t = useT();
   const providers = useAppStore((s) => s.providers);
   const modelSelector = useAppStore((s) => s.modelSelector);
   const closeModelSelector = useAppStore((s) => s.closeModelSelector);
@@ -211,6 +226,27 @@ export function ModelSelector({ open, onClose }: ModelSelectorProps) {
 
   if (!open) return null;
 
+  const categories = ["all", "chat", "reasoning", "vision", "embedding", "tool"] as const;
+
+  const categoryLabel = (value: string) => {
+    switch (value) {
+      case "all":
+        return t("modelCategory.all");
+      case "chat":
+        return t("modelCategory.chat");
+      case "reasoning":
+        return t("modelCategory.reasoning");
+      case "vision":
+        return t("modelCategory.vision");
+      case "embedding":
+        return t("modelCategory.embedding");
+      case "tool":
+        return t("modelCategory.tool");
+      default:
+        return t("modelCategory.other");
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex">
       {/* 背景遮罩 */}
@@ -224,7 +260,7 @@ export function ModelSelector({ open, onClose }: ModelSelectorProps) {
         {/* 头部 */}
         <div className="flex items-center justify-between border-b border-parchment px-6 py-4">
           <h3 className="font-display text-xl text-ink">
-            {provider?.name || "提供商"} - 模型
+            {provider?.name || t("modelSelector.providerFallback")} - {t("modelSelector.models")}
           </h3>
           <button
             type="button"
@@ -244,7 +280,7 @@ export function ModelSelector({ open, onClose }: ModelSelectorProps) {
                 type="text"
                 value={modelSelector.searchQuery}
                 onChange={(e) => setModelSelectorSearch(e.target.value)}
-                placeholder="搜索模型 ID 或名称"
+                placeholder={t("modelSelector.searchPlaceholder")}
                 className="w-full rounded-xl border border-parchment bg-cream pl-10 pr-4 py-2.5 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
               />
             </div>
@@ -263,18 +299,18 @@ export function ModelSelector({ open, onClose }: ModelSelectorProps) {
 
         {/* 分类标签 */}
         <div className="flex items-center gap-1 border-b border-parchment px-6 py-3 overflow-x-auto">
-          {MODEL_CATEGORIES.map((cat) => (
+          {categories.map((value) => (
             <button
-              key={cat.value}
+              key={value}
               type="button"
               className={`whitespace-nowrap rounded-lg px-3 py-1.5 font-body text-[0.8rem] transition-all ${
-                modelSelector.activeTab === cat.value
+                modelSelector.activeTab === value
                   ? "bg-copper text-white"
                   : "text-clay hover:bg-cream hover:text-ink"
               }`}
-              onClick={() => setModelSelectorTab(cat.value)}
+              onClick={() => setModelSelectorTab(value)}
             >
-              {cat.label}
+              {categoryLabel(value)}
             </button>
           ))}
         </div>
@@ -285,7 +321,7 @@ export function ModelSelector({ open, onClose }: ModelSelectorProps) {
             <div className="flex flex-col items-center justify-center py-12">
               <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-copper border-t-transparent" />
               <p className="font-body text-[0.9rem] text-sand">
-                正在获取模型列表...
+                {t("modelSelector.fetching")}
               </p>
             </div>
           ) : modelSelector.error ? (
@@ -297,10 +333,10 @@ export function ModelSelector({ open, onClose }: ModelSelectorProps) {
                 </svg>
               </div>
               <p className="mb-1 font-body text-[0.9rem] text-clay">
-                获取模型列表失败
+                {t("modelSelector.fetchFailed")}
               </p>
               <p className="font-body text-[0.8rem] text-sand">
-                {modelSelector.error}
+                {isMessageKey(modelSelector.error) ? t(modelSelector.error) : modelSelector.error}
               </p>
             </div>
           ) : filteredModels.length === 0 ? (
@@ -312,12 +348,12 @@ export function ModelSelector({ open, onClose }: ModelSelectorProps) {
                 </svg>
               </div>
               <p className="mb-1 font-body text-[0.9rem] text-clay">
-                {modelSelector.searchQuery ? "未找到匹配的模型" : "暂无可用模型"}
+                {modelSelector.searchQuery ? t("modelSelector.noMatches") : t("modelSelector.noModels")}
               </p>
               <p className="font-body text-[0.8rem] text-sand">
                 {modelSelector.searchQuery
-                  ? "尝试其他搜索关键词"
-                  : "请先配置 API 密钥并刷新"}
+                  ? t("modelSelector.tryOtherQuery")
+                  : t("modelSelector.configureApiKey")}
               </p>
             </div>
           ) : (
@@ -349,7 +385,7 @@ export function ModelSelector({ open, onClose }: ModelSelectorProps) {
         {selectedIds.size > 0 && (
           <div className="flex items-center justify-between border-t border-parchment px-6 py-4">
             <span className="font-body text-[0.85rem] text-sand">
-              已选择 {selectedIds.size} 个模型
+              {t("modelSelector.selectedCount", { count: selectedIds.size })}
             </span>
             <button
               type="button"
@@ -357,7 +393,7 @@ export function ModelSelector({ open, onClose }: ModelSelectorProps) {
               onClick={handleAddSelected}
             >
               <PlusIcon />
-              添加选中
+              {t("modelSelector.addSelected")}
             </button>
           </div>
         )}

@@ -125,6 +125,23 @@ export function InfoIcon() {
   );
 }
 
+export function WrenchIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M14.7 6.3a4 4 0 0 1-5.65 5.65L3 18v3h3l6.05-6.05a4 4 0 0 1 5.65-5.65l-2.1 2.1 1.4 1.4 2.1-2.1Z" />
+    </svg>
+  );
+}
+
 export function PlusIcon() {
   return (
     <svg

@@ -67,6 +67,18 @@ describe("store slices", () => {
     await store.getState().addToContext(user.id);
     expect(store.getState().contextBox?.nodeIds).toContain(user.id);
 
+    const user2 = await store.getState().createNode({
+      type: NodeType.USER,
+      parentId: rootId,
+      content: "hello again",
+    });
+
+    const beforeInsert = store.getState().contextBox?.nodeIds ?? [];
+    const insertAt = Math.max(0, beforeInsert.indexOf(user.id));
+    await store.getState().addToContext(user2.id, insertAt);
+    const afterInsert = store.getState().contextBox?.nodeIds ?? [];
+    expect(afterInsert.indexOf(user2.id)).toBeLessThan(afterInsert.indexOf(user.id));
+
     await store.getState().addToContext("missing-node");
 
     store.getState().removeFromContext(user.id);
@@ -190,7 +202,7 @@ describe("store slices", () => {
     const store = createAppStore({ llmService });
 
     await expect(store.getState().sendMessage("hi")).rejects.toThrow(
-      /No active conversation tree loaded/,
+      /errors\.noActiveConversationTree/,
     );
   });
 });

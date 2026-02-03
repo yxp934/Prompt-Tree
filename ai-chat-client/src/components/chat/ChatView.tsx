@@ -1,8 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
-import { getEnabledModelOptions, buildModelSelectionKey } from "@/lib/services/providerModelService";
+import { useT } from "@/lib/i18n/useT";
+import {
+  buildModelSelectionKey,
+  getEnabledModelOptions,
+} from "@/lib/services/providerModelService";
+import { estimateTokens } from "@/lib/services/tokenService";
+import { buildToolInstructionBlocks } from "@/lib/services/tools/toolInstructions";
 import { useAppStore } from "@/store/useStore";
 import { NodeType, type Node } from "@/types";
 
@@ -48,9 +54,12 @@ function buildConversation(nodes: Map<string, Node>, activeNodeId: string | null
 }
 
 export function ChatView() {
+  const t = useT();
+  const locale = useAppStore((s) => s.locale);
   const nodes = useAppStore((s) => s.nodes);
   const activeNodeId = useAppStore((s) => s.activeNodeId);
   const currentTree = useAppStore((s) => s.getCurrentTree());
+  const folders = useAppStore((s) => s.folders);
 
   const isLoading = useAppStore((s) => s.isLoading);
   const isSending = useAppStore((s) => s.isSending);
@@ -62,6 +71,9 @@ export function ChatView() {
   const contextBox = useAppStore((s) => s.contextBox);
   const selectedModels = useAppStore((s) => s.selectedModels);
   const setSelectedModels = useAppStore((s) => s.setSelectedModels);
+  const toolSettings = useAppStore((s) => s.toolSettings);
+  const draftToolUses = useAppStore((s) => s.draftToolUses);
+  const setDraftToolUses = useAppStore((s) => s.setDraftToolUses);
 
   const sendMessage = useAppStore((s) => s.sendMessage);
 
@@ -75,6 +87,31 @@ export function ChatView() {
     [providers],
   );
 
+  const folderEnabledOptions = useMemo(() => {
+    const folderId = currentTree?.folderId ?? null;
+    if (!folderId) return enabledModelOptions;
+    const folder = folders.get(folderId) ?? null;
+    const enabled = folder?.enabledModels;
+    if (enabled == null) return enabledModelOptions;
+    const allowedKeys = new Set(enabled.map(buildModelSelectionKey));
+    return enabledModelOptions.filter((option) => allowedKeys.has(buildModelSelectionKey(option)));
+  }, [currentTree?.folderId, enabledModelOptions, folders]);
+
+  useEffect(() => {
+    const folderId = currentTree?.folderId ?? null;
+    if (!folderId) return;
+    const folder = folders.get(folderId) ?? null;
+    const enabled = folder?.enabledModels;
+    if (enabled == null) return;
+
+    const allowedKeys = new Set(folderEnabledOptions.map(buildModelSelectionKey));
+    const pruned = selectedModels.filter((selection) =>
+      allowedKeys.has(buildModelSelectionKey(selection)),
+    );
+    if (pruned.length === selectedModels.length) return;
+    setSelectedModels(pruned);
+  }, [currentTree?.folderId, folderEnabledOptions, folders, selectedModels, setSelectedModels]);
+
   const modelLabel = useMemo(() => {
     if (selectedModels.length === 0) return model;
     const optionMap = new Map(
@@ -85,18 +122,26 @@ export function ChatView() {
       return option?.modelId ?? selection.modelId;
     });
     if (labels.length <= 2) return labels.join(", ");
-    return `${labels.length} models`;
-  }, [selectedModels, enabledModelOptions, model]);
+    return t("chat.modelLabel.count", { count: labels.length });
+  }, [selectedModels, enabledModelOptions, model, t]);
+
+  const toolTokens = useMemo(() => {
+    const blocks = buildToolInstructionBlocks(draftToolUses, toolSettings);
+    return blocks.reduce((sum, block) => sum + estimateTokens(block.content), 0);
+  }, [draftToolUses, toolSettings]);
 
   const tokenLabel =
     contextBox && contextBox.maxTokens
-      ? `Context: ${contextBox.totalTokens.toLocaleString()} / ${contextBox.maxTokens.toLocaleString()}`
+      ? t("chat.contextTokens", {
+          used: (contextBox.totalTokens + toolTokens).toLocaleString(locale),
+          max: contextBox.maxTokens.toLocaleString(locale),
+        })
       : "";
 
   if (!currentTree) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center p-8 text-sand">
-        {isLoading ? "Loading..." : "No conversation loaded."}
+        {isLoading ? t("common.loading") : t("chat.noConversationLoaded")}
       </div>
     );
   }
@@ -112,9 +157,12 @@ export function ChatView() {
         modelLabel={modelLabel}
         temperatureLabel={temperature.toFixed(1)}
         tokenLabel={tokenLabel}
-        modelOptions={enabledModelOptions}
+        modelOptions={folderEnabledOptions}
         selectedModels={selectedModels}
         onSelectedModelsChange={setSelectedModels}
+        selectedTools={draftToolUses}
+        onSelectedToolsChange={setDraftToolUses}
+        toolSettings={toolSettings}
       />
     </div>
   );

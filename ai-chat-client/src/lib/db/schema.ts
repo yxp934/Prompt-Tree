@@ -1,6 +1,6 @@
 export const DB_CONFIG = {
   name: "AIChatClientDB",
-  version: 1,
+  version: 2,
   stores: {
     nodes: {
       name: "nodes",
@@ -16,6 +16,15 @@ export const DB_CONFIG = {
       keyPath: "id",
       indexes: {
         rootId: { keyPath: "rootId", options: { unique: false } },
+        folderId: { keyPath: "folderId", options: { unique: false } },
+        updatedAt: { keyPath: "updatedAt", options: { unique: false } },
+      },
+    },
+    folders: {
+      name: "folders",
+      keyPath: "id",
+      indexes: {
+        createdAt: { keyPath: "createdAt", options: { unique: false } },
         updatedAt: { keyPath: "updatedAt", options: { unique: false } },
       },
     },
@@ -30,4 +39,3 @@ export const DB_CONFIG = {
 } as const;
 
 export type DBStoreName = keyof typeof DB_CONFIG.stores;
-

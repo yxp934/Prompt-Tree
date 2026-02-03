@@ -5,22 +5,28 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 
 import { CompressionService } from "@/lib/services/compressionService";
 import { ContextBoxService } from "@/lib/services/contextBoxService";
+import { FolderService } from "@/lib/services/folderService";
+import { AgentService, type IAgentService } from "@/lib/services/agentService";
 import { LLMService, type ILLMService } from "@/lib/services/llmService";
 import { NodeService } from "@/lib/services/nodeService";
 import { TreeService } from "@/lib/services/treeService";
 
 import { createContextSlice, type ContextSlice } from "./contextSlice";
+import { createFolderSlice, type FolderSlice } from "./folderSlice";
 import { createLLMSlice, type LLMSlice } from "./llmSlice";
 import { createNodeSlice, type NodeSlice } from "./nodeSlice";
 import { createTreeSlice, type TreeSlice } from "./treeSlice";
 import { createUISlice, type UISlice } from "./uiSlice";
 import { createProviderSlice, type ProviderSlice } from "./providerSlice";
+import { createToolSlice, type ToolSlice } from "./toolSlice";
 
 export interface AppStoreDeps {
   nodeService: NodeService;
   treeService: TreeService;
+  folderService: FolderService;
   contextBoxService: ContextBoxService;
   llmService: ILLMService;
+  agentService: IAgentService;
   compressionService: CompressionService;
 }
 
@@ -34,10 +40,12 @@ export interface BaseSlice {
 export type AppStoreState = BaseSlice &
   NodeSlice &
   TreeSlice &
+  FolderSlice &
   ContextSlice &
   UISlice &
   LLMSlice &
-  ProviderSlice;
+  ProviderSlice &
+  ToolSlice;
 
 export function createAppStore(
   deps?: Partial<AppStoreDeps>,
@@ -45,8 +53,10 @@ export function createAppStore(
   const services: AppStoreDeps = {
     nodeService: deps?.nodeService ?? new NodeService(),
     treeService: deps?.treeService ?? new TreeService(),
+    folderService: deps?.folderService ?? new FolderService(),
     contextBoxService: deps?.contextBoxService ?? new ContextBoxService(),
     llmService: deps?.llmService ?? new LLMService(),
+    agentService: deps?.agentService ?? new AgentService(),
     compressionService: deps?.compressionService ?? new CompressionService(),
   };
 
@@ -59,7 +69,11 @@ export function createAppStore(
 
       set({ isLoading: true, error: null });
       try {
-        let trees = await services.treeService.list();
+        const [folders, initialTrees] = await Promise.all([
+          services.folderService.list(),
+          services.treeService.list(),
+        ]);
+        let trees = initialTrees;
         if (trees.length === 0) {
           const tree = await services.treeService.create();
           trees = [tree];
@@ -67,6 +81,7 @@ export function createAppStore(
 
         set({
           trees: new Map(trees.map((t) => [t.id, t])),
+          folders: new Map(folders.map((f) => [f.id, f])),
         });
 
         await get().loadTree(trees[0].id);
@@ -83,10 +98,12 @@ export function createAppStore(
 
     ...createNodeSlice(services)(set, get, ...api),
     ...createTreeSlice(services)(set, get, ...api),
+    ...createFolderSlice(services)(set, get, ...api),
     ...createContextSlice(services)(set, get, ...api),
     ...createUISlice()(set, get, ...api),
     ...createLLMSlice(services)(set, get, ...api),
     ...createProviderSlice(services)(set, get, ...api),
+    ...createToolSlice()(set, get, ...api),
   }));
 }
 

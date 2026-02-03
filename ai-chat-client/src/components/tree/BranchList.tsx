@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
+import { useT } from "@/lib/i18n/useT";
 import { getLeafNodes } from "@/lib/services/dagService";
+import { stripModelThinkingTags } from "@/lib/services/messageContentService";
 import { useAppStore } from "@/store/useStore";
 import { NodeType, type Node } from "@/types";
 
@@ -33,27 +35,45 @@ function PencilIcon() {
   );
 }
 
-function defaultBranchLabel(node: Node): string {
-  const raw =
-    node.type === NodeType.COMPRESSED
-      ? node.summary ?? node.content
-      : node.content;
-  const trimmed = raw.trim();
-  if (trimmed) return trimmed.slice(0, 36);
-  if (node.type === NodeType.COMPRESSED) return "Compressed branch";
-  return `${node.type} branch`;
-}
-
 interface BranchListProps {
   floating?: boolean;
 }
 
 export function BranchList({ floating = false }: BranchListProps) {
+  const t = useT();
   const nodes = useAppStore((s) => s.nodes);
   const currentTree = useAppStore((s) => s.getCurrentTree());
   const activeNodeId = useAppStore((s) => s.activeNodeId);
   const setActiveNode = useAppStore((s) => s.setActiveNode);
   const updateNode = useAppStore((s) => s.updateNode);
+
+  const nodeTypeLabel = (type: NodeType) => {
+    switch (type) {
+      case NodeType.SYSTEM:
+        return t("node.type.system");
+      case NodeType.USER:
+        return t("node.type.user");
+      case NodeType.ASSISTANT:
+        return t("node.type.assistant");
+      case NodeType.COMPRESSED:
+        return t("node.type.compressed");
+    }
+  };
+
+  const defaultBranchLabel = (node: Node): string => {
+    const raw =
+      node.type === NodeType.COMPRESSED
+        ? node.summary ?? node.content
+        : node.content;
+    const cleaned =
+      node.type === NodeType.ASSISTANT || node.type === NodeType.COMPRESSED
+        ? stripModelThinkingTags(raw).visible
+        : raw;
+    const trimmed = cleaned.trim();
+    if (trimmed) return trimmed.slice(0, 36);
+    if (node.type === NodeType.COMPRESSED) return t("branches.default.compressed");
+    return t("branches.default.type", { type: nodeTypeLabel(node.type) });
+  };
 
   const branches = useMemo(() => {
     if (!currentTree) return [] as Node[];
@@ -100,10 +120,10 @@ export function BranchList({ floating = false }: BranchListProps) {
       <section className={sectionClass}>
         <div className="flex items-center justify-between">
           <div className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-sand">
-            Branches
+            {t("branches.title")}
           </div>
           <div className="text-[0.75rem] text-sand">
-            {branches.length} active
+            {t("branches.activeCount", { count: branches.length })}
           </div>
         </div>
         <div className={listClass}>
@@ -156,7 +176,7 @@ export function BranchList({ floating = false }: BranchListProps) {
                       )}
                     </div>
                     <div className="mt-1 text-[0.7rem] uppercase tracking-[0.15em] text-sand">
-                      {node.type}
+                      {nodeTypeLabel(node.type)}
                     </div>
                   </div>
 

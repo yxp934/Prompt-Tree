@@ -1,17 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
+import { useT } from "@/lib/i18n/useT";
+import { isMessageKey } from "@/lib/i18n/translate";
 import { computePathIds } from "@/lib/services/dagService";
+import { stripModelThinkingTags } from "@/lib/services/messageContentService";
+import { estimateTokens } from "@/lib/services/tokenService";
+import { buildToolInstructionBlocks } from "@/lib/services/tools/toolInstructions";
 import { DND_NODE_ID } from "@/lib/utils/dnd";
-import { getNodeDisplayName } from "@/lib/utils/nodeDisplay";
 import { useAppStore } from "@/store/useStore";
 import { NodeType, type Node, type NodeMetaInstructions } from "@/types";
+import type { ToolUseId } from "@/types";
 
-type ContextType = "system" | "human" | "machine" | "compressed";
+type ContextType = "system" | "human" | "machine" | "compressed" | "tool";
 
 interface ContextCard {
   id: string;
@@ -68,6 +73,19 @@ function CompressedIcon() {
         strokeLinejoin="round"
         strokeWidth="2"
         d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+      />
+    </svg>
+  );
+}
+
+function ToolIcon() {
+  return (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M14.7 6.3a4 4 0 0 1-5.65 5.65L3 18v3h3l6.05-6.05a4 4 0 0 1 5.65-5.65l-2.1 2.1 1.4 1.4 2.1-2.1Z"
       />
     </svg>
   );
@@ -146,6 +164,8 @@ function getIcon(type: ContextType) {
       return <MachineIcon />;
     case "compressed":
       return <CompressedIcon />;
+    case "tool":
+      return <ToolIcon />;
   }
 }
 
@@ -159,38 +179,15 @@ function getIconBgClass(type: ContextType) {
       return "bg-machine";
     case "compressed":
       return "bg-copper";
+    case "tool":
+      return "bg-copper";
   }
 }
 
-function nodeToCard(node: Node): ContextCard {
-  const type: ContextType =
-    node.type === NodeType.SYSTEM
-      ? "system"
-      : node.type === NodeType.USER
-        ? "human"
-        : node.type === NodeType.ASSISTANT
-          ? "machine"
-          : "compressed";
-
-  const title =
-    type === "system"
-      ? "System Prompt"
-      : type === "human"
-        ? "User Message"
-        : type === "machine"
-          ? getNodeDisplayName(node)
-          : "Compressed";
-
-  const preview =
-    node.type === NodeType.COMPRESSED ? node.summary ?? node.content : node.content;
-
-  return {
-    id: node.id,
-    type,
-    title,
-    preview,
-    tokens: node.tokenCount,
-  };
+function isToolUseId(value: string): value is ToolUseId {
+  if (value === "web_search" || value === "python" || value === "mcp") return true;
+  if (value.startsWith("mcp:")) return Boolean(value.slice("mcp:".length).trim());
+  return false;
 }
 
 function buildCompressionChainIds(
@@ -201,7 +198,7 @@ function buildCompressionChainIds(
 ): string[] {
   const unique = Array.from(new Set(nodeIds)).filter((id) => nodes.has(id));
   if (unique.length < 2) {
-    throw new Error("Select at least 2 nodes from the same path to compress.");
+    throw new Error("context.compress.errors.minTwoNodes");
   }
 
   const candidateSet = new Set(unique);
@@ -211,7 +208,7 @@ function buildCompressionChainIds(
     const path = computePathIds(nodes, tailId);
     const coversAll = unique.every((candidate) => path.includes(candidate));
     if (!coversAll) {
-      throw new Error("Selection must be a single continuous path (no gaps).");
+      throw new Error("context.compress.errors.noGaps");
     }
     tailPath = path;
   } else {
@@ -220,19 +217,19 @@ function buildCompressionChainIds(
       const coversAll = unique.every((candidate) => path.includes(candidate));
       if (!coversAll) continue;
       if (tailPath) {
-        throw new Error("Selection must be a single continuous path (no branches).");
+        throw new Error("context.compress.errors.noBranches");
       }
       tailPath = path;
     }
   }
 
   if (!tailPath) {
-    throw new Error("Selection must be a single continuous path (no gaps).");
+    throw new Error("context.compress.errors.noGaps");
   }
 
   const entryIndex = tailPath.findIndex((id) => candidateSet.has(id));
   if (entryIndex === -1) {
-    throw new Error("Selection must be a single continuous path (no gaps).");
+    throw new Error("context.compress.errors.noGaps");
   }
 
   let chain = tailPath.slice(entryIndex);
@@ -241,7 +238,7 @@ function buildCompressionChainIds(
   }
 
   if (chain.length < 2) {
-    throw new Error("Select at least 2 nodes from the same path to compress.");
+    throw new Error("context.compress.errors.minTwoNodes");
   }
 
   return chain;
@@ -264,15 +261,19 @@ function ContextCardItem({
   onDragEnter,
   onDragEnd,
 }: ContextCardItemProps) {
+  const t = useT();
   const isCompressed = card.type === "compressed";
 
   return (
     <div
-      className={`context-card-hover relative mb-2.5 cursor-grab rounded-xl border p-3.5 transition-all duration-200 active:cursor-grabbing ${
+      className={`context-card-hover relative mb-2.5 rounded-xl border p-3.5 transition-all duration-200 ${
+        draggable ? "cursor-grab active:cursor-grabbing" : "cursor-default"
+      } ${
         isCompressed
           ? "border-copper bg-copper-glow"
           : "border-parchment bg-paper"
       }`}
+      data-context-card-id={card.id}
       draggable={draggable}
       onDragStart={(e) => {
         if (!draggable) return;
@@ -289,7 +290,7 @@ function ContextCardItem({
       <button
         className="context-card-remove absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-cream opacity-0 text-sand transition-all duration-150 hover:bg-[#e74c3c] hover:text-white"
         onClick={() => onRemove(card.id)}
-        aria-label="Remove from context"
+        aria-label={t("context.removeFromContextAria")}
       >
         <CloseIcon />
       </button>
@@ -314,6 +315,8 @@ function ContextCardItem({
 }
 
 export default function ContextPanel() {
+  const t = useT();
+  const locale = useAppStore((s) => s.locale);
   const nodes = useAppStore((s) => s.nodes);
   const contextBox = useAppStore((s) => s.contextBox);
   const currentTree = useAppStore((s) => s.getCurrentTree());
@@ -324,6 +327,9 @@ export default function ContextPanel() {
   const clearContext = useAppStore((s) => s.clearContext);
   const reorderContext = useAppStore((s) => s.reorderContext);
   const buildContextContent = useAppStore((s) => s.buildContextContent);
+  const toolSettings = useAppStore((s) => s.toolSettings);
+  const draftToolUses = useAppStore((s) => s.draftToolUses);
+  const toggleDraftToolUse = useAppStore((s) => s.toggleDraftToolUse);
 
   const compressionOpen = useAppStore((s) => s.compressionOpen);
   const openCompression = useAppStore((s) => s.openCompression);
@@ -348,13 +354,61 @@ export default function ContextPanel() {
     return orderedIds
       .map((id) => nodes.get(id))
       .filter((n): n is Node => Boolean(n))
-      .map(nodeToCard);
-  }, [contextBox, orderedIds, nodes]);
+      .map((node) => {
+        const type: ContextType =
+          node.type === NodeType.SYSTEM
+            ? "system"
+            : node.type === NodeType.USER
+              ? "human"
+              : node.type === NodeType.ASSISTANT
+                ? "machine"
+                : "compressed";
 
-  const totalTokens = contextBox?.totalTokens ?? 0;
+        const title =
+          type === "system"
+            ? t("context.card.system")
+            : type === "human"
+              ? t("context.card.user")
+              : type === "machine"
+                ? node.metadata.modelName ?? t("node.author.assistant")
+                : t("context.card.compressed");
+
+        const rawPreview =
+          node.type === NodeType.COMPRESSED ? node.summary ?? node.content : node.content;
+        const preview =
+          node.type === NodeType.ASSISTANT ? stripModelThinkingTags(rawPreview).visible : rawPreview;
+
+        return {
+          id: node.id,
+          type,
+          title,
+          preview,
+          tokens: node.tokenCount,
+        } satisfies ContextCard;
+      });
+  }, [contextBox, orderedIds, nodes, t]);
+
+  const toolBlocks = useMemo(
+    () => buildToolInstructionBlocks(draftToolUses, toolSettings),
+    [draftToolUses, toolSettings],
+  );
+  const toolCards = useMemo(() => {
+    return toolBlocks.map((block) => ({
+      id: block.id,
+      type: "tool" as const,
+      title: block.title,
+      preview: block.content,
+      tokens: estimateTokens(block.content),
+    }));
+  }, [toolBlocks]);
+
+  const toolTokens = toolCards.reduce((sum, card) => sum + card.tokens, 0);
+  const baseTokens = contextBox?.totalTokens ?? 0;
+  const totalTokens = baseTokens + toolTokens;
   const maxTokens = contextBox?.maxTokens ?? 8192;
   const usagePercent = maxTokens > 0 ? (totalTokens / maxTokens) * 100 : 0;
 
+  const contextCardsRef = useRef<HTMLDivElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewText, setPreviewText] = useState<string | null>(null);
@@ -378,8 +432,8 @@ export default function ContextPanel() {
   );
   const canCompress = compressionTargetIds.length >= 2;
   const compressButtonLabel = selectionEligible
-    ? `Compress Selected (${selectedNodeIds.length})`
-    : `Compress Context (${contextCandidateIds.length})`;
+    ? t("context.compress.selected", { count: selectedNodeIds.length })
+    : t("context.compress.context", { count: contextCandidateIds.length });
 
   const { compressionNodeIds, compressionSelectionError } = useMemo(() => {
     if (!compressionOpen) {
@@ -400,10 +454,17 @@ export default function ContextPanel() {
       return {
         compressionNodeIds: [] as string[],
         compressionSelectionError:
-          err instanceof Error ? err.message : "Invalid selection",
+          err instanceof Error ? err.message : "context.compress.errors.invalidSelection",
       };
     }
-  }, [compressionOpen, compressionTargetIds, nodes]);
+  }, [
+    compressionOpen,
+    compressionTargetIds,
+    nodes,
+    contextTailId,
+    currentTree?.rootId,
+    selectionEligible,
+  ]);
   const [compressionSummary, setCompressionSummary] = useState("");
   const [compressionLanguage, setCompressionLanguage] = useState("");
   const [compressionFormat, setCompressionFormat] = useState("");
@@ -425,31 +486,73 @@ export default function ContextPanel() {
       const text = await buildContextContent();
       setPreviewText(text);
     } catch (err) {
-      setPreviewText(err instanceof Error ? err.message : "Failed to build context.");
+      const message = err instanceof Error ? err.message : "context.preview.failed";
+      setPreviewText(isMessageKey(message) ? t(message) : message);
     }
+  };
+
+  const selectionErrorText =
+    compressionSelectionError && isMessageKey(compressionSelectionError)
+      ? t(compressionSelectionError)
+      : compressionSelectionError;
+
+  const compressionErrorText =
+    compressionError && isMessageKey(compressionError)
+      ? t(compressionError)
+      : compressionError;
+
+  const nodeTypeLabel = (type: NodeType) => {
+    switch (type) {
+      case NodeType.SYSTEM:
+        return t("node.type.system");
+      case NodeType.USER:
+        return t("node.type.user");
+      case NodeType.ASSISTANT:
+        return t("node.type.assistant");
+      case NodeType.COMPRESSED:
+        return t("node.type.compressed");
+    }
+  };
+
+  const getDropInsertIndex = (clientY: number) => {
+    const container = contextCardsRef.current;
+    if (!container) return cards.length;
+
+    const elements = Array.from(
+      container.querySelectorAll<HTMLElement>("[data-context-card-id]"),
+    );
+    if (elements.length === 0) return 0;
+
+    for (let index = 0; index < elements.length; index += 1) {
+      const rect = elements[index]?.getBoundingClientRect();
+      if (!rect) continue;
+      if (clientY < rect.top + rect.height / 2) return index;
+    }
+
+    return elements.length;
   };
 
   return (
     <aside className="flex h-full min-h-0 flex-col overflow-hidden border-l border-parchment bg-cream">
       <div className="border-b border-parchment px-6 pb-5 pt-7">
         <div className="font-display text-[1.1rem] text-ink">
-          Context Assembly
+          {t("context.title")}
         </div>
         <div className="mt-1 font-mono text-[0.7rem] uppercase tracking-widest text-sand">
-          Build your prompt
+          {t("context.subtitle")}
         </div>
       </div>
 
       <div className="border-b border-parchment p-6">
         <div className="mb-4 flex items-baseline justify-between">
           <span className="font-mono text-[0.7rem] uppercase tracking-widest text-sand">
-            Token Usage
+            {t("context.tokenUsage")}
           </span>
           <span className="font-mono text-[0.85rem] text-ink">
             <strong className="font-medium text-copper">
-              {totalTokens.toLocaleString()}
+              {totalTokens.toLocaleString(locale)}
             </strong>{" "}
-            / {maxTokens.toLocaleString()}
+            / {maxTokens.toLocaleString(locale)}
           </span>
         </div>
 
@@ -467,78 +570,103 @@ export default function ContextPanel() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 p-5">
+      <div className="flex flex-1 min-h-0 flex-col p-5">
         <div className="mb-3 flex items-center justify-between font-mono text-[0.65rem] uppercase tracking-[0.15em] text-sand">
-          <span>Active Nodes</span>
+          <span>{t("context.activeNodes")}</span>
           <button
             className="border-none bg-transparent font-body text-[0.75rem] normal-case tracking-normal text-copper hover:underline"
             onClick={clearContext}
           >
-            Clear all
+            {t("context.clearAll")}
           </button>
         </div>
 
-        <div className="h-[180px] overflow-y-auto pr-1 md:h-[200px] lg:h-[220px]">
-          {cards.map((card) => (
-            <ContextCardItem
-              key={card.id}
-              card={card}
-              onRemove={removeFromContext}
-              draggable
-              onDragStart={() => {
-                setDraggingId(card.id);
-                setLocalOrder(orderedIds);
-              }}
-              onDragEnter={() => {
-                if (!draggingId) return;
-                setLocalOrder((prev) => {
-                  const base = prev ?? orderedIds;
-                  const from = base.indexOf(draggingId);
-                  const to = base.indexOf(card.id);
-                  if (from === -1 || to === -1 || from === to) return base;
-                  return moveCard(base, from, to);
-                });
-              }}
-              onDragEnd={() => {
-                const next = localOrder ?? orderedIds;
-                reorderContext(next);
-                setDraggingId(null);
-                setLocalOrder(null);
-              }}
-            />
-          ))}
-        </div>
+        {toolCards.length > 0 ? (
+          <div className="mb-4">
+            <div className="mb-3 font-mono text-[0.65rem] uppercase tracking-[0.15em] text-sand">
+              {t("context.toolBlocks")}
+            </div>
+            <div className="max-h-[140px] overflow-y-auto pr-1">
+              {toolCards.map((card) => (
+                <ContextCardItem
+                  key={card.id}
+                  card={card}
+                  onRemove={(id) => {
+                    if (isToolUseId(id)) toggleDraftToolUse(id);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div
-          className={`mt-3 rounded-2xl border-2 border-dashed px-6 py-4 text-center transition-all duration-200 ${
-            isDragOver
-              ? "border-copper bg-copper-glow"
-              : "border-parchment hover:border-copper hover:bg-copper-glow"
+          ref={contextCardsRef}
+          className={`flex-1 min-h-0 overflow-y-auto pr-1 transition-colors duration-150 ${
+            isDragOver ? "rounded-xl bg-copper-glow" : ""
           }`}
           data-testid="context-dropzone"
           onDragOver={(e) => {
             e.preventDefault();
+            if (draggingId) return;
             setIsDragOver(true);
           }}
           onDragLeave={() => setIsDragOver(false)}
           onDrop={(e) => {
             e.preventDefault();
             setIsDragOver(false);
+            if (draggingId) return;
+
             const nodeId =
               e.dataTransfer.getData(DND_NODE_ID) ||
               e.dataTransfer.getData("text/plain");
-            if (nodeId) void addToContext(nodeId);
+            if (!nodeId) return;
+
+            void addToContext(nodeId, getDropInsertIndex(e.clientY));
           }}
         >
-          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-paper text-sand">
-            <div className="h-5 w-5">
-              <UploadIcon />
+          {cards.length === 0 ? (
+            <div className="flex h-full items-center justify-center rounded-xl border border-parchment bg-paper/60 p-4 text-center text-sand">
+              <div className="space-y-1">
+                <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-paper text-sand">
+                  <div className="h-5 w-5">
+                    <UploadIcon />
+                  </div>
+                </div>
+                <div className="text-[0.85rem] text-clay">{t("context.dropzone.title")}</div>
+                <div className="text-[0.75rem]">{t("context.dropzone.subtitle")}</div>
+              </div>
             </div>
-          </div>
-          <div className="mb-1 text-[0.85rem] text-clay">Drop nodes here</div>
-          <div className="text-[0.75rem] text-sand">
-            Drag from the tree to add context
-          </div>
+          ) : (
+            cards.map((card) => (
+              <ContextCardItem
+                key={card.id}
+                card={card}
+                onRemove={removeFromContext}
+                draggable
+                onDragStart={() => {
+                  setDraggingId(card.id);
+                  setLocalOrder(orderedIds);
+                }}
+                onDragEnter={() => {
+                  if (!draggingId) return;
+                  setLocalOrder((prev) => {
+                    const base = prev ?? orderedIds;
+                    const from = base.indexOf(draggingId);
+                    const to = base.indexOf(card.id);
+                    if (from === -1 || to === -1 || from === to) return base;
+                    return moveCard(base, from, to);
+                  });
+                }}
+                onDragEnd={() => {
+                  const next = localOrder ?? orderedIds;
+                  reorderContext(next);
+                  setDraggingId(null);
+                  setLocalOrder(null);
+                }}
+              />
+            ))
+          )}
         </div>
       </div>
 
@@ -571,7 +699,7 @@ export default function ContextPanel() {
           <div className="h-[18px] w-[18px] text-copper">
             <LightbulbIcon />
           </div>
-          Optimize Context
+          {t("context.optimize")}
         </button>
       </div>
 
@@ -579,22 +707,22 @@ export default function ContextPanel() {
         className="flex items-center justify-between border-t border-parchment bg-transparent px-5 py-4 font-body text-[0.85rem] text-clay transition-all duration-150 hover:bg-paper hover:text-ink"
         onClick={() => void openPreview()}
       >
-        <span>Preview Full Context</span>
+        <span>{t("context.preview.button")}</span>
         <ChevronRightIcon />
       </button>
 
       <Modal
         open={previewOpen}
-        title="Full Context Preview"
+        title={t("context.preview.title")}
         onClose={() => setPreviewOpen(false)}
       >
         <div className="space-y-4">
           <div className="max-h-[50vh] overflow-auto rounded-xl border border-parchment bg-paper p-4 font-mono text-[0.75rem] leading-relaxed text-ink">
-            {previewText ?? "Building context..."}
+            {previewText ?? t("context.preview.building")}
           </div>
           <div className="flex justify-end">
             <Button variant="secondary" onClick={() => setPreviewOpen(false)}>
-              Close
+              {t("common.close")}
             </Button>
           </div>
         </div>
@@ -602,7 +730,7 @@ export default function ContextPanel() {
 
       <Modal
         open={compressionOpen}
-        title="Compress Nodes"
+        title={t("context.compress.title")}
         onClose={() => {
           closeCompression();
           setCompressionSummary("");
@@ -612,25 +740,25 @@ export default function ContextPanel() {
         }}
       >
         <div className="space-y-4">
-          {compressionSelectionError && (
+          {selectionErrorText && (
             <div className="rounded-xl border border-[#e74c3c]/40 bg-[#fff5f2] p-3 text-[0.85rem] text-[#b73c2b]">
-              {compressionSelectionError}
+              {selectionErrorText}
             </div>
           )}
 
-          {compressionError && (
+          {compressionErrorText && (
             <div className="rounded-xl border border-[#e74c3c]/40 bg-[#fff5f2] p-3 text-[0.85rem] text-[#b73c2b]">
-              {compressionError}
+              {compressionErrorText}
             </div>
           )}
 
           <div>
             <div className="mb-2 font-mono text-[0.7rem] uppercase tracking-widest text-sand">
-              Selection ({compressionNodeIds.length})
+              {t("context.compress.selection", { count: compressionNodeIds.length })}
             </div>
             <div className="max-h-44 space-y-2 overflow-auto rounded-xl border border-parchment bg-paper p-3 text-[0.8rem] text-clay">
               {compressionNodeIds.length === 0 ? (
-                <div className="text-sand">No nodes selected.</div>
+                <div className="text-sand">{t("context.compress.noneSelected")}</div>
               ) : (
                 compressionNodeIds
                   .map((id) => nodes.get(id))
@@ -638,7 +766,7 @@ export default function ContextPanel() {
                   .map((node) => (
                     <div key={node.id} className="rounded-lg bg-cream p-2">
                       <div className="mb-1 flex items-center justify-between font-mono text-[0.65rem] uppercase tracking-wide text-sand">
-                        <span>{node.type}</span>
+                        <span>{nodeTypeLabel(node.type)}</span>
                         <span>{node.tokenCount}</span>
                       </div>
                       <div className="line-clamp-2 whitespace-pre-wrap">
@@ -654,47 +782,47 @@ export default function ContextPanel() {
 
           <div>
             <div className="mb-2 font-mono text-[0.7rem] uppercase tracking-widest text-sand">
-              Summary
+              {t("context.compress.summary")}
             </div>
             <textarea
               className="h-32 w-full resize-none rounded-xl border border-parchment bg-paper p-3 font-body text-[0.9rem] leading-relaxed text-ink outline-none focus:border-copper"
               value={compressionSummary}
               onChange={(e) => setCompressionSummary(e.target.value)}
-              placeholder="2-3 sentences. You can generate with AI, then edit."
+              placeholder={t("context.compress.summaryPlaceholder")}
             />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
               <div className="mb-2 font-mono text-[0.7rem] uppercase tracking-widest text-sand">
-                Language
+                {t("context.compress.language")}
               </div>
               <Input
                 value={compressionLanguage}
                 onChange={(e) => setCompressionLanguage(e.target.value)}
-                placeholder="zh-CN / en"
+                placeholder={t("context.compress.languagePlaceholder")}
                 autoComplete="off"
               />
             </div>
             <div>
               <div className="mb-2 font-mono text-[0.7rem] uppercase tracking-widest text-sand">
-                Format
+                {t("context.compress.format")}
               </div>
               <Input
                 value={compressionFormat}
                 onChange={(e) => setCompressionFormat(e.target.value)}
-                placeholder="markdown / json"
+                placeholder={t("context.compress.formatPlaceholder")}
                 autoComplete="off"
               />
             </div>
             <div>
               <div className="mb-2 font-mono text-[0.7rem] uppercase tracking-widest text-sand">
-                Role
+                {t("context.compress.role")}
               </div>
               <Input
                 value={compressionRole}
                 onChange={(e) => setCompressionRole(e.target.value)}
-                placeholder="expert"
+                placeholder={t("context.compress.rolePlaceholder")}
                 autoComplete="off"
               />
             </div>
@@ -706,7 +834,7 @@ export default function ContextPanel() {
               onClick={() => closeCompression()}
               disabled={isCompressing}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="ghost"
@@ -728,7 +856,7 @@ export default function ContextPanel() {
               }}
               disabled={isCompressing || compressionNodeIds.length < 2}
             >
-              Generate with AI
+              {t("context.compress.generate")}
             </Button>
             <Button
               variant="primary"
@@ -761,7 +889,7 @@ export default function ContextPanel() {
               }}
               disabled={isCompressing || Boolean(compressionSelectionError)}
             >
-              Compress
+              {t("context.compress.confirm")}
             </Button>
           </div>
         </div>

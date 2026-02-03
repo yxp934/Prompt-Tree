@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { appStore, useAppStore } from "@/store/useStore";
+import { useT } from "@/lib/i18n/useT";
 
 import { ProviderList } from "./ProviderList";
 import { ProviderConfig } from "./ProviderConfig";
@@ -21,12 +22,14 @@ import {
   DefaultModelPanel,
   DisplaySettingsPanel,
   GeneralSettingsPanel,
+  ToolSettingsPanel,
 } from "./SettingsPanels";
 
 /**
  * 返回按钮 - 宁静禅意风格
  */
 function BackButton() {
+  const t = useT();
   return (
     <Link
       href="/"
@@ -44,7 +47,7 @@ function BackButton() {
       >
         <path d="M19 12H5M12 19l-7-7 7-7" />
       </svg>
-      返回主页
+      {t("settings.backToHome")}
     </Link>
   );
 }
@@ -87,6 +90,10 @@ export function SettingsPage() {
 
     if (activeSection === "display") {
       return <DisplaySettingsPanel />;
+    }
+
+    if (activeSection === "tools") {
+      return <ToolSettingsPanel />;
     }
 
     if (activeSection === "data") {

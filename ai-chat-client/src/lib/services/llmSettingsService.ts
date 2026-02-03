@@ -18,7 +18,8 @@ export const DEFAULT_LLM_SETTINGS: LLMSettings = {
   summaryModel: null,
 };
 
-const LLM_SETTINGS_STORAGE_KEY = "new-chat.llm_settings";
+const LLM_SETTINGS_STORAGE_KEY = "prompt-tree.llm_settings.v1";
+const LEGACY_LLM_SETTINGS_KEYS = ["new-chat.llm_settings"];
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -103,17 +104,36 @@ export function normalizeLLMSettings(
 export function getStoredLLMSettings(): LLMSettings | null {
   if (typeof window === "undefined") return null;
   const stored = localStorage.getItem(LLM_SETTINGS_STORAGE_KEY);
-  if (!stored) return null;
-
-  try {
-    const parsed = JSON.parse(stored) as Partial<LLMSettings>;
-    return normalizeLLMSettings(parsed);
-  } catch {
-    return null;
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored) as Partial<LLMSettings>;
+      return normalizeLLMSettings(parsed);
+    } catch {
+      // fall through to legacy keys
+    }
   }
+
+  for (const legacyKey of LEGACY_LLM_SETTINGS_KEYS) {
+    const legacy = localStorage.getItem(legacyKey);
+    if (!legacy) continue;
+    try {
+      const parsed = JSON.parse(legacy) as Partial<LLMSettings>;
+      const normalized = normalizeLLMSettings(parsed);
+      localStorage.setItem(LLM_SETTINGS_STORAGE_KEY, JSON.stringify(normalized));
+      localStorage.removeItem(legacyKey);
+      return normalized;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 export function setStoredLLMSettings(settings: LLMSettings): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(LLM_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  for (const legacyKey of LEGACY_LLM_SETTINGS_KEYS) {
+    localStorage.removeItem(legacyKey);
+  }
 }

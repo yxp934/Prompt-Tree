@@ -1,6 +1,7 @@
 import type { StateCreator } from "zustand";
 
 import { computePathIds } from "@/lib/services/dagService";
+import { buildToolInstructionBlocks } from "@/lib/services/tools/toolInstructions";
 import { NodeType, type ContextBox, type Node } from "@/types";
 
 import type { AppStoreDeps, AppStoreState } from "./useStore";
@@ -17,7 +18,7 @@ export interface ContextSlice {
   contextBox: ContextBox | null;
 
   getContextBox: () => ContextBox | null;
-  addToContext: (nodeId: string) => Promise<void>;
+  addToContext: (nodeId: string, insertIndex?: number) => Promise<void>;
   removeFromContext: (nodeId: string) => void;
   clearContext: () => void;
   reorderContext: (nodeIds: string[]) => void;
@@ -33,7 +34,7 @@ export function createContextSlice(
 
     getContextBox: () => get().contextBox,
 
-    addToContext: async (nodeId) => {
+    addToContext: async (nodeId, insertIndex) => {
       const box = get().contextBox;
       if (!box) return;
       if (box.nodeIds.includes(nodeId)) return;
@@ -50,7 +51,12 @@ export function createContextSlice(
         set({ nodes: nodesMap });
       }
 
-      const nodeIds = [...box.nodeIds, nodeId];
+      const nodeIds = box.nodeIds.slice();
+      const safeIndex =
+        typeof insertIndex === "number" && Number.isFinite(insertIndex)
+          ? Math.max(0, Math.min(insertIndex, nodeIds.length))
+          : nodeIds.length;
+      nodeIds.splice(safeIndex, 0, nodeId);
       const totalTokens = computeTotalTokens(nodeIds, nodesMap);
 
       const next: ContextBox = { ...box, nodeIds, totalTokens };
@@ -139,10 +145,25 @@ export function createContextSlice(
       const box = get().contextBox;
       if (!box) return "";
 
+      const toolBlocks = buildToolInstructionBlocks(
+        get().draftToolUses ?? [],
+        get().toolSettings,
+      );
+      let insertedToolBlocks = false;
+
       const chunks: string[] = [];
       for (const id of box.nodeIds) {
         const node = get().nodes.get(id);
         if (!node) continue;
+
+        if (!insertedToolBlocks && node.type === NodeType.SYSTEM) {
+          chunks.push(`System: ${node.content}`);
+          insertedToolBlocks = true;
+          for (const block of toolBlocks) {
+            chunks.push(`System: ${block.content}`);
+          }
+          continue;
+        }
 
         if (node.type === NodeType.COMPRESSED) {
           chunks.push(`[Compressed Context: ${node.summary ?? ""}]`);
@@ -157,6 +178,12 @@ export function createContextSlice(
               : "System";
 
         chunks.push(`${role}: ${node.content}`);
+      }
+
+      if (!insertedToolBlocks) {
+        for (const block of toolBlocks) {
+          chunks.unshift(`System: ${block.content}`);
+        }
       }
 
       return chunks.join("\n\n");

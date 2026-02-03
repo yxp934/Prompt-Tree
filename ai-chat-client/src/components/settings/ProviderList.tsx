@@ -7,6 +7,7 @@
 import { useState, useEffect } from "react";
 
 import { useAppStore } from "@/store/useStore";
+import { useT } from "@/lib/i18n/useT";
 
 import { PlusIcon, TrashIcon } from "./icons";
 
@@ -79,6 +80,7 @@ function ProviderListItem({
   onToggle: () => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   return (
     <div
       className={`group relative mb-2 cursor-pointer rounded-xl p-4 transition-all duration-300 ${
@@ -89,7 +91,7 @@ function ProviderListItem({
       onClick={onSelect}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onSelect()}
+      onKeyDown={(e) => e.key === "Enter" && onSelect()}
     >
       <div className="flex w-full items-center gap-4 text-left">
         <ProviderIcon name={provider.name} />
@@ -107,7 +109,7 @@ function ProviderListItem({
               e.stopPropagation();
               onDelete();
             }}
-            aria-label="删除提供商"
+            aria-label={t("providers.deleteAria")}
           >
             <TrashIcon />
           </button>
@@ -129,6 +131,7 @@ function AddProviderDialog({
   onClose: () => void;
   onAdd: (name: string) => void;
 }) {
+  const t = useT();
   const [name, setName] = useState("");
 
   if (!open) return null;
@@ -147,19 +150,19 @@ function AddProviderDialog({
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-ink-black/20 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl bg-shoji-white p-8 shadow-lg border border-parchment/10">
         <h3 className="mb-6 font-zen-display text-2xl font-light text-ink-black tracking-wide">
-          添加提供商
+          {t("providers.dialog.title")}
         </h3>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
             <label className="mb-3 block font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
-              Provider Name
+              {t("providers.dialog.nameLabel")}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="OpenAI, Anthropic, DeepSeek..."
+              placeholder={t("providers.dialog.namePlaceholder")}
               className="w-full rounded-xl border border-parchment/20 bg-washi-cream px-5 py-4 font-zen-body text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50 focus:shadow-sm"
               autoFocus
             />
@@ -171,13 +174,13 @@ function AddProviderDialog({
               className="rounded-xl border border-parchment/20 px-6 py-3 font-zen-body text-sm text-stone-gray transition-all duration-200 hover:border-stone-gray/30 hover:text-ink-black"
               onClick={onClose}
             >
-              取消
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
               className="rounded-xl bg-matcha-green px-6 py-3 font-zen-body text-sm text-shoji-white transition-all duration-200 hover:bg-bamboo-light"
             >
-              添加
+              {t("common.add")}
             </button>
           </div>
         </form>
@@ -190,6 +193,7 @@ function AddProviderDialog({
  * 提供商列表主组件 - 宁静禅意风格
  */
 export function ProviderList() {
+  const t = useT();
   const providers = useAppStore((s) => s.providers);
   const selectedProviderId = useAppStore((s) => s.selectedProviderId);
   const selectProvider = useAppStore((s) => s.selectProvider);
@@ -211,7 +215,7 @@ export function ProviderList() {
         {/* 标题 */}
         <div className="flex items-center justify-between border-b border-parchment/10 px-6 py-6">
           <div className="font-zen-display text-xl font-normal text-ink-black tracking-wide">
-            服务提供商
+            {t("providers.title")}
           </div>
           <div className="flex h-7 min-h-7 w-7 min-w-7 items-center justify-center rounded-full bg-washi-cream font-zen-body text-xs text-stone-gray font-light">
             {mounted ? providers.length : '-'}
@@ -238,10 +242,10 @@ export function ProviderList() {
                 </svg>
               </div>
               <p className="mb-2 font-zen-body text-sm text-stone-gray font-light">
-                暂无提供商
+                {t("providers.empty.title")}
               </p>
               <p className="font-zen-body text-xs text-stone-gray/70 font-light">
-                点击下方按钮添加
+                {t("providers.empty.description")}
               </p>
             </div>
           ) : (
@@ -270,7 +274,7 @@ export function ProviderList() {
             onClick={() => setShowAddDialog(true)}
           >
             <PlusIcon />
-            添加提供商
+            {t("providers.add")}
           </button>
         </div>
       </div>

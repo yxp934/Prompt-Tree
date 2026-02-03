@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     if (!response.ok) {
       const message =
         response.status === 401
-          ? "API 密钥无效"
+          ? "errors.invalidApiKey"
           : `HTTP ${response.status}: ${response.statusText}`;
       return NextResponse.json({ status: "error", error: message, responseTime });
     }
@@ -63,10 +63,10 @@ export async function POST(request: Request) {
     const responseTime = Date.now() - startTime;
     const message =
       err instanceof Error && err.name === "AbortError"
-        ? "请求超时"
+        ? "errors.requestTimeout"
         : err instanceof Error
           ? err.message
-          : "未知错误";
+          : "errors.unknownError";
     return NextResponse.json({ status: "error", error: message, responseTime });
   } finally {
     cancel();

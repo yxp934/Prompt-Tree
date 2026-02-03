@@ -1,36 +1,42 @@
 import { getDB } from "@/lib/db/indexedDB";
 import { requestToPromise, transactionToPromise } from "@/lib/db/objectStore";
 import { DB_CONFIG } from "@/lib/db/schema";
-import { estimateTokens } from "@/lib/utils/tokens";
 import { generateUUID } from "@/lib/utils/uuid";
 import { NodeType, type ContextBox, type ConversationTree, type Node } from "@/types";
 
 import { NodeService } from "./nodeService";
 
 const DEFAULT_MAX_TOKENS = 8192;
-const DEFAULT_SYSTEM_PROMPT = "You are Cortex, a helpful assistant.";
+const DEFAULT_SYSTEM_PROMPT = "You are Prompt Tree, a helpful assistant.";
+
+export interface CreateTreeParams {
+  title?: string;
+  folderId?: string | null;
+  systemPrompt?: string;
+}
 
 export class TreeService {
   private readonly nodeService = new NodeService();
 
-  async create(title?: string): Promise<ConversationTree> {
+  async create(params?: CreateTreeParams): Promise<ConversationTree> {
     const now = Date.now();
+    const rootContent = params?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
 
-    const rootNode: Node = {
+    const rootNode = await this.nodeService.create({
       id: generateUUID(),
       type: NodeType.SYSTEM,
       createdAt: now,
       updatedAt: now,
       parentId: null,
-      content: DEFAULT_SYSTEM_PROMPT,
+      content: rootContent,
       metadata: { tags: [], metaInstructions: {} },
-      tokenCount: estimateTokens(DEFAULT_SYSTEM_PROMPT),
-    };
+    });
 
     const tree: ConversationTree = {
       id: generateUUID(),
       rootId: rootNode.id,
-      title: title?.trim() ? title.trim() : "New Chat",
+      title: params?.title?.trim() ? params.title.trim() : "New Chat",
+      folderId: params?.folderId ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -46,14 +52,12 @@ export class TreeService {
     const db = await getDB();
     const tx = db.transaction(
       [
-        DB_CONFIG.stores.nodes.name,
         DB_CONFIG.stores.trees.name,
         DB_CONFIG.stores.contextBoxes.name,
       ],
       "readwrite",
     );
 
-    tx.objectStore(DB_CONFIG.stores.nodes.name).put(rootNode);
     tx.objectStore(DB_CONFIG.stores.trees.name).put(tree);
     tx.objectStore(DB_CONFIG.stores.contextBoxes.name).put(contextBox);
 
@@ -100,6 +104,22 @@ export class TreeService {
     return next;
   }
 
+  async updateFolderId(id: string, folderId: string | null): Promise<ConversationTree> {
+    const existing = await this.read(id);
+    if (!existing) throw new Error(`Tree ${id} not found`);
+
+    const next: ConversationTree = {
+      ...existing,
+      folderId: folderId ?? null,
+    };
+
+    const db = await getDB();
+    const tx = db.transaction([DB_CONFIG.stores.trees.name], "readwrite");
+    tx.objectStore(DB_CONFIG.stores.trees.name).put(next);
+    await transactionToPromise(tx);
+    return next;
+  }
+
   async touch(id: string): Promise<ConversationTree> {
     const existing = await this.read(id);
     if (!existing) throw new Error(`Tree ${id} not found`);
@@ -129,6 +149,31 @@ export class TreeService {
     );
     tx.objectStore(DB_CONFIG.stores.trees.name).delete(id);
     tx.objectStore(DB_CONFIG.stores.contextBoxes.name).delete(id);
+    await transactionToPromise(tx);
+  }
+
+  async updateRootSystemPrompt(treeId: string, systemPrompt: string): Promise<void> {
+    const tree = await this.read(treeId);
+    if (!tree) throw new Error(`Tree ${treeId} not found`);
+
+    const existingRoot = await this.nodeService.read(tree.rootId);
+    const updatedRoot = await this.nodeService.update(tree.rootId, {
+      type: NodeType.SYSTEM,
+      content: systemPrompt,
+    });
+
+    const db = await getDB();
+    const tx = db.transaction([DB_CONFIG.stores.contextBoxes.name], "readwrite");
+    const store = tx.objectStore(DB_CONFIG.stores.contextBoxes.name);
+    const box = await requestToPromise<ContextBox | undefined>(
+      store.get(tree.id) as IDBRequest<ContextBox | undefined>,
+    );
+
+    if (box && box.nodeIds.includes(tree.rootId)) {
+      const delta = updatedRoot.tokenCount - (existingRoot?.tokenCount ?? 0);
+      store.put({ ...box, totalTokens: (box.totalTokens ?? 0) + delta });
+    }
+
     await transactionToPromise(tx);
   }
 

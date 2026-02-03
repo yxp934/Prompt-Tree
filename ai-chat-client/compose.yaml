@@ -1,0 +1,7 @@
+services:
+  prompt-tree:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "1666:1666"

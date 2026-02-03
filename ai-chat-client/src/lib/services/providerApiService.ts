@@ -119,7 +119,7 @@ export async function fetchAvailableModels(
     if (err instanceof Error) {
       return { models: [], error: err.message };
     }
-    return { models: [], error: "未知错误" };
+    return { models: [], error: "errors.unknownError" };
   }
 }
 
@@ -149,7 +149,7 @@ export async function checkProviderHealth(
 
     return response;
   } catch (err) {
-    const message = err instanceof Error ? err.message : "连接失败";
+    const message = err instanceof Error ? err.message : "errors.connectionFailed";
     return {
       providerId: provider.id,
       status: "error",
@@ -185,7 +185,7 @@ export async function testProviderModel(
 
     return response;
   } catch (err) {
-    const message = err instanceof Error ? err.message : "连接失败";
+    const message = err instanceof Error ? err.message : "errors.connectionFailed";
     return { status: "error", error: message };
   }
 }
@@ -221,24 +221,21 @@ function inferModelCategory(modelId: string, objectType?: string): ModelConfig["
  */
 export function getModelCategoryName(category: ModelConfig["category"]): string {
   const names: Record<string, string> = {
-    chat: "对话",
-    reasoning: "推理",
-    vision: "视觉",
-    embedding: "嵌入",
-    tool: "工具",
-    completion: "补全",
+    chat: "Chat",
+    reasoning: "Reasoning",
+    vision: "Vision",
+    embedding: "Embedding",
+    tool: "Tool",
+    completion: "Completion",
   };
-  return names[category || "chat"] || "其他";
+  return names[category || "chat"] || "Other";
 }
 
-/**
- * 模型分类标签
- */
 export const MODEL_CATEGORIES = [
-  { value: "all", label: "全部" },
-  { value: "chat", label: "对话" },
-  { value: "reasoning", label: "推理" },
-  { value: "vision", label: "视觉" },
-  { value: "embedding", label: "嵌入" },
-  { value: "tool", label: "工具" },
+  { value: "all", label: "All" },
+  { value: "chat", label: "Chat" },
+  { value: "reasoning", label: "Reasoning" },
+  { value: "vision", label: "Vision" },
+  { value: "embedding", label: "Embedding" },
+  { value: "tool", label: "Tool" },
 ] as const;

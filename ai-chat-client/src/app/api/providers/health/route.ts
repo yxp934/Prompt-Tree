@@ -58,7 +58,7 @@ async function checkByChat(
     if (!response.ok) {
       const message =
         response.status === 401
-          ? "API 密钥无效"
+          ? "errors.invalidApiKey"
           : `HTTP ${response.status}: ${response.statusText}`;
       return { keyId: key.id, status: "error", error: message, responseTime };
     }
@@ -68,10 +68,10 @@ async function checkByChat(
     const responseTime = Date.now() - start;
     const message =
       err instanceof Error && err.name === "AbortError"
-        ? "请求超时"
+        ? "errors.requestTimeout"
         : err instanceof Error
           ? err.message
-          : "未知错误";
+          : "errors.unknownError";
     return { keyId: key.id, status: "error", error: message, responseTime };
   } finally {
     cancel();
@@ -98,7 +98,7 @@ async function checkKey(
 
     if (!response.ok) {
       if (response.status === 401) {
-        return { keyId: key.id, status: "error", error: "API 密钥无效", responseTime };
+        return { keyId: key.id, status: "error", error: "errors.invalidApiKey", responseTime };
       }
       if (response.status === 404) {
         return await checkByChat(key, baseUrl, headers, timeout, startTime);
@@ -116,10 +116,10 @@ async function checkKey(
     const responseTime = Date.now() - startTime;
     const message =
       err instanceof Error && err.name === "AbortError"
-        ? "请求超时"
+        ? "errors.requestTimeout"
         : err instanceof Error
           ? err.message
-          : "未知错误";
+          : "errors.unknownError";
     return { keyId: key.id, status: "error", error: message, responseTime };
   } finally {
     cancel();
@@ -165,12 +165,12 @@ async function fetchAvailableModels(
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as ProviderHealthRequest | null;
   if (!body) {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return NextResponse.json({ error: "errors.invalidRequestBody" }, { status: 400 });
   }
 
   const parsedBaseUrl = parseBaseUrl(body.baseUrl);
   if (typeof body.baseUrl === "string" && !parsedBaseUrl) {
-    return NextResponse.json({ error: "Invalid baseUrl." }, { status: 400 });
+    return NextResponse.json({ error: "errors.invalidBaseUrl" }, { status: 400 });
   }
 
   const baseUrl = parsedBaseUrl ?? DEFAULT_OPENAI_BASE_URL;

@@ -2,6 +2,8 @@
 
 import { useEffect, type ReactNode } from "react";
 
+import { useT } from "@/lib/i18n/useT";
+
 export interface ModalProps {
   open: boolean;
   title: string;
@@ -10,6 +12,7 @@ export interface ModalProps {
 }
 
 export function Modal({ open, title, children, onClose }: ModalProps) {
+  const t = useT();
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -25,7 +28,7 @@ export function Modal({ open, title, children, onClose }: ModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
       <button
         className="absolute inset-0 bg-ink/30"
-        aria-label="Close modal"
+        aria-label={t("modal.closeAria")}
         onClick={onClose}
       />
       <div className="relative w-full max-w-[520px] rounded-2xl border border-parchment bg-cream p-6 shadow-[0_22px_60px_rgba(35,31,28,0.18)]">

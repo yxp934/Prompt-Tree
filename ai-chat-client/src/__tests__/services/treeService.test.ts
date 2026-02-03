@@ -14,7 +14,7 @@ describe("TreeService", () => {
 
   it("creates a tree with a system root node and context box", async () => {
     const service = new TreeService();
-    const tree = await service.create("My Tree");
+    const tree = await service.create({ title: "My Tree" });
 
     expect(tree.title).toBe("My Tree");
     expect(tree.rootId).toBeTruthy();
@@ -36,7 +36,7 @@ describe("TreeService", () => {
 
   it("lists, updates title, loads nodes, and deletes trees", async () => {
     const service = new TreeService();
-    const tree = await service.create("First");
+    const tree = await service.create({ title: "First" });
 
     expect((await service.list()).map((t) => t.id)).toEqual([tree.id]);
 
@@ -54,4 +54,3 @@ describe("TreeService", () => {
     expect(await nodeService.read(tree.rootId)).toBeNull();
   });
 });
-

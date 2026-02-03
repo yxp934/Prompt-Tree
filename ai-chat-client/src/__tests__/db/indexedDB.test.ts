@@ -17,6 +17,7 @@ describe("IndexedDB", () => {
       expect.arrayContaining([
         DB_CONFIG.stores.nodes.name,
         DB_CONFIG.stores.trees.name,
+        DB_CONFIG.stores.folders.name,
         DB_CONFIG.stores.contextBoxes.name,
       ]),
     );
@@ -25,6 +26,12 @@ describe("IndexedDB", () => {
     const nodesStore = tx.objectStore(DB_CONFIG.stores.nodes.name);
     expect(Array.from(nodesStore.indexNames)).toEqual(
       expect.arrayContaining(["parentId", "type", "createdAt"]),
+    );
+
+    const treesTx = db.transaction([DB_CONFIG.stores.trees.name], "readonly");
+    const treesStore = treesTx.objectStore(DB_CONFIG.stores.trees.name);
+    expect(Array.from(treesStore.indexNames)).toEqual(
+      expect.arrayContaining(["rootId", "folderId", "updatedAt"]),
     );
   });
 
@@ -52,4 +59,3 @@ describe("IndexedDB", () => {
     expect(await store.get("n1")).toBeUndefined();
   });
 });
-

@@ -90,5 +90,60 @@ describe("dagService", () => {
     const activeEdge = result.edges.find((e) => e.target === a2b.id);
     expect(activeEdge?.data?.isInActivePath).toBe(true);
   });
-});
 
+  it("collapses compressed segments by hiding chain nodes and reparenting the compressed node", () => {
+    const root = n({ id: "root", type: NodeType.SYSTEM });
+    const a = n({ id: "a", parentId: root.id, createdAt: 1 });
+    const b = n({ id: "b", parentId: a.id, createdAt: 2 });
+    const c = n({ id: "c", parentId: b.id, createdAt: 3 });
+    const comp = n({
+      id: "comp",
+      type: NodeType.COMPRESSED,
+      parentId: c.id,
+      createdAt: 4,
+      metadata: {
+        tags: ["compressed"],
+        metaInstructions: {},
+        compressedNodeIds: [a.id, b.id, c.id],
+        collapsed: true,
+      },
+    });
+    const after = n({ id: "after", parentId: comp.id, createdAt: 5 });
+
+    const collapsed = buildFlowGraph({
+      nodes: [root, a, b, c, comp, after],
+      rootId: root.id,
+      activeNodeId: after.id,
+    });
+
+    expect(collapsed.nodes.map((node) => node.id).sort()).toEqual(
+      [root.id, comp.id, after.id].sort(),
+    );
+
+    const compEdge = collapsed.edges.find((edge) => edge.target === comp.id);
+    expect(compEdge?.source).toBe(root.id);
+
+    const afterEdge = collapsed.edges.find((edge) => edge.target === after.id);
+    expect(afterEdge?.source).toBe(comp.id);
+
+    const expanded = buildFlowGraph({
+      nodes: [
+        root,
+        a,
+        b,
+        c,
+        { ...comp, metadata: { ...comp.metadata, collapsed: false } },
+        after,
+      ],
+      rootId: root.id,
+      activeNodeId: after.id,
+    });
+
+    expect(expanded.nodes.map((node) => node.id).sort()).toEqual(
+      [root.id, a.id, b.id, c.id, comp.id, after.id].sort(),
+    );
+
+    const expandedCompEdge = expanded.edges.find((edge) => edge.target === comp.id);
+    expect(expandedCompEdge?.source).toBe(c.id);
+  });
+});

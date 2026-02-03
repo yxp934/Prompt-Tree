@@ -77,14 +77,10 @@ export interface ProviderSlice {
 export function createProviderSlice(
   deps: AppStoreDeps,
 ): StateCreator<AppStoreState, [], [], ProviderSlice> {
-  // 初始化时加载存储的数据
-  const storedProviders = getStoredProviders();
-  const storedHealthChecks = getStoredHealthChecks() as Record<string, ProviderHealthCheck>;
-
   return (set, get) => ({
     // ========== 初始状态 ==========
-    providers: storedProviders,
-    selectedProviderId: storedProviders.length > 0 ? storedProviders[0].id : null,
+    providers: [],
+    selectedProviderId: null,
     modelSelector: {
       open: false,
       providerId: null,
@@ -94,12 +90,21 @@ export function createProviderSlice(
       isLoading: false,
       error: null,
     },
-    healthChecks: storedHealthChecks,
+    healthChecks: {},
 
     // ========== 提供商操作 ==========
     loadProviders: () => {
       const providers = getStoredProviders();
-      set({ providers });
+      const healthChecks = getStoredHealthChecks() as Record<string, ProviderHealthCheck>;
+      set((state) => {
+        const selectedProviderId =
+          state.selectedProviderId && providers.some((p) => p.id === state.selectedProviderId)
+            ? state.selectedProviderId
+            : providers.length > 0
+              ? providers[0]!.id
+              : null;
+        return { providers, healthChecks, selectedProviderId };
+      });
     },
 
     addProvider: (name: string) => {
@@ -370,7 +375,7 @@ export function createProviderSlice(
       const primaryKey = getPrimaryApiKey(provider);
       if (!primaryKey) {
         set((state) => ({
-          modelSelector: { ...state.modelSelector, error: "请先配置 API 密钥" },
+          modelSelector: { ...state.modelSelector, error: "errors.missingApiKey" },
         }));
         return;
       }
@@ -393,7 +398,7 @@ export function createProviderSlice(
           },
         }));
       } catch (err) {
-        const error = err instanceof Error ? err.message : "获取模型列表失败";
+        const error = err instanceof Error ? err.message : "errors.failedToFetchModels";
         set((state) => ({
           modelSelector: {
             ...state.modelSelector,

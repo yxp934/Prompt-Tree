@@ -1,6 +1,8 @@
 import type { StateCreator } from "zustand";
 
 import { NodeType, type ChatMessage, type Node, type NodeMetaInstructions } from "@/types";
+import { getOpenAIApiKey } from "@/lib/services/apiKeyService";
+import { getOpenAIBaseUrlOrDefault } from "@/lib/services/apiUrlService";
 import {
   DEFAULT_LLM_SETTINGS,
   getStoredLLMSettings,
@@ -9,6 +11,8 @@ import {
   type LLMSettings,
 } from "@/lib/services/llmSettingsService";
 import { getPrimaryApiKey, type ProviderModelSelection } from "@/types/provider";
+import { buildToolInstructionBlocks } from "@/lib/services/tools/toolInstructions";
+import type { ToolCallLog, ToolSettings, ToolUseId } from "@/types";
 
 import type { AppStoreDeps, AppStoreState } from "./useStore";
 
@@ -23,6 +27,7 @@ export interface LLMSlice {
   selectedModels: ProviderModelSelection[];
   compressionModel: ProviderModelSelection | null;
   summaryModel: ProviderModelSelection | null;
+  hydrateLLMSettingsFromStorage: () => void;
   setLLMSettings: (settings: Partial<LLMSettings>) => void;
   setSelectedModels: (models: ProviderModelSelection[]) => void;
   sendMessage: (content: string, contextNodeIds?: string[]) => Promise<Node>;
@@ -58,8 +63,7 @@ function nodeToChatMessage(node: Node): ChatMessage | null {
 export function createLLMSlice(
   deps: AppStoreDeps,
 ): StateCreator<AppStoreState, [], [], LLMSlice> {
-  const storedSettings = getStoredLLMSettings();
-  const initialSettings = storedSettings ?? DEFAULT_LLM_SETTINGS;
+  const initialSettings = DEFAULT_LLM_SETTINGS;
 
   return (set, get) => {
     const resolveSingleModelRequest = (
@@ -118,6 +122,8 @@ export function createLLMSlice(
       providerName?: string;
       apiKey?: string;
       baseUrl?: string;
+      headers?: Record<string, string>;
+      timeout?: number;
       supportsStreaming?: boolean;
     };
 
@@ -150,6 +156,8 @@ export function createLLMSlice(
         providerName: provider.name,
         apiKey: primaryKey.value,
         baseUrl: provider.baseUrl,
+        headers: provider.headers,
+        timeout: provider.timeout,
         supportsStreaming: getModelStreamingSupport(provider.id, selection.modelId),
       };
     };
@@ -164,17 +172,217 @@ export function createLLMSlice(
       });
     };
 
+    const updateToolLogs = (nodeId: string, logs: ToolCallLog[]) => {
+      set((state) => {
+        const nodes = new Map(state.nodes);
+        const existing = nodes.get(nodeId);
+        if (!existing) return state;
+        nodes.set(nodeId, {
+          ...existing,
+          metadata: { ...existing.metadata, toolLogs: logs },
+        });
+        return { nodes };
+      });
+    };
+
+    const injectToolInstructionMessages = (
+      base: ChatMessage[],
+      toolUses: ToolUseId[],
+      toolSettings: ToolSettings,
+    ): ChatMessage[] => {
+      const blocks = buildToolInstructionBlocks(toolUses, toolSettings);
+      if (blocks.length === 0) return base;
+
+      const toolMessages: ChatMessage[] = blocks.map((block) => ({
+        role: "system",
+        content: block.content,
+      }));
+
+      const next = base.slice();
+      const insertAt = (() => {
+        const idx = next.findIndex((m) => m.role !== "system");
+        return idx === -1 ? next.length : idx;
+      })();
+      next.splice(insertAt, 0, ...toolMessages);
+      return next;
+    };
+
     const runModelRequest = async (
       request: ModelRequest,
       parentId: string,
       messages: ChatMessage[],
+      toolUses: ToolUseId[],
+      toolSettings: ToolSettings,
     ): Promise<Node> => {
+      const usesTools = toolUses.length > 0;
+
+      if (usesTools) {
+        const assistantNode = await deps.nodeService.create({
+          type: NodeType.ASSISTANT,
+          parentId,
+          content: "",
+          metadata: {
+            tags: [],
+            metaInstructions: {},
+            modelId: request.modelId,
+            modelName: request.modelName,
+            providerId: request.providerId,
+            providerName: request.providerName,
+            toolLogs: [],
+          },
+        });
+
+        set((state) => {
+          const nodes = new Map(state.nodes);
+          nodes.set(assistantNode.id, assistantNode);
+          return { nodes };
+        });
+
+        let content = "";
+        let toolLogs: ToolCallLog[] = [];
+        let agentError: string | null = null;
+        let lastFlush = 0;
+        const flush = (force = false) => {
+          const now = Date.now();
+          if (!force && now - lastFlush < 50) return;
+          lastFlush = now;
+          updateStreamingContent(assistantNode.id, content);
+          updateToolLogs(assistantNode.id, toolLogs);
+        };
+
+        const nowMs = () => Date.now();
+        const upsertLog = (log: ToolCallLog) => {
+          const existingIndex = toolLogs.findIndex((l) => l.id === log.id);
+          if (existingIndex >= 0) {
+            toolLogs = toolLogs.slice();
+            toolLogs[existingIndex] = log;
+          } else {
+            toolLogs = [...toolLogs, log];
+          }
+        };
+
+        try {
+          const toolMessages = injectToolInstructionMessages(messages, toolUses, toolSettings);
+          const apiKey = request.apiKey ?? getOpenAIApiKey();
+          if (!apiKey) {
+            throw new Error("errors.missingOpenAIApiKey");
+          }
+          const baseUrl = request.baseUrl ?? getOpenAIBaseUrlOrDefault();
+
+          await deps.agentService.run({
+            apiKey,
+            baseUrl,
+            headers: request.headers,
+            timeout: request.timeout,
+            model: request.modelId,
+            temperature: get().temperature,
+            maxTokens: get().maxTokens,
+            messages: toolMessages,
+            toolUses,
+            toolSettings,
+            stream: Boolean(request.supportsStreaming),
+            onEvent: (event) => {
+              if (event.type === "assistant_delta") {
+                content += event.delta;
+                flush();
+                return;
+              }
+              if (event.type === "assistant_final") {
+                content = event.content;
+                flush(true);
+                return;
+              }
+              if (event.type === "tool_call") {
+                upsertLog({
+                  id: event.call.id,
+                  tool: event.call.name,
+                  args: event.call.arguments,
+                  status: "running",
+                  startedAt: nowMs(),
+                });
+                flush();
+                return;
+              }
+              if (event.type === "tool_result") {
+                const existing =
+                  toolLogs.find((l) => l.id === event.callId) ??
+                  ({
+                    id: event.callId,
+                    tool: event.name,
+                    args: {},
+                    status: "running",
+                    startedAt: nowMs(),
+                  } satisfies ToolCallLog);
+                upsertLog({
+                  ...existing,
+                  status: "success",
+                  endedAt: nowMs(),
+                  result: event.result,
+                });
+                flush();
+                return;
+              }
+              if (event.type === "tool_error") {
+                const existing =
+                  toolLogs.find((l) => l.id === event.callId) ??
+                  ({
+                    id: event.callId,
+                    tool: event.name,
+                    args: {},
+                    status: "running",
+                    startedAt: nowMs(),
+                  } satisfies ToolCallLog);
+                upsertLog({
+                  ...existing,
+                  status: "error",
+                  endedAt: nowMs(),
+                  error: event.error,
+                });
+                flush();
+                return;
+              }
+              if (event.type === "error") {
+                agentError = event.message;
+              }
+            },
+          });
+
+          if (agentError) {
+            throw new Error(agentError);
+          }
+        } catch (err) {
+          if (!content) {
+            await deps.nodeService.delete(assistantNode.id);
+            set((state) => {
+              const nodes = new Map(state.nodes);
+              nodes.delete(assistantNode.id);
+              return { nodes };
+            });
+          }
+          throw err;
+        }
+
+        flush(true);
+        const updated = await deps.nodeService.update(assistantNode.id, {
+          content,
+          metadata: { toolLogs },
+        });
+        set((state) => {
+          const nodes = new Map(state.nodes);
+          nodes.set(updated.id, updated);
+          return { nodes };
+        });
+        return updated;
+      }
+
       if (request.supportsStreaming) {
         const assistantNode = await deps.nodeService.create({
           type: NodeType.ASSISTANT,
           parentId,
           content: "",
           metadata: {
+            tags: [],
+            metaInstructions: {},
             modelId: request.modelId,
             modelName: request.modelName,
             providerId: request.providerId,
@@ -199,7 +407,7 @@ export function createLLMSlice(
 
         try {
           await deps.llmService.chat({
-            messages,
+            messages: injectToolInstructionMessages(messages, toolUses, toolSettings),
             model: request.modelId,
             temperature: get().temperature,
             maxTokens: get().maxTokens,
@@ -234,7 +442,7 @@ export function createLLMSlice(
       }
 
       const content = await deps.llmService.chat({
-        messages,
+        messages: injectToolInstructionMessages(messages, toolUses, toolSettings),
         model: request.modelId,
         temperature: get().temperature,
         maxTokens: get().maxTokens,
@@ -247,6 +455,8 @@ export function createLLMSlice(
         parentId,
         content,
         metadata: {
+          tags: [],
+          metaInstructions: {},
           modelId: request.modelId,
           modelName: request.modelName,
           providerId: request.providerId,
@@ -266,6 +476,18 @@ export function createLLMSlice(
       selectedModels: initialSettings.selectedModels,
       compressionModel: initialSettings.compressionModel,
       summaryModel: initialSettings.summaryModel,
+      hydrateLLMSettingsFromStorage: () => {
+        const stored = getStoredLLMSettings();
+        if (!stored) return;
+        set({
+          model: stored.model,
+          temperature: stored.temperature,
+          maxTokens: stored.maxTokens,
+          selectedModels: stored.selectedModels,
+          compressionModel: stored.compressionModel,
+          summaryModel: stored.summaryModel,
+        });
+      },
       setLLMSettings: (settings) =>
         set((state) => {
           const next = normalizeLLMSettings(
@@ -324,15 +546,19 @@ export function createLLMSlice(
       if (!trimmed) throw new Error("Message is empty.");
 
       const tree = get().getCurrentTree();
-      if (!tree) throw new Error("No active conversation tree loaded.");
+      if (!tree) throw new Error("errors.noActiveConversationTree");
 
       set({ isSending: true, llmError: null });
       try {
+        const toolUses = get().draftToolUses ?? [];
+        const toolSettings = get().toolSettings;
+
         const parentId = get().activeNodeId ?? tree.rootId;
         const userNode = await deps.nodeService.create({
           type: NodeType.USER,
           parentId,
           content: trimmed,
+          metadata: { toolUses },
         });
 
         set((state) => {
@@ -414,7 +640,13 @@ export function createLLMSlice(
 
         const results = await Promise.allSettled(
           requests.map(async (request) => {
-            const node = await runModelRequest(request, userNode.id, messages);
+            const node = await runModelRequest(
+              request,
+              userNode.id,
+              messages,
+              toolUses,
+              toolSettings,
+            );
             return { request, node };
           }),
         );
@@ -426,7 +658,7 @@ export function createLLMSlice(
           const request = requests[index];
           if (result.status === "rejected") {
             const reason =
-              result.reason instanceof Error ? result.reason.message : "Failed to send message";
+              result.reason instanceof Error ? result.reason.message : "errors.failedToSendMessage";
             errors.push(`${request.modelName}: ${reason}`);
             continue;
           }
@@ -434,7 +666,7 @@ export function createLLMSlice(
         }
 
         if (assistantNodes.length === 0) {
-          throw new Error(errors[0] ?? "Failed to send message");
+          throw new Error(errors[0] ?? "errors.failedToSendMessage");
         }
 
         set((state) => {
@@ -468,7 +700,7 @@ export function createLLMSlice(
         return assistantNodes[assistantNodes.length - 1];
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Failed to send message";
+          err instanceof Error ? err.message : "errors.failedToSendMessage";
         set({ llmError: message });
         throw err;
       } finally {
@@ -477,7 +709,7 @@ export function createLLMSlice(
     },
     retryAssistant: async (nodeId) => {
       const tree = get().getCurrentTree();
-      if (!tree) throw new Error("No active conversation tree loaded.");
+      if (!tree) throw new Error("errors.noActiveConversationTree");
 
       const assistantNode =
         get().nodes.get(nodeId) ?? (await deps.nodeService.read(nodeId));
@@ -498,6 +730,9 @@ export function createLLMSlice(
 
       set({ isSending: true, llmError: null });
       try {
+        const toolUses = userNode.metadata.toolUses ?? [];
+        const toolSettings = get().toolSettings;
+
         const resolvedContextIds = get().contextBox?.nodeIds?.length
           ? get().contextBox!.nodeIds
           : null;
@@ -553,6 +788,8 @@ export function createLLMSlice(
             providerName: provider.name,
             apiKey: primaryKey.value,
             baseUrl: provider.baseUrl,
+            headers: provider.headers,
+            timeout: provider.timeout,
             supportsStreaming: getModelStreamingSupport(provider.id, modelId),
           } satisfies ModelRequest;
         })();
@@ -560,6 +797,8 @@ export function createLLMSlice(
           request,
           userNode.id,
           messages,
+          toolUses,
+          toolSettings,
         );
 
         set((state) => {
@@ -585,7 +824,7 @@ export function createLLMSlice(
         return assistantReply;
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Failed to retry message";
+          err instanceof Error ? err.message : "errors.failedToRetryMessage";
         set({ llmError: message });
         throw err;
       } finally {
@@ -594,7 +833,7 @@ export function createLLMSlice(
     },
     compressNodes: async (nodeIds, options) => {
       const treeId = get().currentTreeId;
-      if (!treeId) throw new Error("No active conversation tree loaded.");
+      if (!treeId) throw new Error("errors.noActiveConversationTree");
 
       set({ isCompressing: true, compressionError: null });
       try {
@@ -647,7 +886,7 @@ export function createLLMSlice(
         return compressed;
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Failed to compress nodes";
+          err instanceof Error ? err.message : "errors.failedToCompressNodes";
         set({ compressionError: message });
         throw err;
       } finally {
@@ -656,7 +895,7 @@ export function createLLMSlice(
     },
     decompressNode: async (nodeId) => {
       const treeId = get().currentTreeId;
-      if (!treeId) throw new Error("No active conversation tree loaded.");
+      if (!treeId) throw new Error("errors.noActiveConversationTree");
 
       const priorBoxIds = get().contextBox?.nodeIds ?? [];
 
@@ -701,7 +940,7 @@ export function createLLMSlice(
         return restored;
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Failed to decompress node";
+          err instanceof Error ? err.message : "errors.failedToDecompressNode";
         set({ compressionError: message });
         throw err;
       } finally {
@@ -732,7 +971,7 @@ export function createLLMSlice(
         return suggestion;
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Failed to generate suggestion";
+          err instanceof Error ? err.message : "errors.failedToGenerateSuggestion";
         set({ compressionError: message });
         throw err;
       } finally {
@@ -740,13 +979,23 @@ export function createLLMSlice(
       }
     },
     generateSummary: async (content) => {
-      const prompt = [
-        "你是一个标题生成器。",
-        "请根据下面的内容生成不超过6个汉字的主题标题。",
-        "只输出标题本身，不要解释，不要标点。",
-        "",
-        content,
-      ].join("\n");
+      const locale = get().locale;
+      const prompt =
+        locale === "zh-CN"
+          ? [
+              "你是一个标题生成器。",
+              "请根据下面的内容生成不超过 6 个汉字的主题标题。",
+              "只输出标题本身，不要解释，不要标点。",
+              "",
+              content,
+            ].join("\n")
+          : [
+              "You are a title generator.",
+              "Based on the content below, generate a concise topic title in 2–6 words.",
+              "Output only the title. No explanation. No quotes. No punctuation.",
+              "",
+              content,
+            ].join("\n");
 
       const selection = get().summaryModel ?? get().compressionModel;
       const request = resolveSingleModelRequest(selection ?? null);

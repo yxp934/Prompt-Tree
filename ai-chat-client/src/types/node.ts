@@ -24,6 +24,8 @@ export interface NodeMetadata {
   modelName?: string;
   providerId?: string;
   providerName?: string;
+  toolUses?: import("./tools").ToolUseId[];
+  toolLogs?: import("./tools").ToolCallLog[];
 }
 
 export interface NodePosition {

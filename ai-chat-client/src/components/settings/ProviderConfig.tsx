@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 
 import { useAppStore } from "@/store/useStore";
+import { useT } from "@/lib/i18n/useT";
 import { normalizeBaseUrl } from "@/lib/services/providerApiService";
 import type { ApiKey, ModelConfig } from "@/types/provider";
 
@@ -40,6 +41,7 @@ function ApiKeyInput({
   onSetPrimary: () => void;
   isPrimary: boolean;
 }) {
+  const t = useT();
   const [visible, setVisible] = useState(false);
 
   const handleCopy = async () => {
@@ -66,12 +68,12 @@ function ApiKeyInput({
             type="text"
             value={apiKey.name || ""}
             onChange={(e) => onUpdate({ name: e.target.value })}
-            placeholder="API 密钥"
+            placeholder={t("providerConfig.apiKeys.namePlaceholder")}
             className="w-32 bg-transparent font-zen-body text-sm font-normal text-ink-black outline-none placeholder:text-stone-gray/50"
           />
           {isPrimary && (
             <span className="rounded-lg bg-kintsugi-gold/10 px-2 py-1 font-zen-body text-xs text-kintsugi-gold font-light">
-              主密钥
+              {t("providerConfig.apiKeys.primary")}
             </span>
           )}
         </div>
@@ -125,7 +127,7 @@ function ApiKeyInput({
               className="rounded-lg px-3 py-1.5 font-zen-body text-xs text-stone-gray font-light transition-colors hover:text-matcha-green"
               onClick={onSetPrimary}
             >
-              设为主密钥
+              {t("providerConfig.apiKeys.setPrimary")}
             </button>
           )}
         </div>
@@ -134,7 +136,7 @@ function ApiKeyInput({
             type="button"
             className="rounded-lg p-2 text-stone-gray transition-colors hover:text-ink-black"
             onClick={handleCopy}
-            title="复制"
+            title={t("common.copy")}
           >
             <CopyIcon />
           </button>
@@ -142,7 +144,7 @@ function ApiKeyInput({
             type="button"
             className="rounded-lg p-2 text-stone-gray transition-colors hover:text-red-500"
             onClick={onDelete}
-            title="删除"
+            title={t("common.delete")}
           >
             <TrashIcon />
           </button>
@@ -166,6 +168,7 @@ function ModelItem({
   onToggleEnabled: () => void;
   onToggleStreaming: () => void;
 }) {
+  const t = useT();
   const streamingEnabled = model.supportsStreaming ?? false;
   return (
     <div className="group flex items-center gap-3 rounded-lg border border-parchment/10 bg-washi-cream px-4 py-3 transition-all duration-300 hover:border-matcha-green/20">
@@ -212,7 +215,7 @@ function ModelItem({
               : "border-parchment/60 bg-transparent"
           }`}
         />
-        流式
+        {t("providerConfig.models.streaming")}
       </button>
 
       {/* 删除按钮 */}
@@ -258,6 +261,7 @@ function AddApiKeyDialog({
   onClose: () => void;
   onAdd: (value: string, name?: string) => void;
 }) {
+  const t = useT();
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
 
@@ -283,26 +287,26 @@ function AddApiKeyDialog({
     <div className="fixed inset-0 z-[220] flex items-center justify-center bg-ink-black/20 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl bg-shoji-white p-8 shadow-lg border border-parchment/10">
         <h3 className="mb-6 font-zen-display text-2xl font-light text-ink-black tracking-wide">
-          添加 API 密钥
+          {t("providerConfig.addKey.title")}
         </h3>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-5">
             <label className="mb-2 block font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
-              Key Name
+              {t("providerConfig.addKey.nameLabel")}
             </label>
             <input
               type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="主密钥 / 备用密钥"
+              placeholder={t("providerConfig.addKey.namePlaceholder")}
               className="w-full rounded-xl border border-parchment/20 bg-washi-cream px-5 py-4 font-zen-body text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
             />
           </div>
 
           <div className="mb-6">
             <label className="mb-2 block font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
-              API Key
+              {t("providerConfig.addKey.valueLabel")}
             </label>
             <input
               type="password"
@@ -320,13 +324,13 @@ function AddApiKeyDialog({
               className="rounded-xl border border-parchment/20 px-6 py-3 font-zen-body text-sm text-stone-gray transition-all duration-200 hover:border-stone-gray/30 hover:text-ink-black"
               onClick={onClose}
             >
-              取消
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
               className="rounded-xl bg-matcha-green px-6 py-3 font-zen-body text-sm text-shoji-white transition-all duration-200 hover:bg-bamboo-light"
             >
-              添加
+              {t("common.add")}
             </button>
           </div>
         </form>
@@ -339,6 +343,7 @@ function AddApiKeyDialog({
  * 提供商配置面板主组件
  */
 export function ProviderConfig() {
+  const t = useT();
   const providers = useAppStore((s) => s.providers);
   const selectedProviderId = useAppStore((s) => s.selectedProviderId);
   const updateProvider = useAppStore((s) => s.updateProvider);
@@ -397,7 +402,7 @@ export function ProviderConfig() {
     try {
       await checkProviderHealth(selectedProvider.id);
     } catch (err) {
-      setCheckError(err instanceof Error ? err.message : "连接失败");
+      setCheckError(err instanceof Error ? err.message : t("errors.connectionFailed"));
     } finally {
       setIsChecking(false);
     }
@@ -422,8 +427,8 @@ export function ProviderConfig() {
               <path d="M6.5 6C8.4 3.7 11.5 2.5 14.5 3c2.3.4 4.3 1.9 5.5 4" />
             </svg>
           )}
-          title="请选择或添加一个提供商"
-          description="从中间列表选择一个提供商来配置"
+          title={t("providerConfig.empty.title")}
+          description={t("providerConfig.empty.description")}
         />
       </div>
     );
@@ -459,12 +464,12 @@ export function ProviderConfig() {
               {isChecking ? (
                 <>
                   <RefreshIcon />
-                  检测中...
+                  {t("providerConfig.check.running")}
                 </>
               ) : (
                 <>
                   <RefreshIcon />
-                  检测连接
+                  {t("providerConfig.check.button")}
                 </>
               )}
             </button>
@@ -486,7 +491,7 @@ export function ProviderConfig() {
                   <KeyIcon />
                 </div>
                 <h3 className="font-zen-display text-xl font-light text-ink-black tracking-wide">
-                  API 密钥
+                  {t("providerConfig.apiKeys.title")}
                 </h3>
               </div>
 
@@ -511,7 +516,7 @@ export function ProviderConfig() {
                 onClick={handleAddApiKey}
               >
                 <PlusIcon />
-                添加密钥
+                {t("providerConfig.apiKeys.add")}
               </button>
             </section>
 
@@ -522,7 +527,7 @@ export function ProviderConfig() {
                   <LinkIcon />
                 </div>
                 <h3 className="font-zen-display text-xl font-light text-ink-black tracking-wide">
-                  API 地址
+                  {t("providerConfig.baseUrl.title")}
                 </h3>
               </div>
 
@@ -535,7 +540,9 @@ export function ProviderConfig() {
                   className="w-full rounded-xl border border-parchment/20 bg-washi-cream px-5 py-4 font-mono text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
                 />
                 <p className="mt-3 font-zen-body text-xs text-stone-gray font-light">
-                  预览: {normalizeBaseUrl(baseUrl)}/chat/completions
+                  {t("providerConfig.baseUrl.preview", {
+                    url: `${normalizeBaseUrl(baseUrl)}/chat/completions`,
+                  })}
                 </p>
               </div>
             </section>
@@ -558,7 +565,7 @@ export function ProviderConfig() {
                     </svg>
                   </div>
                   <h3 className="font-zen-display text-xl font-light text-ink-black tracking-wide">
-                    模型
+                    {t("providerConfig.models.title")}
                   </h3>
                   <span className="rounded-full bg-washi-cream px-3 py-1 font-mono text-xs text-stone-gray font-light">
                     {selectedProvider.models.length}
@@ -570,7 +577,7 @@ export function ProviderConfig() {
                   onClick={() => openModelSelector(selectedProvider.id)}
                 >
                   <SearchIcon />
-                  选择模型
+                  {t("providerConfig.models.select")}
                 </button>
               </div>
 
@@ -582,8 +589,8 @@ export function ProviderConfig() {
                       <path d="M9 9h6v6H9z" />
                     </svg>
                   )}
-                  title="暂无模型"
-                  description="点击「选择模型」添加"
+                  title={t("providerConfig.models.empty.title")}
+                  description={t("providerConfig.models.empty.description")}
                 />
               ) : (
                 <div className="space-y-6">
@@ -591,7 +598,7 @@ export function ProviderConfig() {
                   {enabledModels.length > 0 && (
                     <div>
                       <div className="mb-3 font-mono text-xs text-stone-gray font-light">
-                        已启用 ({enabledModels.length})
+                        {t("providerConfig.models.enabled", { count: enabledModels.length })}
                       </div>
                       <div className="space-y-2">
                         {enabledModels.map((model) => (
@@ -617,7 +624,7 @@ export function ProviderConfig() {
                   {disabledModels.length > 0 && (
                     <div>
                       <div className="mb-3 font-mono text-xs text-stone-gray font-light">
-                        未启用 ({disabledModels.length})
+                        {t("providerConfig.models.disabled", { count: disabledModels.length })}
                       </div>
                       <div className="space-y-2">
                         {disabledModels.map((model) => (

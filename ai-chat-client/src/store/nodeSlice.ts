@@ -29,6 +29,19 @@ export interface NodeSlice {
   getChildren: (nodeId: string) => Promise<Node[]>;
 }
 
+function areSameIdSet(a: string[], b: string[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  if (a.length === 0) return true;
+
+  const setA = new Set(a);
+  if (setA.size !== a.length) return false;
+  for (const id of b) {
+    if (!setA.has(id)) return false;
+  }
+  return true;
+}
+
 export function createNodeSlice(
   deps: AppStoreDeps,
 ): StateCreator<AppStoreState, [], [], NodeSlice> {
@@ -99,6 +112,7 @@ export function createNodeSlice(
     setActiveNode: (id) => {
       set({ activeNodeId: id });
       void get().syncContextToNode(id);
+      get().syncToolsToNode(id);
     },
     toggleNodeSelection: (id) =>
       set((state) => {
@@ -107,8 +121,16 @@ export function createNodeSlice(
           : [...state.selectedNodeIds, id];
         return { selectedNodeIds };
       }),
-    setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
-    clearSelection: () => set({ selectedNodeIds: [] }),
+    setSelectedNodeIds: (ids) =>
+      set((state) => {
+        if (areSameIdSet(state.selectedNodeIds, ids)) return state;
+        return { selectedNodeIds: ids };
+      }),
+    clearSelection: () =>
+      set((state) => {
+        if (state.selectedNodeIds.length === 0) return state;
+        return { selectedNodeIds: [] };
+      }),
 
     getNodePath: (nodeId) => deps.nodeService.getPath(nodeId),
     getChildren: (nodeId) => deps.nodeService.getChildren(nodeId),

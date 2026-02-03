@@ -33,6 +33,7 @@ export interface TreeSlice {
   getCurrentTree: () => ConversationTree | null;
 
   createTree: (title?: string) => Promise<string>;
+  createTreeInFolder: (folderId: string, title?: string) => Promise<string>;
   loadTree: (id: string) => Promise<void>;
   deleteTree: (id: string) => Promise<void>;
   updateTreeTitle: (id: string, title: string) => Promise<void>;
@@ -54,7 +55,7 @@ export function createTreeSlice(
     createTree: async (title) => {
       set({ isLoading: true, error: null });
       try {
-        const tree = await deps.treeService.create(title);
+        const tree = await deps.treeService.create({ title });
 
         set((state) => {
           const trees = new Map(state.trees);
@@ -67,6 +68,38 @@ export function createTreeSlice(
       } catch (err) {
         set({
           error: err instanceof Error ? err.message : "Failed to create tree",
+        });
+        throw err;
+      } finally {
+        set({ isLoading: false });
+      }
+    },
+
+    createTreeInFolder: async (folderId, title) => {
+      set({ isLoading: true, error: null });
+      try {
+        const folder =
+          get().folders.get(folderId) ?? (await deps.folderService.read(folderId));
+        if (!folder) throw new Error(`Folder ${folderId} not found`);
+
+        const tree = await deps.treeService.create({
+          title,
+          folderId,
+          systemPrompt: folder.systemPrompt,
+        });
+
+        set((state) => {
+          const trees = new Map(state.trees);
+          trees.set(tree.id, tree);
+          return { trees };
+        });
+
+        await get().loadTree(tree.id);
+        return tree.id;
+      } catch (err) {
+        set({
+          error:
+            err instanceof Error ? err.message : "Failed to create tree in folder",
         });
         throw err;
       } finally {
@@ -91,6 +124,8 @@ export function createTreeSlice(
           return {
             trees,
             currentTreeId: tree.id,
+            currentView: "tree",
+            currentFolderId: tree.folderId ?? null,
             nodes: nodesMap,
             activeNodeId,
             selectedNodeIds: [],

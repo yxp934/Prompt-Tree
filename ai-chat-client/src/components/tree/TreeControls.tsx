@@ -2,6 +2,8 @@
 
 import { useReactFlow } from "reactflow";
 
+import { useT } from "@/lib/i18n/useT";
+
 function MinusIcon() {
   return (
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,14 +61,18 @@ export interface TreeControlsProps {
 }
 
 export function TreeControls({ onAutoLayout }: TreeControlsProps) {
+  const t = useT();
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
   return (
-    <div className="pointer-events-none absolute bottom-5 left-8 z-20 flex gap-2">
+    <div
+      data-tree-controls
+      className="pointer-events-none absolute bottom-5 left-8 z-20 flex gap-2"
+    >
       <button
         className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-[10px] border border-parchment bg-paper text-clay transition-all duration-150 hover:border-copper hover:text-copper"
         onClick={() => void zoomOut?.()}
-        aria-label="Zoom out"
+        aria-label={t("tree.controls.zoomOut")}
         type="button"
       >
         <div className="h-[18px] w-[18px]">
@@ -76,7 +82,7 @@ export function TreeControls({ onAutoLayout }: TreeControlsProps) {
       <button
         className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-[10px] border border-parchment bg-paper text-clay transition-all duration-150 hover:border-copper hover:text-copper"
         onClick={() => void zoomIn?.()}
-        aria-label="Zoom in"
+        aria-label={t("tree.controls.zoomIn")}
         type="button"
       >
         <div className="h-[18px] w-[18px]">
@@ -86,7 +92,7 @@ export function TreeControls({ onAutoLayout }: TreeControlsProps) {
       <button
         className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-[10px] border border-parchment bg-paper text-clay transition-all duration-150 hover:border-copper hover:text-copper"
         onClick={() => void fitView?.({ padding: 0.25 })}
-        aria-label="Fit view"
+        aria-label={t("tree.controls.fitView")}
         type="button"
       >
         <div className="h-[18px] w-[18px]">
@@ -96,7 +102,7 @@ export function TreeControls({ onAutoLayout }: TreeControlsProps) {
       <button
         className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-[10px] border border-parchment bg-paper text-clay transition-all duration-150 hover:border-copper hover:text-copper"
         onClick={onAutoLayout}
-        aria-label="Auto layout"
+        aria-label={t("tree.controls.autoLayout")}
         type="button"
       >
         <div className="h-[18px] w-[18px]">
@@ -106,4 +112,3 @@ export function TreeControls({ onAutoLayout }: TreeControlsProps) {
     </div>
   );
 }
-

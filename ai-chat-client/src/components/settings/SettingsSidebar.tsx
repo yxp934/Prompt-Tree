@@ -4,9 +4,12 @@
 
 "use client";
 
+import { useT } from "@/lib/i18n/useT";
+
 import {
   CloudIcon,
   CpuIcon,
+  WrenchIcon,
   PaletteIcon,
   MonitorIcon,
   DatabaseIcon,
@@ -15,21 +18,21 @@ import {
 
 type NavItem = {
   id: string;
-  label: string;
-  labelEn?: string;
+  labelKey: Parameters<ReturnType<typeof useT>>[0];
   icon: React.ReactNode;
 };
 
 const configurationItems: NavItem[] = [
-  { id: "providers", label: "模型服务", labelEn: "Configuration", icon: <CloudIcon /> },
-  { id: "models", label: "默认模型", labelEn: "Default Model", icon: <CpuIcon /> },
-  { id: "general", label: "常规设置", labelEn: "General", icon: <MonitorIcon /> },
-  { id: "display", label: "显示设置", labelEn: "Display", icon: <PaletteIcon /> },
+  { id: "providers", labelKey: "settings.nav.providers", icon: <CloudIcon /> },
+  { id: "models", labelKey: "settings.nav.defaultModel", icon: <CpuIcon /> },
+  { id: "tools", labelKey: "settings.nav.tools", icon: <WrenchIcon /> },
+  { id: "general", labelKey: "settings.nav.general", icon: <MonitorIcon /> },
+  { id: "display", labelKey: "settings.nav.display", icon: <PaletteIcon /> },
 ];
 
 const dataItems: NavItem[] = [
-  { id: "data", label: "数据设置", labelEn: "Data", icon: <DatabaseIcon /> },
-  { id: "about", label: "关于", labelEn: "About", icon: <InfoIcon /> },
+  { id: "data", labelKey: "settings.nav.data", icon: <DatabaseIcon /> },
+  { id: "about", labelKey: "settings.nav.about", icon: <InfoIcon /> },
 ];
 
 type SettingsSidebarProps = {
@@ -38,9 +41,11 @@ type SettingsSidebarProps = {
 };
 
 export function SettingsSidebar({ activeId, onSelect }: SettingsSidebarProps) {
+  const t = useT();
+
   const sections = [
-    { label: "Configuration", items: configurationItems },
-    { label: "Data", items: dataItems },
+    { label: t("settings.nav.configuration"), items: configurationItems },
+    { label: t("settings.nav.data"), items: dataItems },
   ];
 
   return (
@@ -48,10 +53,10 @@ export function SettingsSidebar({ activeId, onSelect }: SettingsSidebarProps) {
       {/* 头部区域 */}
       <div className="border-b border-parchment/10 px-8 py-12">
         <div className="font-zen-display text-2xl font-light tracking-[0.15em] text-ink-black">
-          設定
+          {t("common.settings")}
         </div>
         <div className="mt-1 font-zen-body text-[0.6rem] tracking-[0.2em] text-stone-gray font-light uppercase">
-          Settings
+          {t("common.appName")}
         </div>
       </div>
 
@@ -83,7 +88,7 @@ export function SettingsSidebar({ activeId, onSelect }: SettingsSidebarProps) {
                   <span className="flex-shrink-0 text-base opacity-70 group-hover:opacity-100 transition-opacity">
                     {item.icon}
                   </span>
-                  <span className="font-light tracking-wide">{item.label}</span>
+                  <span className="font-light tracking-wide">{t(item.labelKey)}</span>
                 </button>
               ))}
             </div>
@@ -94,7 +99,7 @@ export function SettingsSidebar({ activeId, onSelect }: SettingsSidebarProps) {
       {/* 底部版本信息 */}
       <div className="border-t border-parchment/10 px-8 py-7">
         <div className="font-zen-display text-sm text-stone-gray font-light tracking-[0.1em]">
-          Cortex v1.0.0
+          {t("common.appName")} v1.0.0
         </div>
       </div>
     </nav>

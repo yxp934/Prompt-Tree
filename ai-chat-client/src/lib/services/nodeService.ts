@@ -5,6 +5,8 @@ import { estimateTokens } from "@/lib/utils/tokens";
 import { generateUUID } from "@/lib/utils/uuid";
 import { NodeType, type Node, type NodeMetadata } from "@/types";
 
+type NodeInput = Partial<Omit<Node, "metadata">> & { metadata?: Partial<NodeMetadata> };
+
 function normalizeMetadata(metadata: Partial<NodeMetadata> | undefined): NodeMetadata {
   return {
     tags: metadata?.tags ?? [],
@@ -16,10 +18,12 @@ function normalizeMetadata(metadata: Partial<NodeMetadata> | undefined): NodeMet
     modelName: metadata?.modelName,
     providerId: metadata?.providerId,
     providerName: metadata?.providerName,
+    toolUses: metadata?.toolUses,
+    toolLogs: metadata?.toolLogs,
   };
 }
 
-function shouldRecomputeTokens(updates: Partial<Node>): boolean {
+function shouldRecomputeTokens(updates: NodeInput): boolean {
   return (
     Object.prototype.hasOwnProperty.call(updates, "content") ||
     Object.prototype.hasOwnProperty.call(updates, "summary") ||
@@ -28,7 +32,7 @@ function shouldRecomputeTokens(updates: Partial<Node>): boolean {
 }
 
 export class NodeService {
-  async create(data: Partial<Node>): Promise<Node> {
+  async create(data: NodeInput): Promise<Node> {
     const now = Date.now();
     const createdAt = data.createdAt ?? now;
     const updatedAt = data.updatedAt ?? createdAt;
@@ -72,7 +76,7 @@ export class NodeService {
     return node ?? null;
   }
 
-  async update(id: string, updates: Partial<Node>): Promise<Node> {
+  async update(id: string, updates: NodeInput): Promise<Node> {
     const existing = await this.read(id);
     if (!existing) throw new Error(`Node ${id} not found`);
 
@@ -173,7 +177,7 @@ export class NodeService {
     });
   }
 
-  async batchCreate(items: Partial<Node>[]): Promise<Node[]> {
+  async batchCreate(items: NodeInput[]): Promise<Node[]> {
     const now = Date.now();
     const nodes: Node[] = [];
 

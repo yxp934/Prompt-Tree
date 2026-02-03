@@ -1,11 +1,23 @@
 {
-  "name": "ai-chat-client",
+  "name": "@yxp934/prompt-tree",
   "version": "0.1.0",
-  "private": true,
+  "description": "Node-based DAG AI chat client with a tree CLI launcher (Next.js standalone).",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "tree": "bin/tree.mjs"
+  },
+  "files": [
+    "bin/",
+    ".next/standalone/"
+  ],
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 1666",
     "build": "next build --webpack",
-    "start": "next start",
+    "start": "next start -p 1666",
+    "prepack": "npm run build && node scripts/prepare-standalone.mjs",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",

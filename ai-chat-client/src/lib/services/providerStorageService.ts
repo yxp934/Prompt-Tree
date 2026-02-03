@@ -5,23 +5,43 @@
 
 import type { Provider } from "@/types/provider";
 
-const PROVIDERS_STORAGE_KEY = "new-chat.providers";
-const HEALTH_CHECKS_STORAGE_KEY = "new-chat.health_checks";
+const PROVIDERS_STORAGE_KEY = "prompt-tree.providers.v1";
+const HEALTH_CHECKS_STORAGE_KEY = "prompt-tree.health_checks.v1";
+
+const LEGACY_PROVIDERS_KEYS = ["new-chat.providers"];
+const LEGACY_HEALTH_CHECKS_KEYS = ["new-chat.health_checks"];
 
 /**
  * 获取所有提供商
  */
 export function getStoredProviders(): Provider[] {
   if (typeof window === "undefined") return [];
-  const stored = localStorage.getItem(PROVIDERS_STORAGE_KEY);
-  if (!stored) return [];
 
-  try {
-    const parsed = JSON.parse(stored) as Provider[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+  const stored = localStorage.getItem(PROVIDERS_STORAGE_KEY);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored) as Provider[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      // Fall through to legacy keys.
+    }
   }
+
+  for (const legacyKey of LEGACY_PROVIDERS_KEYS) {
+    const legacyStored = localStorage.getItem(legacyKey);
+    if (!legacyStored) continue;
+    try {
+      const parsed = JSON.parse(legacyStored) as Provider[];
+      if (!Array.isArray(parsed)) continue;
+      localStorage.setItem(PROVIDERS_STORAGE_KEY, legacyStored);
+      localStorage.removeItem(legacyKey);
+      return parsed;
+    } catch {
+      continue;
+    }
+  }
+
+  return [];
 }
 
 /**
@@ -30,6 +50,9 @@ export function getStoredProviders(): Provider[] {
 export function setStoredProviders(providers: Provider[]): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(PROVIDERS_STORAGE_KEY, JSON.stringify(providers));
+  for (const legacyKey of LEGACY_PROVIDERS_KEYS) {
+    localStorage.removeItem(legacyKey);
+  }
 }
 
 /**
@@ -72,13 +95,29 @@ export function getProvider(providerId: string): Provider | null {
 export function getStoredHealthChecks(): Record<string, unknown> {
   if (typeof window === "undefined") return {};
   const stored = localStorage.getItem(HEALTH_CHECKS_STORAGE_KEY);
-  if (!stored) return {};
-
-  try {
-    return JSON.parse(stored);
-  } catch {
-    return {};
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      // Fall through to legacy keys.
+    }
   }
+
+  for (const legacyKey of LEGACY_HEALTH_CHECKS_KEYS) {
+    const legacyStored = localStorage.getItem(legacyKey);
+    if (!legacyStored) continue;
+    try {
+      const parsed = JSON.parse(legacyStored) as unknown;
+      if (!parsed || typeof parsed !== "object") continue;
+      localStorage.setItem(HEALTH_CHECKS_STORAGE_KEY, legacyStored);
+      localStorage.removeItem(legacyKey);
+      return parsed as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+  }
+
+  return {};
 }
 
 /**
@@ -87,14 +126,23 @@ export function getStoredHealthChecks(): Record<string, unknown> {
 export function setStoredHealthChecks(checks: Record<string, unknown>): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(HEALTH_CHECKS_STORAGE_KEY, JSON.stringify(checks));
+  for (const legacyKey of LEGACY_HEALTH_CHECKS_KEYS) {
+    localStorage.removeItem(legacyKey);
+  }
 }
 
 export function clearStoredProviders(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(PROVIDERS_STORAGE_KEY);
+  for (const legacyKey of LEGACY_PROVIDERS_KEYS) {
+    localStorage.removeItem(legacyKey);
+  }
 }
 
 export function clearStoredHealthChecks(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(HEALTH_CHECKS_STORAGE_KEY);
+  for (const legacyKey of LEGACY_HEALTH_CHECKS_KEYS) {
+    localStorage.removeItem(legacyKey);
+  }
 }

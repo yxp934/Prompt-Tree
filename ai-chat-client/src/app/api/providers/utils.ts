@@ -71,7 +71,7 @@ export function parseProviderRequest(body: unknown):
   | { data: ProviderRequestConfig }
   | { error: string; status: number } {
   if (typeof body !== "object" || body === null) {
-    return { error: "Invalid JSON body.", status: 400 };
+    return { error: "errors.invalidRequestBody", status: 400 };
   }
 
   const payload = body as {
@@ -87,12 +87,12 @@ export function parseProviderRequest(body: unknown):
       : null;
 
   if (!apiKey) {
-    return { error: "Missing API key.", status: 400 };
+    return { error: "errors.missingApiKey", status: 400 };
   }
 
   const parsedBaseUrl = parseBaseUrl(payload.baseUrl);
   if (typeof payload.baseUrl === "string" && !parsedBaseUrl) {
-    return { error: "Invalid baseUrl.", status: 400 };
+    return { error: "errors.invalidBaseUrl", status: 400 };
   }
 
   return {

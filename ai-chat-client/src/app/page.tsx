@@ -1,7 +1,7 @@
 import MainLayout from "@/components/layout/MainLayout";
 
 /**
- * 首页 - Cortex AI 对话拓扑界面
+ * Home - Prompt Tree AI dialogue topology interface
  *
  * 展示三栏布局：
  * - 左侧：线程列表和导航

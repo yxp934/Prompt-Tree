@@ -7,6 +7,7 @@ import ReactFlow, {
   MiniMap,
   useEdgesState,
   useNodesState,
+  type ReactFlowInstance,
   type NodeMouseHandler,
   type OnSelectionChangeFunc,
 } from "reactflow";
@@ -15,6 +16,7 @@ import "reactflow/dist/style.css";
 
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
+import { useT } from "@/lib/i18n/useT";
 import {
   buildFlowGraph,
   computeAutoLayout,
@@ -22,7 +24,7 @@ import {
   type TreeFlowEdgeData,
   type TreeFlowNodeData,
 } from "@/lib/services/dagService";
-import { useAppStore } from "@/store/useStore";
+import { appStore, useAppStore } from "@/store/useStore";
 import { NodeType, type Node } from "@/types";
 
 import TreeNode from "./TreeNode";
@@ -65,11 +67,18 @@ function MenuItem({
   );
 }
 
-export function TreeView() {
+export interface TreeViewProps {
+  fitViewOnInit?: boolean;
+  fitViewTrigger?: number;
+}
+
+export function TreeView({ fitViewOnInit = true, fitViewTrigger }: TreeViewProps) {
+  const t = useT();
   const currentTree = useAppStore((s) => s.getCurrentTree());
   const nodesMap = useAppStore((s) => s.nodes);
   const activeNodeId = useAppStore((s) => s.activeNodeId);
   const selectedNodeIds = useAppStore((s) => s.selectedNodeIds);
+  const suppressSelectionChangeRef = useRef(false);
 
   const setActiveNode = useAppStore((s) => s.setActiveNode);
   const setSelectedNodeIds = useAppStore((s) => s.setSelectedNodeIds);
@@ -84,6 +93,8 @@ export function TreeView() {
     useNodesState<TreeFlowNodeData>([]);
   const [flowEdges, setFlowEdges, onEdgesChange] =
     useEdgesState<TreeFlowEdgeData>([]);
+
+  const [flowInstance, setFlowInstance] = useState<ReactFlowInstance | null>(null);
 
   const applyAutoLayout = useCallback(
     (overrideNodes?: Iterable<Node>) => {
@@ -108,11 +119,12 @@ export function TreeView() {
   );
 
   const toggleCompressedNode = useCallback(
-    (nodeId: string) => {
+    async (nodeId: string) => {
       const conversationNode = nodesMap.get(nodeId);
       if (!conversationNode) return;
       if (conversationNode.type !== NodeType.COMPRESSED) return;
 
+      suppressSelectionChangeRef.current = true;
       const collapsed = conversationNode.metadata.collapsed ?? false;
       const compressedIds = conversationNode.metadata.compressedNodeIds ?? [];
       const tailId = compressedIds[compressedIds.length - 1] ?? null;
@@ -127,27 +139,33 @@ export function TreeView() {
             ? { ...anchor }
             : null;
 
-      void updateNode(nodeId, {
-        metadata: { ...conversationNode.metadata, collapsed: nextCollapsed },
-        ...(nextPosition ? { position: nextPosition } : {}),
-      });
+      try {
+        await updateNode(nodeId, {
+          metadata: { ...conversationNode.metadata, collapsed: nextCollapsed },
+          ...(nextPosition ? { position: nextPosition } : {}),
+        });
+      } catch {
+        suppressSelectionChangeRef.current = false;
+        return;
+      }
 
-      const nextNodes = new Map(nodesMap);
-      nextNodes.set(nodeId, {
-        ...conversationNode,
-        metadata: { ...conversationNode.metadata, collapsed: nextCollapsed },
-        ...(nextPosition ? { position: nextPosition } : {}),
-      });
-      applyAutoLayout(nextNodes.values());
+      applyAutoLayout(appStore.getState().nodes.values());
 
       if (nextCollapsed) {
-        if (activeNodeId && compressedIds.includes(activeNodeId)) {
+        const latestActiveNodeId = appStore.getState().activeNodeId;
+        if (latestActiveNodeId && compressedIds.includes(latestActiveNodeId)) {
           setActiveNode(nodeId);
         }
         clearSelection();
       }
+
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          suppressSelectionChangeRef.current = false;
+        });
+      });
     },
-    [activeNodeId, applyAutoLayout, clearSelection, nodesMap, setActiveNode, updateNode],
+    [applyAutoLayout, clearSelection, nodesMap, setActiveNode, updateNode],
   );
 
   const graph = useMemo(() => {
@@ -176,6 +194,7 @@ export function TreeView() {
 
   const onSelectionChange: OnSelectionChangeFunc = useCallback(
     ({ nodes }) => {
+      if (suppressSelectionChangeRef.current) return;
       const nextIds = nodes.map((n) => n.id);
       if (nextIds.length === selectedNodeIds.length) {
         const nextSet = new Set(nextIds);
@@ -241,7 +260,7 @@ export function TreeView() {
 
     const onMouseDown = (event: MouseEvent) => {
       const el = contextMenuRef.current;
-      if (el && el.contains(event.target as Node)) return;
+      if (el && el.contains(event.target as globalThis.Node)) return;
       setContextMenu(null);
     };
 
@@ -312,7 +331,23 @@ export function TreeView() {
           clientY <= rect.bottom;
 
         if (hit) {
-          void addToContext(node.id);
+          const elements = Array.from(
+            dropZone.querySelectorAll<HTMLElement>("[data-context-card-id]"),
+          );
+          let insertIndex = 0;
+          if (elements.length > 0) {
+            insertIndex = elements.length;
+            for (let index = 0; index < elements.length; index += 1) {
+              const rect = elements[index]?.getBoundingClientRect();
+              if (!rect) continue;
+              if (clientY < rect.top + rect.height / 2) {
+                insertIndex = index;
+                break;
+              }
+            }
+          }
+
+          void addToContext(node.id, insertIndex);
 
           if (origin) {
             setFlowNodes((prev) =>
@@ -393,6 +428,19 @@ export function TreeView() {
   const canCompressPath = compressPathIds.length >= 2;
   const canDecompress = Boolean(menuNode && menuNode.type === NodeType.COMPRESSED);
 
+  useEffect(() => {
+    if (!flowInstance) return;
+    if (typeof fitViewTrigger !== "number") return;
+
+    const id = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        flowInstance.fitView({ padding: 0.25 });
+      });
+    });
+
+    return () => window.cancelAnimationFrame(id);
+  }, [fitViewTrigger, flowInstance]);
+
   return (
     <div className="relative h-full w-full">
       <ReactFlow
@@ -400,6 +448,7 @@ export function TreeView() {
         edges={flowEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        onInit={setFlowInstance}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
@@ -408,7 +457,7 @@ export function TreeView() {
         onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
         onPaneClick={onPaneClick}
-        fitView
+        fitView={fitViewOnInit}
         minZoom={0.2}
         maxZoom={2}
         panOnDrag={false}
@@ -420,7 +469,9 @@ export function TreeView() {
         <MiniMap
           pannable
           zoomable
-          className="!rounded-xl !border !border-parchment !bg-paper !shadow-[0_10px_30px_rgba(26,24,22,0.08)]"
+          className="!rounded-xl !bg-paper/70 !backdrop-blur-sm"
+          maskColor="transparent"
+          maskStrokeColor="transparent"
           nodeColor={(n) => {
             const type = (n.data as TreeFlowNodeData).node.type;
             if (type === NodeType.SYSTEM) return "var(--system)";
@@ -446,7 +497,7 @@ export function TreeView() {
                 closeContextMenu();
               }}
             >
-              Continue from here
+              {t("tree.menu.continueFromHere")}
             </MenuItem>
             <MenuItem
               disabled={!canCompressPath}
@@ -457,21 +508,21 @@ export function TreeView() {
                 closeContextMenu();
               }}
             >
-              Compress branch
+              {t("tree.menu.compressBranch")}
             </MenuItem>
             <MenuItem
               disabled={!canDecompress}
               onClick={() => {
                 if (!menuNode || !canDecompress) return;
                 const ok = window.confirm(
-                  "Decompress this node and restore the full chain?",
+                  t("tree.menu.decompressConfirm"),
                 );
                 if (!ok) return;
                 void decompressNode(menuNode.id);
                 closeContextMenu();
               }}
             >
-              Decompress
+              {t("tree.menu.decompress")}
             </MenuItem>
             <MenuItem
               onClick={() => {
@@ -479,7 +530,7 @@ export function TreeView() {
                 closeContextMenu();
               }}
             >
-              Add to Context
+              {t("tree.menu.addToContext")}
             </MenuItem>
             <MenuItem
               onClick={() => {
@@ -487,7 +538,7 @@ export function TreeView() {
                 closeContextMenu();
               }}
             >
-              Edit node
+              {t("tree.menu.editNode")}
             </MenuItem>
             <MenuItem
               disabled={isRoot}
@@ -497,7 +548,7 @@ export function TreeView() {
                 closeContextMenu();
               }}
             >
-              Delete subtree
+              {t("tree.menu.deleteSubtree")}
             </MenuItem>
           </div>,
           document.body,
@@ -505,7 +556,7 @@ export function TreeView() {
 
       <Modal
         open={editorOpen}
-        title="Edit Node"
+        title={t("tree.editor.title")}
         onClose={() => setEditorOpen(false)}
       >
         <div className="space-y-4">
@@ -521,7 +572,7 @@ export function TreeView() {
                 setEditorOpen(false);
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="primary"
@@ -540,7 +591,7 @@ export function TreeView() {
                 setEditorOpen(false);
               }}
             >
-              Save
+              {t("common.save")}
             </Button>
           </div>
         </div>

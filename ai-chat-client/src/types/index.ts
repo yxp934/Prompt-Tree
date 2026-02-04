@@ -1,5 +1,14 @@
 export type { ChatMessage, ChatRole } from "./chat";
-export type { ContextBox } from "./context";
+export type {
+  ContextBlock,
+  ContextBox,
+  ContextFileKind,
+  ContextFileBlock,
+  ContextImageFileBlock,
+  ContextNodeBlock,
+  ContextTextFileBlock,
+  SupportedImageMime,
+} from "./context";
 export type { ConversationFolder } from "./folder";
 export type { ConversationTree } from "./tree";
 export type {

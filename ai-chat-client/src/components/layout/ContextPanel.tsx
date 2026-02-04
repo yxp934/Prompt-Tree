@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Image from "next/image";
 
 import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
@@ -8,15 +9,16 @@ import { Modal } from "@/components/common/Modal";
 import { useT } from "@/lib/i18n/useT";
 import { isMessageKey } from "@/lib/i18n/translate";
 import { computePathIds } from "@/lib/services/dagService";
+import { getSupportedFileAcceptAttribute } from "@/lib/services/fileImportService";
 import { stripModelThinkingTags } from "@/lib/services/messageContentService";
 import { estimateTokens } from "@/lib/services/tokenService";
 import { buildToolInstructionBlocks } from "@/lib/services/tools/toolInstructions";
 import { DND_NODE_ID } from "@/lib/utils/dnd";
 import { useAppStore } from "@/store/useStore";
-import { NodeType, type Node, type NodeMetaInstructions } from "@/types";
+import { NodeType, type ContextBlock, type Node, type NodeMetaInstructions } from "@/types";
 import type { ToolUseId } from "@/types";
 
-type ContextType = "system" | "human" | "machine" | "compressed" | "tool";
+type ContextType = "system" | "human" | "machine" | "compressed" | "tool" | "file";
 
 interface ContextCard {
   id: string;
@@ -86,6 +88,25 @@ function ToolIcon() {
         strokeLinejoin="round"
         strokeWidth="2"
         d="M14.7 6.3a4 4 0 0 1-5.65 5.65L3 18v3h3l6.05-6.05a4 4 0 0 1 5.65-5.65l-2.1 2.1 1.4 1.4 2.1-2.1Z"
+      />
+    </svg>
+  );
+}
+
+function FileIcon() {
+  return (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+        d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+        d="M14 2v6h6"
       />
     </svg>
   );
@@ -166,6 +187,8 @@ function getIcon(type: ContextType) {
       return <CompressedIcon />;
     case "tool":
       return <ToolIcon />;
+    case "file":
+      return <FileIcon />;
   }
 }
 
@@ -180,6 +203,8 @@ function getIconBgClass(type: ContextType) {
     case "compressed":
       return "bg-copper";
     case "tool":
+      return "bg-copper";
+    case "file":
       return "bg-copper";
   }
 }
@@ -247,6 +272,7 @@ function buildCompressionChainIds(
 interface ContextCardItemProps {
   card: ContextCard;
   onRemove: (id: string) => void;
+  onClick?: () => void;
   draggable?: boolean;
   onDragStart?: () => void;
   onDragEnter?: () => void;
@@ -256,6 +282,7 @@ interface ContextCardItemProps {
 function ContextCardItem({
   card,
   onRemove,
+  onClick,
   draggable,
   onDragStart,
   onDragEnter,
@@ -275,6 +302,7 @@ function ContextCardItem({
       }`}
       data-context-card-id={card.id}
       draggable={draggable}
+      onClick={onClick}
       onDragStart={(e) => {
         if (!draggable) return;
         e.dataTransfer.effectAllowed = "move";
@@ -289,7 +317,10 @@ function ContextCardItem({
     >
       <button
         className="context-card-remove absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-cream opacity-0 text-sand transition-all duration-150 hover:bg-[#e74c3c] hover:text-white"
-        onClick={() => onRemove(card.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove(card.id);
+        }}
         aria-label={t("context.removeFromContextAria")}
       >
         <CloseIcon />
@@ -323,6 +354,7 @@ export default function ContextPanel() {
   const activeNodeId = useAppStore((s) => s.activeNodeId);
   const selectedNodeIds = useAppStore((s) => s.selectedNodeIds);
   const addToContext = useAppStore((s) => s.addToContext);
+  const addFilesToContext = useAppStore((s) => s.addFilesToContext);
   const removeFromContext = useAppStore((s) => s.removeFromContext);
   const clearContext = useAppStore((s) => s.clearContext);
   const reorderContext = useAppStore((s) => s.reorderContext);
@@ -345,48 +377,81 @@ export default function ContextPanel() {
   const [localOrder, setLocalOrder] = useState<string[] | null>(null);
 
   const orderedIds = useMemo(
-    () => localOrder ?? contextBox?.nodeIds ?? [],
-    [localOrder, contextBox?.nodeIds],
+    () => localOrder ?? contextBox?.blocks?.map((b) => b.id) ?? [],
+    [localOrder, contextBox?.blocks],
   );
+
+  const blockById = useMemo(() => {
+    const entries = contextBox?.blocks?.map((block) => [block.id, block] as const) ?? [];
+    return new Map(entries);
+  }, [contextBox?.blocks]);
 
   const cards = useMemo(() => {
     if (!contextBox) return [];
-    return orderedIds
-      .map((id) => nodes.get(id))
-      .filter((n): n is Node => Boolean(n))
-      .map((node) => {
-        const type: ContextType =
-          node.type === NodeType.SYSTEM
-            ? "system"
-            : node.type === NodeType.USER
-              ? "human"
-              : node.type === NodeType.ASSISTANT
-                ? "machine"
-                : "compressed";
+    const out: ContextCard[] = [];
 
-        const title =
-          type === "system"
-            ? t("context.card.system")
-            : type === "human"
-              ? t("context.card.user")
-              : type === "machine"
-                ? node.metadata.modelName ?? t("node.author.assistant")
-                : t("context.card.compressed");
+    for (const id of orderedIds) {
+      const block = blockById.get(id);
+      if (!block) continue;
 
-        const rawPreview =
-          node.type === NodeType.COMPRESSED ? node.summary ?? node.content : node.content;
+      if (block.kind === "file") {
         const preview =
-          node.type === NodeType.ASSISTANT ? stripModelThinkingTags(rawPreview).visible : rawPreview;
+          block.fileKind === "image"
+            ? `${block.mimeType} · ${(block.size / 1024).toFixed(1)} KB`
+            : block.content.trim().slice(0, 160) + (block.truncated ? "…" : "");
+        out.push({
+          id: block.id,
+          type: "file",
+          title: block.filename,
+          preview:
+            preview ||
+            (block.fileKind === "image"
+              ? t("common.data")
+              : t("tree.node.emptyContent")),
+          tokens: block.tokenCount,
+        });
+        continue;
+      }
 
-        return {
-          id: node.id,
-          type,
-          title,
-          preview,
-          tokens: node.tokenCount,
-        } satisfies ContextCard;
+      const node = nodes.get(block.nodeId);
+      if (!node) continue;
+
+      const type: ContextType =
+        node.type === NodeType.SYSTEM
+          ? "system"
+          : node.type === NodeType.USER
+            ? "human"
+            : node.type === NodeType.ASSISTANT
+              ? "machine"
+              : "compressed";
+
+      const title =
+        type === "system"
+          ? t("context.card.system")
+          : type === "human"
+            ? t("context.card.user")
+            : type === "machine"
+              ? node.metadata.modelName ?? t("node.author.assistant")
+              : t("context.card.compressed");
+
+      const rawPreview =
+        node.type === NodeType.COMPRESSED ? node.summary ?? node.content : node.content;
+      const preview =
+        node.type === NodeType.ASSISTANT
+          ? stripModelThinkingTags(rawPreview).visible
+          : rawPreview;
+
+      out.push({
+        id: block.id,
+        type,
+        title,
+        preview,
+        tokens: node.tokenCount,
       });
-  }, [contextBox, orderedIds, nodes, t]);
+    }
+
+    return out;
+  }, [contextBox, orderedIds, blockById, nodes, t]);
 
   const toolBlocks = useMemo(
     () => buildToolInstructionBlocks(draftToolUses, toolSettings),
@@ -412,13 +477,18 @@ export default function ContextPanel() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewText, setPreviewText] = useState<string | null>(null);
+  const [blockPreview, setBlockPreview] = useState<ContextBlock | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const contextCandidateIds = useMemo(() => {
     const rootId = currentTree?.rootId ?? null;
-    const ids = contextBox?.nodeIds ?? [];
+    const ids =
+      contextBox?.blocks?.filter((block) => block.kind === "node").map((block) => block.nodeId) ??
+      [];
     if (!rootId) return ids;
     return ids.filter((id) => id !== rootId);
-  }, [contextBox?.nodeIds, currentTree?.rootId]);
+  }, [contextBox?.blocks, currentTree?.rootId]);
 
   const contextTailId =
     activeNodeId ?? contextCandidateIds[contextCandidateIds.length - 1] ?? null;
@@ -573,12 +643,34 @@ export default function ContextPanel() {
       <div className="flex flex-1 min-h-0 flex-col p-5">
         <div className="mb-3 flex items-center justify-between font-mono text-[0.65rem] uppercase tracking-[0.15em] text-sand">
           <span>{t("context.activeNodes")}</span>
-          <button
-            className="border-none bg-transparent font-body text-[0.75rem] normal-case tracking-normal text-copper hover:underline"
-            onClick={clearContext}
-          >
-            {t("context.clearAll")}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              className="border-none bg-transparent font-body text-[0.75rem] normal-case tracking-normal text-copper hover:underline"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {t("chat.input.attach")}
+            </button>
+            <button
+              className="border-none bg-transparent font-body text-[0.75rem] normal-case tracking-normal text-copper hover:underline"
+              onClick={clearContext}
+            >
+              {t("context.clearAll")}
+            </button>
+            <input
+              ref={fileInputRef}
+              className="hidden"
+              type="file"
+              multiple
+              accept={getSupportedFileAcceptAttribute()}
+              onChange={(e) => {
+                const selected = Array.from(e.target.files ?? []);
+                if (selected.length > 0) {
+                  void addFilesToContext(selected);
+                }
+                e.target.value = "";
+              }}
+            />
+          </div>
         </div>
 
         {toolCards.length > 0 ? (
@@ -617,6 +709,12 @@ export default function ContextPanel() {
             setIsDragOver(false);
             if (draggingId) return;
 
+            const files = Array.from(e.dataTransfer.files ?? []);
+            if (files.length > 0) {
+              void addFilesToContext(files, getDropInsertIndex(e.clientY));
+              return;
+            }
+
             const nodeId =
               e.dataTransfer.getData(DND_NODE_ID) ||
               e.dataTransfer.getData("text/plain");
@@ -643,6 +741,11 @@ export default function ContextPanel() {
                 key={card.id}
                 card={card}
                 onRemove={removeFromContext}
+                onClick={() => {
+                  const block = blockById.get(card.id) ?? null;
+                  if (!block || block.kind !== "file") return;
+                  setBlockPreview(block);
+                }}
                 draggable
                 onDragStart={() => {
                   setDraggingId(card.id);
@@ -893,6 +996,45 @@ export default function ContextPanel() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(blockPreview)}
+        title={
+          blockPreview?.kind === "file"
+            ? blockPreview.filename
+            : t("context.preview.title")
+        }
+        onClose={() => setBlockPreview(null)}
+      >
+        {blockPreview?.kind === "file" ? (
+          blockPreview.fileKind === "image" ? (
+            <div className="space-y-3">
+              <Image
+                src={blockPreview.dataUrl}
+                alt={blockPreview.filename}
+                width={1200}
+                height={900}
+                unoptimized
+                className="max-h-[60vh] w-full rounded-xl border border-parchment bg-paper object-contain"
+              />
+              <div className="font-mono text-[0.7rem] text-sand">
+                {blockPreview.mimeType} · {(blockPreview.size / 1024).toFixed(1)} KB
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="max-h-[60vh] overflow-auto rounded-xl border border-parchment bg-paper p-4 font-mono text-[0.75rem] leading-relaxed text-ink">
+                {blockPreview.content}
+              </div>
+              {blockPreview.truncated ? (
+                <div className="font-mono text-[0.7rem] text-sand">
+                  [Truncated]
+                </div>
+              ) : null}
+            </div>
+          )
+        ) : null}
       </Modal>
     </aside>
   );

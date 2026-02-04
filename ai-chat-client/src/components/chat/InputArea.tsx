@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/common/Button";
 import { useT } from "@/lib/i18n/useT";
+import { getSupportedFileAcceptAttribute } from "@/lib/services/fileImportService";
 import {
   buildModelSelectionKey,
   type EnabledModelOption,
@@ -39,6 +40,7 @@ function SendIcon() {
 
 export interface InputAreaProps {
   onSend: (content: string) => Promise<void>;
+  onAttachFiles?: (files: File[]) => Promise<void> | void;
   disabled?: boolean;
   modelLabel?: string;
   temperatureLabel?: string;
@@ -53,6 +55,7 @@ export interface InputAreaProps {
 
 export function InputArea({
   onSend,
+  onAttachFiles,
   disabled,
   modelLabel,
   temperatureLabel,
@@ -71,6 +74,7 @@ export function InputArea({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const toolMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!textareaRef.current) return;
@@ -168,11 +172,27 @@ export function InputArea({
             className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-transparent text-sand transition-all duration-150 hover:bg-cream hover:text-ink disabled:opacity-50"
             disabled={disabled}
             aria-label={t("chat.input.attach")}
+            onClick={() => fileInputRef.current?.click()}
           >
             <div className="h-[18px] w-[18px]">
               <AttachIcon />
             </div>
           </button>
+
+          <input
+            ref={fileInputRef}
+            className="hidden"
+            type="file"
+            multiple
+            accept={getSupportedFileAcceptAttribute()}
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              if (files.length > 0) {
+                void onAttachFiles?.(files);
+              }
+              e.target.value = "";
+            }}
+          />
 
           <Button
             variant="primary"

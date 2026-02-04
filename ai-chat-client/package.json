@@ -1,6 +1,6 @@
 {
   "name": "@yxp934/prompt-tree",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Node-based DAG AI chat client with a tree CLI launcher (Next.js standalone).",
   "license": "MIT",
   "publishConfig": {
@@ -30,6 +30,7 @@
   "dependencies": {
     "date-fns": "^4.1.0",
     "next": "16.1.4",
+    "pdfjs-dist": "^4.10.38",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-markdown": "^9.0.1",

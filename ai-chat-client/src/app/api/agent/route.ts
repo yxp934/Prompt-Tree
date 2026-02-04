@@ -22,9 +22,13 @@ type OpenAIToolCall = {
   function: { name: string; arguments: string };
 };
 
+type OpenAIContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 type OpenAIMessage =
   | { role: "system"; content: string }
-  | { role: "user"; content: string }
+  | { role: "user"; content: string | OpenAIContentPart[] }
   | { role: "assistant"; content?: string | null; tool_calls?: OpenAIToolCall[] }
   | { role: "tool"; tool_call_id: string; content: string };
 
@@ -34,6 +38,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeString(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function isOpenAIContentPart(value: unknown): value is OpenAIContentPart {
+  if (!isRecord(value)) return false;
+  if (value.type === "text") return typeof value.text === "string";
+  if (value.type === "image_url") {
+    if (!isRecord(value.image_url)) return false;
+    return typeof value.image_url.url === "string" && value.image_url.url.length > 0;
+  }
+  return false;
 }
 
 function normalizeUrl(value: unknown): string | null {
@@ -243,10 +257,21 @@ function normalizeOpenAiMessages(value: unknown): OpenAIMessage[] | null {
   for (const item of value) {
     if (!isRecord(item)) return null;
     const role = normalizeString(item.role);
-    const content = normalizeString(item.content);
-    if (role === "system" || role === "user" || role === "assistant") {
-      out.push({ role, content });
+    if (role === "system" || role === "assistant") {
+      if (typeof item.content !== "string") return null;
+      out.push({ role, content: item.content });
       continue;
+    }
+    if (role === "user") {
+      if (typeof item.content === "string") {
+        out.push({ role, content: item.content });
+        continue;
+      }
+      if (Array.isArray(item.content) && item.content.every(isOpenAIContentPart)) {
+        out.push({ role, content: item.content });
+        continue;
+      }
+      return null;
     }
     return null;
   }

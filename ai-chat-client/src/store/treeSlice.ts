@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 
-import type { ContextBox, ConversationTree, Node } from "@/types";
+import type { ContextBlock, ContextBox, ConversationTree, Node } from "@/types";
 
 import type { AppStoreDeps, AppStoreState } from "./useStore";
 
@@ -22,6 +22,18 @@ function computeTotalTokens(nodeIds: string[], nodes: Map<string, Node>): number
   let total = 0;
   for (const id of nodeIds) {
     total += nodes.get(id)?.tokenCount ?? 0;
+  }
+  return total;
+}
+
+function computeTotalTokensFromBlocks(blocks: ContextBlock[], nodes: Map<string, Node>): number {
+  let total = 0;
+  for (const block of blocks) {
+    if (block.kind === "node") {
+      total += nodes.get(block.nodeId)?.tokenCount ?? 0;
+      continue;
+    }
+    total += block.tokenCount;
   }
   return total;
 }
@@ -138,7 +150,7 @@ export function createTreeSlice(
           const createdAt = Date.now();
           const fallback: ContextBox = {
             id: tree.id,
-            nodeIds: root ? [root.id] : [],
+            blocks: root ? [{ id: root.id, kind: "node", nodeId: root.id }] : [],
             totalTokens: root?.tokenCount ?? 0,
             maxTokens: DEFAULT_MAX_TOKENS,
             createdAt,
@@ -146,12 +158,15 @@ export function createTreeSlice(
           contextBox = await deps.contextBoxService.put(fallback);
         }
 
-        const filteredIds = contextBox.nodeIds.filter((id) => nodesMap.has(id));
-        if (filteredIds.length !== contextBox.nodeIds.length) {
+        const filteredBlocks = contextBox.blocks.filter((block) => {
+          if (block.kind !== "node") return true;
+          return nodesMap.has(block.nodeId);
+        });
+        if (filteredBlocks.length !== contextBox.blocks.length) {
           contextBox = await deps.contextBoxService.put({
             ...contextBox,
-            nodeIds: filteredIds,
-            totalTokens: computeTotalTokens(filteredIds, nodesMap),
+            blocks: filteredBlocks,
+            totalTokens: computeTotalTokensFromBlocks(filteredBlocks, nodesMap),
           });
         }
 

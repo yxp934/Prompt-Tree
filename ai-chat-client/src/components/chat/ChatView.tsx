@@ -74,6 +74,7 @@ export function ChatView() {
   const toolSettings = useAppStore((s) => s.toolSettings);
   const draftToolUses = useAppStore((s) => s.draftToolUses);
   const setDraftToolUses = useAppStore((s) => s.setDraftToolUses);
+  const addFilesToContext = useAppStore((s) => s.addFilesToContext);
 
   const sendMessage = useAppStore((s) => s.sendMessage);
 
@@ -152,6 +153,9 @@ export function ChatView() {
       <InputArea
         onSend={async (content) => {
           await sendMessage(content);
+        }}
+        onAttachFiles={async (files) => {
+          await addFilesToContext(files);
         }}
         disabled={isLoading || isSending}
         modelLabel={modelLabel}

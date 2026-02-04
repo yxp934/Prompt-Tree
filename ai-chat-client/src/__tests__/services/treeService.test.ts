@@ -31,7 +31,9 @@ describe("TreeService", () => {
     );
     await transactionToPromise(tx);
 
-    expect(contextBox?.nodeIds).toEqual([tree.rootId]);
+    expect(contextBox?.blocks).toEqual([
+      { id: tree.rootId, kind: "node", nodeId: tree.rootId },
+    ]);
   });
 
   it("lists, updates title, loads nodes, and deletes trees", async () => {

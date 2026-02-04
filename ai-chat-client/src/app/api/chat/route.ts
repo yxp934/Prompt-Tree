@@ -14,10 +14,25 @@ function isChatRole(value: unknown): value is ChatRole {
   return value === "system" || value === "user" || value === "assistant";
 }
 
+function isChatContentPart(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as { type?: unknown; text?: unknown; image_url?: unknown };
+  if (v.type === "text") return typeof v.text === "string";
+  if (v.type === "image_url") {
+    if (typeof v.image_url !== "object" || v.image_url === null) return false;
+    const url = (v.image_url as { url?: unknown }).url;
+    return typeof url === "string" && url.length > 0;
+  }
+  return false;
+}
+
 function isChatMessage(value: unknown): value is ChatMessage {
   if (typeof value !== "object" || value === null) return false;
   const v = value as { role?: unknown; content?: unknown };
-  return isChatRole(v.role) && typeof v.content === "string";
+  if (!isChatRole(v.role)) return false;
+  if (typeof v.content === "string") return true;
+  if (Array.isArray(v.content) && v.content.every(isChatContentPart)) return true;
+  return false;
 }
 
 function parseBaseUrl(value: unknown): string | null {

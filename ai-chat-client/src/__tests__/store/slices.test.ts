@@ -54,9 +54,9 @@ describe("store slices", () => {
     const tree = store.getState().getCurrentTree();
     const rootId = tree!.rootId;
 
-    const before = store.getState().contextBox?.nodeIds.length ?? 0;
+    const before = store.getState().contextBox?.blocks.length ?? 0;
     await store.getState().addToContext(rootId);
-    expect(store.getState().contextBox?.nodeIds.length).toBe(before);
+    expect(store.getState().contextBox?.blocks.length).toBe(before);
 
     const user = await store.getState().createNode({
       type: NodeType.USER,
@@ -65,7 +65,7 @@ describe("store slices", () => {
     });
 
     await store.getState().addToContext(user.id);
-    expect(store.getState().contextBox?.nodeIds).toContain(user.id);
+    expect(store.getState().contextBox?.blocks.map((b) => b.id)).toContain(user.id);
 
     const user2 = await store.getState().createNode({
       type: NodeType.USER,
@@ -73,19 +73,19 @@ describe("store slices", () => {
       content: "hello again",
     });
 
-    const beforeInsert = store.getState().contextBox?.nodeIds ?? [];
+    const beforeInsert = store.getState().contextBox?.blocks.map((b) => b.id) ?? [];
     const insertAt = Math.max(0, beforeInsert.indexOf(user.id));
     await store.getState().addToContext(user2.id, insertAt);
-    const afterInsert = store.getState().contextBox?.nodeIds ?? [];
+    const afterInsert = store.getState().contextBox?.blocks.map((b) => b.id) ?? [];
     expect(afterInsert.indexOf(user2.id)).toBeLessThan(afterInsert.indexOf(user.id));
 
     await store.getState().addToContext("missing-node");
 
     store.getState().removeFromContext(user.id);
-    expect(store.getState().contextBox?.nodeIds).not.toContain(user.id);
+    expect(store.getState().contextBox?.blocks.map((b) => b.id)).not.toContain(user.id);
 
     store.getState().clearContext();
-    expect(store.getState().contextBox?.nodeIds).toEqual([]);
+    expect(store.getState().contextBox?.blocks).toEqual([]);
 
     store.setState({ contextBox: null });
     await store.getState().addToContext(user.id);
@@ -157,7 +157,7 @@ describe("store slices", () => {
 
     await store.getState().loadTree(id);
     expect(store.getState().contextBox?.id).toBe(id);
-    expect(store.getState().contextBox?.nodeIds.length).toBeGreaterThan(0);
+    expect(store.getState().contextBox?.blocks.length).toBeGreaterThan(0);
   });
 
   it("deleting a non-current tree keeps currentTreeId unchanged", async () => {

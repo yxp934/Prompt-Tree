@@ -196,7 +196,13 @@ export async function testProviderModel(
 function inferModelCategory(modelId: string, objectType?: string): ModelConfig["category"] {
   const id = modelId.toLowerCase();
 
-  if (id.includes("vision") || id.includes("image") || id.includes("gpt-4o") || id.includes("claude-3")) {
+  if (
+    id.includes("vision") ||
+    id.includes("image") ||
+    id.includes("gpt-4o") ||
+    id.includes("claude-3") ||
+    id.includes("gemini")
+  ) {
     return "vision";
   }
   if (id.includes("embed")) {

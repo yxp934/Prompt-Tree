@@ -165,7 +165,7 @@ export function MessageItem({ node }: MessageItemProps) {
       ) : null}
 
       <div className="prose-prompt-tree pl-11 text-[0.95rem] leading-relaxed text-charcoal">
-        {isAssistant && isSending && !displayBody.trim() && body.trim() ? (
+        {isAssistant && isSending && !displayBody.trim() ? (
           <span className="font-mono text-[0.85rem] text-sand">
             {t("chat.thinking")}
           </span>

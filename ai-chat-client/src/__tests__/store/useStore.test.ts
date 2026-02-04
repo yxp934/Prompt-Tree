@@ -21,7 +21,9 @@ describe("Zustand store (AppStore)", () => {
     const current = state.getCurrentTree();
     expect(current).not.toBeNull();
     expect(state.nodes.has(current!.rootId)).toBe(true);
-    expect(state.contextBox?.nodeIds).toEqual([current!.rootId]);
+    expect(state.contextBox?.blocks).toEqual([
+      { id: current!.rootId, kind: "node", nodeId: current!.rootId },
+    ]);
   });
 
   it("creates nodes and builds context content", async () => {
@@ -63,4 +65,3 @@ describe("Zustand store (AppStore)", () => {
     expect(store.getState().trees.size).toBe(2);
   });
 });
-

@@ -43,7 +43,7 @@ export class TreeService {
 
     const contextBox: ContextBox = {
       id: tree.id,
-      nodeIds: [rootNode.id],
+      blocks: [{ id: rootNode.id, kind: "node", nodeId: rootNode.id }],
       totalTokens: rootNode.tokenCount,
       maxTokens: DEFAULT_MAX_TOKENS,
       createdAt: now,
@@ -165,13 +165,34 @@ export class TreeService {
     const db = await getDB();
     const tx = db.transaction([DB_CONFIG.stores.contextBoxes.name], "readwrite");
     const store = tx.objectStore(DB_CONFIG.stores.contextBoxes.name);
-    const box = await requestToPromise<ContextBox | undefined>(
-      store.get(tree.id) as IDBRequest<ContextBox | undefined>,
+    const raw = await requestToPromise<unknown>(
+      store.get(tree.id) as IDBRequest<unknown>,
     );
 
-    if (box && box.nodeIds.includes(tree.rootId)) {
+    const includesRoot = (() => {
+      if (!raw || typeof raw !== "object") return false;
+      const value = raw as Record<string, unknown>;
+      if (Array.isArray(value.blocks)) {
+        return value.blocks.some((block) => {
+          if (!block || typeof block !== "object") return false;
+          const b = block as Record<string, unknown>;
+          return b.kind === "node" && b.nodeId === tree.rootId;
+        });
+      }
+      if (Array.isArray(value.nodeIds)) {
+        return value.nodeIds.includes(tree.rootId);
+      }
+      return false;
+    })();
+
+    if (raw && includesRoot) {
       const delta = updatedRoot.tokenCount - (existingRoot?.tokenCount ?? 0);
-      store.put({ ...box, totalTokens: (box.totalTokens ?? 0) + delta });
+      store.put({
+        ...(raw as ContextBox),
+        totalTokens:
+          ((raw as { totalTokens?: unknown }).totalTokens as number | undefined ?? 0) +
+          delta,
+      });
     }
 
     await transactionToPromise(tx);

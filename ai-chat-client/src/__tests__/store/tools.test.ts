@@ -64,7 +64,10 @@ describe("tool use flow", () => {
     expect(agentParams?.toolUses).toEqual(["web_search"]);
     expect(
       agentParams?.messages.some(
-        (m) => m.role === "system" && m.content.includes("Citations (Perplexity-style):"),
+        (m) =>
+          m.role === "system" &&
+          typeof m.content === "string" &&
+          m.content.includes("Citations (Perplexity-style):"),
       ),
     ).toBe(true);
 

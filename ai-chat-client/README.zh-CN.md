@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-0.4.0-7A8B6E?style=flat-square" alt="Version 0.4.0" />
+  <img src="https://img.shields.io/badge/Version-0.5.0-7A8B6E?style=flat-square" alt="Version 0.5.0" />
   <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript 5" />
@@ -29,6 +29,14 @@ Prompt Tree 把对话变成一张**可视化画布**：可以分叉、对比、�
 - **对话 DAG（树 + 分支）**：从任意节点继续，对比不同分支结果。
 - **画布 + Chat 一体**：在可视化结构中进行对话与回溯。
 - **Context Box（上下文组装台）**：拖拽节点、排序、预览最终上下文、查看 Token 占用。
+- **长期记忆（3 层架构）**：
+  - **用户 Profile（JSON → 派生 Markdown）**：持久化的偏好/身份信息，在设置里完全可视化与可编辑。
+  - **记忆库（Memory Bank 条目）**：原子记忆条目，包含 tags / 状态 / 置信度 / 来源；支持 user / folder 两种作用域。
+  - **Folder Doc（JSON → 派生 Markdown）**：按 Folder 维护的长期文档，在 Folder 页面可视化与可编辑。
+  - **首条消息自动注入（每个 thread 只注入一次）**：将 `topK(folder) + topK(user)` 相关记忆 + 文档加入 Context Box；Folder 内比例可配置。
+  - **异步记忆写入器（Memory Writer LLM）**：每次用户发送消息都会异步触发；读取系统提示词 + 当前 thread 全部用户消息 + 本次发送携带的 Context 记忆快照；可更新 Profile / Folder Doc 并写入记忆（首条消息可强制至少写入 1 条）。
+  - **`search_memory` 工具 + Pin**：模型可在工具循环中搜索全量记忆库；命中记忆会加入 Context Box 并可 Pin；单 thread 自动/Pin 上限受控（Pin 优先于自动）。
+  - **Embedding（可选）**：Embedding 模型可配置；未启用/不可用时自动退化为词法匹配。
 - **多模型并行分支**：选择多个模型，一次发送生成多条分支回复。
 - **压缩/解压**：将选中的连续链路（或 Context）压缩成一个节点，需要时再解压恢复。
 - **工具（可选）**：Web Search（Tavily/Exa）、MCP Servers、本地 Python 执行。
@@ -147,7 +155,18 @@ pnpm dlx --package @yxp934/prompt-tree tree
 - 支持排序、预览最终上下文、查看 Token 占用
 - 支持压缩整个 Context 或压缩选中的连续链路（必须是同一路径的连续选择）
 
-### 7）工具（Web Search / MCP / Python）
+### 7）长期记忆（Profile / 记忆库 / Folder Doc）
+
+- 在 `Settings → Memory` 中配置：
+  - 开关长期记忆、首条消息自动注入、以及 `search_memory` 工具。
+  - 选择 **Memory Writer 模型** 与（可选）**Embedding 模型**。
+  - 可视化/编辑 **用户 Profile JSON** 与派生 Markdown。
+  - 浏览/编辑/删除/恢复记忆条目；更换 embedding 模型后可选择重算 embedding。
+- 在 Folder 线程中：
+  - 在 Folder 页面配置 **首条消息 RAG 比例**（`topKFolder/topKUser`）。
+  - 可视化/编辑 **Folder Doc JSON**，并管理 **Folder 作用域记忆**。
+
+### 8）工具（Web Search / MCP / Python）
 
 在 `Settings → Tools` 中配置：
 
@@ -160,8 +179,10 @@ pnpm dlx --package @yxp934/prompt-tree tree
 ## 隐私与数据（基于当前代码实现）
 
 - **对话数据**存储在浏览器 IndexedDB：`AIChatClientDB`
+- **长期记忆数据**（用户 Profile / Folder Doc / 记忆库 + 可选 embedding 向量）同样存储在该 IndexedDB 中
 - **Provider 配置 / API Key / 工具设置**存储在浏览器 `localStorage`（键名以 `prompt-tree.*` 为前缀）
 - 应用本地运行；当你生成回复或调用工具时，请求只会发往你配置的模型/工具服务端点（本仓库未发现内置的分析/遥测上报代码）
+- 若启用 **Memory Writer** 或 **Embedding**，会调用你配置的模型端点来完成对应能力
 - 若启用 **Python 工具**，会在本机通过启动 Python 进程执行代码，请在理解风险后再开启
 
 ## 开发者本地运行

@@ -6,10 +6,14 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 import { CompressionService } from "@/lib/services/compressionService";
 import { ContextBoxService } from "@/lib/services/contextBoxService";
 import { FolderService } from "@/lib/services/folderService";
+import { FolderDocService } from "@/lib/services/folderDocService";
 import { AgentService, type IAgentService } from "@/lib/services/agentService";
+import { EmbeddingService } from "@/lib/services/embeddingService";
 import { LLMService, type ILLMService } from "@/lib/services/llmService";
+import { MemoryBankService } from "@/lib/services/memoryBankService";
 import { NodeService } from "@/lib/services/nodeService";
 import { TreeService } from "@/lib/services/treeService";
+import { UserProfileService } from "@/lib/services/userProfileService";
 
 import { createContextSlice, type ContextSlice } from "./contextSlice";
 import { createFolderSlice, type FolderSlice } from "./folderSlice";
@@ -19,11 +23,16 @@ import { createTreeSlice, type TreeSlice } from "./treeSlice";
 import { createUISlice, type UISlice } from "./uiSlice";
 import { createProviderSlice, type ProviderSlice } from "./providerSlice";
 import { createToolSlice, type ToolSlice } from "./toolSlice";
+import { createLongTermMemorySlice, type LongTermMemorySlice } from "./longTermMemorySlice";
 
 export interface AppStoreDeps {
   nodeService: NodeService;
   treeService: TreeService;
   folderService: FolderService;
+  folderDocService: FolderDocService;
+  userProfileService: UserProfileService;
+  memoryBankService: MemoryBankService;
+  embeddingService: EmbeddingService;
   contextBoxService: ContextBoxService;
   llmService: ILLMService;
   agentService: IAgentService;
@@ -45,7 +54,8 @@ export type AppStoreState = BaseSlice &
   UISlice &
   LLMSlice &
   ProviderSlice &
-  ToolSlice;
+  ToolSlice &
+  LongTermMemorySlice;
 
 export function createAppStore(
   deps?: Partial<AppStoreDeps>,
@@ -54,6 +64,10 @@ export function createAppStore(
     nodeService: deps?.nodeService ?? new NodeService(),
     treeService: deps?.treeService ?? new TreeService(),
     folderService: deps?.folderService ?? new FolderService(),
+    folderDocService: deps?.folderDocService ?? new FolderDocService(),
+    userProfileService: deps?.userProfileService ?? new UserProfileService(),
+    memoryBankService: deps?.memoryBankService ?? new MemoryBankService(),
+    embeddingService: deps?.embeddingService ?? new EmbeddingService(),
     contextBoxService: deps?.contextBoxService ?? new ContextBoxService(),
     llmService: deps?.llmService ?? new LLMService(),
     agentService: deps?.agentService ?? new AgentService(),
@@ -104,6 +118,7 @@ export function createAppStore(
     ...createLLMSlice(services)(set, get, ...api),
     ...createProviderSlice(services)(set, get, ...api),
     ...createToolSlice()(set, get, ...api),
+    ...createLongTermMemorySlice()(set, get, ...api),
   }));
 }
 

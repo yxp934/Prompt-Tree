@@ -13,6 +13,10 @@ import { getSupportedFileAcceptAttribute } from "@/lib/services/fileImportServic
 import { stripModelThinkingTags } from "@/lib/services/messageContentService";
 import { estimateTokens } from "@/lib/services/tokenService";
 import { buildToolInstructionBlocks } from "@/lib/services/tools/toolInstructions";
+import {
+  LTM_PROFILE_BLOCK_ID,
+  parsePinnedMemoryBlockId,
+} from "@/lib/services/longTermMemoryBlocks";
 import { DND_NODE_ID } from "@/lib/utils/dnd";
 import { useAppStore } from "@/store/useStore";
 import { NodeType, type ContextBlock, type Node, type NodeMetaInstructions } from "@/types";
@@ -26,6 +30,7 @@ interface ContextCard {
   title: string;
   preview: string;
   tokens: number;
+  ltmMemory?: { memoryId: string; pinned: boolean };
 }
 
 function SystemIcon() {
@@ -269,9 +274,32 @@ function buildCompressionChainIds(
   return chain;
 }
 
+function PinIcon({ pinned }: { pinned: boolean }) {
+  return pinned ? (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M9 3l6 0m-6 0l0 6-2 3v2h10v-2l-2-3V3m-3 13v5m0-5l-3 3"
+      />
+    </svg>
+  ) : (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M9 3h6m-6 0v6l-2 3v2h10v-2l-2-3V3m-3 13v5"
+      />
+    </svg>
+  );
+}
+
 interface ContextCardItemProps {
   card: ContextCard;
   onRemove: (id: string) => void;
+  onTogglePin?: (memoryId: string) => void;
   onClick?: () => void;
   draggable?: boolean;
   onDragStart?: () => void;
@@ -282,6 +310,7 @@ interface ContextCardItemProps {
 function ContextCardItem({
   card,
   onRemove,
+  onTogglePin,
   onClick,
   draggable,
   onDragStart,
@@ -315,16 +344,34 @@ function ContextCardItem({
       }}
       onDragEnd={() => onDragEnd?.()}
     >
-      <button
-        className="context-card-remove absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-cream opacity-0 text-sand transition-all duration-150 hover:bg-[#e74c3c] hover:text-white"
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove(card.id);
-        }}
-        aria-label={t("context.removeFromContextAria")}
-      >
-        <CloseIcon />
-      </button>
+      <div className="absolute right-2.5 top-2.5 flex items-center gap-1.5">
+        {card.ltmMemory && onTogglePin ? (
+          <button
+            className="context-card-remove flex h-5 w-5 items-center justify-center rounded-full bg-cream opacity-0 text-sand transition-all duration-150 hover:bg-copper hover:text-white"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePin(card.ltmMemory!.memoryId);
+            }}
+            aria-label={card.ltmMemory.pinned ? t("context.unpinAria") : t("context.pinAria")}
+            title={card.ltmMemory.pinned ? t("context.unpin") : t("context.pin")}
+          >
+            <div className="h-3 w-3">
+              <PinIcon pinned={card.ltmMemory.pinned} />
+            </div>
+          </button>
+        ) : null}
+
+        <button
+          className="context-card-remove flex h-5 w-5 items-center justify-center rounded-full bg-cream opacity-0 text-sand transition-all duration-150 hover:bg-[#e74c3c] hover:text-white"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(card.id);
+          }}
+          aria-label={t("context.removeFromContextAria")}
+        >
+          <CloseIcon />
+        </button>
+      </div>
 
       <div className="mb-2 flex items-center gap-2.5">
         <div
@@ -359,6 +406,7 @@ export default function ContextPanel() {
   const clearContext = useAppStore((s) => s.clearContext);
   const reorderContext = useAppStore((s) => s.reorderContext);
   const buildContextContent = useAppStore((s) => s.buildContextContent);
+  const togglePinLongTermMemory = useAppStore((s) => s.togglePinLongTermMemory);
   const toolSettings = useAppStore((s) => s.toolSettings);
   const draftToolUses = useAppStore((s) => s.draftToolUses);
   const toggleDraftToolUse = useAppStore((s) => s.toggleDraftToolUse);
@@ -395,6 +443,9 @@ export default function ContextPanel() {
       if (!block) continue;
 
       if (block.kind === "file") {
+        const parsed = parsePinnedMemoryBlockId(block.id);
+        const isProfile = block.id === LTM_PROFILE_BLOCK_ID;
+        const isFolderDoc = block.id.startsWith("ltm.folderDoc:");
         const preview =
           block.fileKind === "image"
             ? `${block.mimeType} · ${(block.size / 1024).toFixed(1)} KB`
@@ -402,13 +453,22 @@ export default function ContextPanel() {
         out.push({
           id: block.id,
           type: "file",
-          title: block.filename,
+          title: isProfile
+            ? t("context.ltm.profile")
+            : isFolderDoc
+              ? t("context.ltm.folderDoc")
+              : parsed
+                ? parsed.pinned
+                  ? t("context.ltm.memoryPinned")
+                  : t("context.ltm.memory")
+                : block.filename,
           preview:
             preview ||
             (block.fileKind === "image"
               ? t("common.data")
               : t("tree.node.emptyContent")),
           tokens: block.tokenCount,
+          ...(parsed ? { ltmMemory: parsed } : {}),
         });
         continue;
       }
@@ -741,6 +801,7 @@ export default function ContextPanel() {
                 key={card.id}
                 card={card}
                 onRemove={removeFromContext}
+                onTogglePin={(memoryId) => void togglePinLongTermMemory(memoryId)}
                 onClick={() => {
                   const block = blockById.get(card.id) ?? null;
                   if (!block || block.kind !== "file") return;

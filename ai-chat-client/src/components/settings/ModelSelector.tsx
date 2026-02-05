@@ -10,7 +10,8 @@ import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/useStore";
 import { useT } from "@/lib/i18n/useT";
 import { isMessageKey } from "@/lib/i18n/translate";
-import type { ModelConfig } from "@/types/provider";
+import type { MessageKey } from "@/lib/i18n/messages";
+import { createModelConfig, type ModelConfig } from "@/types/provider";
 
 import { CloseIcon, SearchIcon, RefreshIcon, PlusIcon, CheckIcon } from "./icons";
 
@@ -145,15 +146,18 @@ export function ModelSelector({ open, onClose }: ModelSelectorProps) {
   const t = useT();
   const providers = useAppStore((s) => s.providers);
   const modelSelector = useAppStore((s) => s.modelSelector);
-  const closeModelSelector = useAppStore((s) => s.closeModelSelector);
   const setModelSelectorSearch = useAppStore((s) => s.setModelSelectorSearch);
   const setModelSelectorTab = useAppStore((s) => s.setModelSelectorTab);
   const fetchModelsForSelector = useAppStore((s) => s.fetchModelsForSelector);
   const addFetchedModels = useAppStore((s) => s.addFetchedModels);
+  const addModel = useAppStore((s) => s.addModel);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [manualModelInput, setManualModelInput] = useState("");
+  const [manualModelError, setManualModelError] = useState<MessageKey | null>(null);
 
   const provider = providers.find((p) => p.id === modelSelector.providerId);
+  const providerId = provider?.id ?? null;
   const existingIds = new Set(provider?.models.map((m) => m.id) || []);
 
   // 过滤已存在的模型
@@ -210,17 +214,48 @@ export function ModelSelector({ open, onClose }: ModelSelectorProps) {
     }
   };
 
+  const handleAddManual = () => {
+    if (!provider) return;
+
+    const raw = manualModelInput.trim();
+    if (!raw) {
+      setManualModelError("modelSelector.manual.error.empty");
+      return;
+    }
+
+    const ids = Array.from(
+      new Set(
+        raw
+          .split(/[,\n]/)
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    );
+
+    const newIds = ids.filter((id) => !existingIds.has(id));
+    if (newIds.length === 0) {
+      setManualModelError("modelSelector.manual.error.exists");
+      return;
+    }
+
+    newIds.forEach((id) => addModel(provider.id, createModelConfig(id)));
+    setManualModelInput("");
+    setManualModelError(null);
+  };
+
   // 打开时自动加载模型
   useEffect(() => {
-    if (open && provider && modelSelector.fetchedModels.length === 0) {
-      fetchModelsForSelector(provider.id);
+    if (open && providerId && modelSelector.fetchedModels.length === 0) {
+      void fetchModelsForSelector(providerId);
     }
-  }, [open]);
+  }, [fetchModelsForSelector, modelSelector.fetchedModels.length, open, providerId]);
 
   // 关闭时重置状态
   useEffect(() => {
     if (!open) {
       setSelectedIds(new Set());
+      setManualModelInput("");
+      setManualModelError(null);
     }
   }, [open]);
 
@@ -295,6 +330,40 @@ export function ModelSelector({ open, onClose }: ModelSelectorProps) {
               <RefreshIcon />
             </button>
           </div>
+
+          <div className="mt-3 flex items-center gap-3">
+            <input
+              type="text"
+              value={manualModelInput}
+              onChange={(e) => {
+                setManualModelInput(e.target.value);
+                setManualModelError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddManual();
+                }
+              }}
+              placeholder={t("modelSelector.manual.placeholder")}
+              className="flex-1 rounded-xl border border-parchment bg-cream px-4 py-2.5 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+            />
+            <button
+              type="button"
+              className="flex flex-shrink-0 items-center gap-2 rounded-xl bg-copper px-4 py-2.5 font-body text-[0.9rem] text-white transition-colors hover:bg-copper/90 disabled:opacity-50 disabled:hover:bg-copper"
+              onClick={handleAddManual}
+              disabled={!manualModelInput.trim() || !provider}
+            >
+              <PlusIcon />
+              {t("modelSelector.manual.add")}
+            </button>
+          </div>
+
+          {manualModelError && (
+            <p className="mt-2 font-body text-[0.8rem] text-red-500">
+              {t(manualModelError)}
+            </p>
+          )}
         </div>
 
         {/* 分类标签 */}

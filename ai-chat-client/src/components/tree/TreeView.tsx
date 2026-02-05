@@ -168,22 +168,32 @@ export function TreeView({ fitViewOnInit = true, fitViewTrigger }: TreeViewProps
     [applyAutoLayout, clearSelection, nodesMap, setActiveNode, updateNode],
   );
 
-  const graph = useMemo(() => {
-    if (!currentTree) return { nodes: [], edges: [], branchCount: 0 };
+  useEffect(() => {
+    if (!currentTree) {
+      setFlowNodes([]);
+      setFlowEdges([]);
+      return;
+    }
 
-    return buildFlowGraph({
+    const graph = buildFlowGraph({
       nodes: nodesMap.values(),
       rootId: currentTree.rootId,
       activeNodeId,
       selectedNodeIds,
       onToggleCollapse: toggleCompressedNode,
     });
-  }, [currentTree, nodesMap, activeNodeId, selectedNodeIds, toggleCompressedNode]);
 
-  useEffect(() => {
     setFlowNodes(graph.nodes);
     setFlowEdges(graph.edges);
-  }, [graph.nodes, graph.edges, setFlowNodes, setFlowEdges]);
+  }, [
+    activeNodeId,
+    currentTree,
+    nodesMap,
+    selectedNodeIds,
+    setFlowEdges,
+    setFlowNodes,
+    toggleCompressedNode,
+  ]);
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {

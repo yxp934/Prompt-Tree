@@ -365,16 +365,16 @@ export function ProviderConfig() {
 
   const selectedProvider = providers.find((p) => p.id === selectedProviderId) || null;
 
-  useEffect(() => {
-    if (selectedProvider) {
-      setProviderName(selectedProvider.name);
-      setBaseUrl(selectedProvider.baseUrl);
-    } else {
-      setProviderName("");
-      setBaseUrl("");
-    }
-    setCheckError(null);
-  }, [selectedProviderId]);
+	  useEffect(() => {
+	    if (selectedProvider) {
+	      setProviderName(selectedProvider.name);
+	      setBaseUrl(selectedProvider.baseUrl);
+	    } else {
+	      setProviderName("");
+	      setBaseUrl("");
+	    }
+	    setCheckError(null);
+	  }, [selectedProvider]);
 
   const handleUpdateName = (name: string) => {
     setProviderName(name);

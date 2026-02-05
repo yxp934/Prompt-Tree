@@ -19,6 +19,9 @@ describe("sendMessage flow", () => {
 
     const store = createAppStore({ llmService });
     await store.getState().initialize();
+    store.setState({
+      longTermMemorySettings: { ...store.getState().longTermMemorySettings, enabled: false },
+    });
 
     const assistantNode = await store.getState().sendMessage("Hello");
 
@@ -51,6 +54,9 @@ describe("sendMessage flow", () => {
 
     const store = createAppStore({ llmService });
     await store.getState().initialize();
+    store.setState({
+      longTermMemorySettings: { ...store.getState().longTermMemorySettings, enabled: false },
+    });
 
     const tree = store.getState().getCurrentTree();
     const assistantNode = await store
@@ -79,6 +85,9 @@ describe("sendMessage flow", () => {
 
     const store = createAppStore({ llmService });
     await store.getState().initialize();
+    store.setState({
+      longTermMemorySettings: { ...store.getState().longTermMemorySettings, enabled: false },
+    });
 
     await store
       .getState()
@@ -140,11 +149,17 @@ describe("sendMessage flow", () => {
   });
 
   it("treats gemini models as vision-capable for image blocks", async () => {
-    const chatMock = vi.fn(async (_params: ChatParams) => "ok");
+    const chatMock = vi.fn(async (params: ChatParams) => {
+      void params;
+      return "ok";
+    });
     const llmService: ILLMService = { chat: chatMock };
 
     const store = createAppStore({ llmService });
     await store.getState().initialize();
+    store.setState({
+      longTermMemorySettings: { ...store.getState().longTermMemorySettings, enabled: false },
+    });
 
     store.setState({
       providers: [
@@ -198,11 +213,17 @@ describe("sendMessage flow", () => {
   });
 
   it("rejects when all selected models lack vision support for image blocks", async () => {
-    const chatMock = vi.fn(async (_params: ChatParams) => "ok");
+    const chatMock = vi.fn(async (params: ChatParams) => {
+      void params;
+      return "ok";
+    });
     const llmService: ILLMService = { chat: chatMock };
 
     const store = createAppStore({ llmService });
     await store.getState().initialize();
+    store.setState({
+      longTermMemorySettings: { ...store.getState().longTermMemorySettings, enabled: false },
+    });
 
     store.setState({
       providers: [

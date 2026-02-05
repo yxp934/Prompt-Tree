@@ -1,26 +1,38 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Modal } from "@/components/common/Modal";
 import { deleteDB } from "@/lib/db/indexedDB";
 import { setOpenAIApiKey } from "@/lib/services/apiKeyService";
 import { setOpenAIBaseUrl } from "@/lib/services/apiUrlService";
+import { EmbeddingService } from "@/lib/services/embeddingService";
 import {
   DEFAULT_LLM_SETTINGS,
   type LLMSettings,
 } from "@/lib/services/llmSettingsService";
 import {
+  LTM_PROFILE_BLOCK_ID,
+  buildAutoMemoryBlockId,
+  buildMemoryContextBlock,
+  buildPinnedMemoryBlockId,
+  buildProfileContextBlock,
+} from "@/lib/services/longTermMemoryBlocks";
+import { renderUserProfileMarkdown } from "@/lib/services/longTermMemoryMarkdown";
+import { MemoryBankService } from "@/lib/services/memoryBankService";
+import {
   buildModelSelectionKey,
   getEnabledModelOptions,
   type EnabledModelOption,
 } from "@/lib/services/providerModelService";
+import { UserProfileService } from "@/lib/services/userProfileService";
 import { useT } from "@/lib/i18n/useT";
 import { testProviderModel } from "@/lib/services/providerApiService";
 import {
   clearStoredHealthChecks,
   clearStoredProviders,
 } from "@/lib/services/providerStorageService";
+import type { JsonObject, MemoryItem, MemoryStatus } from "@/types";
 import { getPrimaryApiKey, type ProviderModelSelection } from "@/types/provider";
 import { useAppStore } from "@/store/useStore";
 
@@ -603,6 +615,859 @@ export function DisplaySettingsPanel() {
           </div>
         </section>
       </div>
+    </PanelShell>
+  );
+}
+
+export function LongTermMemoryPanel() {
+  const t = useT();
+  const locale = useAppStore((s) => s.locale);
+  const providers = useAppStore((s) => s.providers);
+  const currentTree = useAppStore((s) => s.getCurrentTree());
+  const contextBox = useAppStore((s) => s.contextBox);
+  const upsertFileBlock = useAppStore((s) => s.upsertFileBlock);
+  const removeFromContext = useAppStore((s) => s.removeFromContext);
+
+  const settings = useAppStore((s) => s.longTermMemorySettings);
+  const setLongTermMemorySettings = useAppStore((s) => s.setLongTermMemorySettings);
+
+  const enabledModelOptions = useMemo(
+    () => getEnabledModelOptions(providers),
+    [providers],
+  );
+
+  const availableModelKeys = useMemo(
+    () => new Set(enabledModelOptions.map(buildModelSelectionKey)),
+    [enabledModelOptions],
+  );
+
+  useEffect(() => {
+    const writerKey = settings.memoryWriterModel
+      ? buildModelSelectionKey(settings.memoryWriterModel)
+      : null;
+    if (writerKey && !availableModelKeys.has(writerKey)) {
+      setLongTermMemorySettings({ memoryWriterModel: null });
+    }
+    const embedKey = settings.embeddingModel
+      ? buildModelSelectionKey(settings.embeddingModel)
+      : null;
+    if (embedKey && !availableModelKeys.has(embedKey)) {
+      setLongTermMemorySettings({ embeddingModel: null });
+    }
+  }, [
+    availableModelKeys,
+    enabledModelOptions.length,
+    setLongTermMemorySettings,
+    settings.embeddingModel,
+    settings.memoryWriterModel,
+  ]);
+
+  const profileServiceRef = useRef<UserProfileService | null>(null);
+  const memoryBankServiceRef = useRef<MemoryBankService | null>(null);
+  const embeddingServiceRef = useRef<EmbeddingService | null>(null);
+
+  if (!profileServiceRef.current) profileServiceRef.current = new UserProfileService();
+  if (!memoryBankServiceRef.current) memoryBankServiceRef.current = new MemoryBankService();
+  if (!embeddingServiceRef.current) embeddingServiceRef.current = new EmbeddingService();
+
+  const [profileDraft, setProfileDraft] = useState("");
+  const [profileMarkdown, setProfileMarkdown] = useState("");
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSavedAt, setProfileSavedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const doc = await profileServiceRef.current!.read();
+      if (cancelled) return;
+      setProfileDraft(JSON.stringify(doc.data, null, 2));
+      setProfileMarkdown(renderUserProfileMarkdown(doc));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const saveProfile = async () => {
+    setProfileError(null);
+    try {
+      const raw = JSON.parse(profileDraft) as unknown;
+      if (!isRecord(raw)) {
+        setProfileError(t("settings.memory.profile.invalidJson"));
+        return;
+      }
+
+      const updated = await profileServiceRef.current!.replaceData(raw as JsonObject);
+      setProfileDraft(JSON.stringify(updated.data, null, 2));
+      setProfileMarkdown(renderUserProfileMarkdown(updated));
+      setProfileSavedAt(Date.now());
+
+      const hasProfileBlock =
+        contextBox?.blocks.some((b) => b.kind === "file" && b.id === LTM_PROFILE_BLOCK_ID) ??
+        false;
+      if (currentTree && hasProfileBlock) {
+        await upsertFileBlock(
+          buildProfileContextBlock(renderUserProfileMarkdown(updated)),
+          currentTree.rootId,
+        );
+      }
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : t("settings.memory.profile.invalidJson"));
+    }
+  };
+
+  const selectionToValue = (selection: ProviderModelSelection | null): string =>
+    selection ? buildModelSelectionKey(selection) : "";
+
+  const valueToSelection = (value: string): ProviderModelSelection | null => {
+    const option = enabledModelOptions.find((o) => buildModelSelectionKey(o) === value) ?? null;
+    if (!option) return null;
+    return { providerId: option.providerId, modelId: option.modelId };
+  };
+
+  const [memoryQuery, setMemoryQuery] = useState("");
+  const [memoryScope, setMemoryScope] = useState<"all" | "user" | "folder">("all");
+  const [memoryStatus, setMemoryStatus] = useState<MemoryStatus | "all">("active");
+  const [memoriesLoading, setMemoriesLoading] = useState(false);
+  const [memories, setMemories] = useState<MemoryItem[]>([]);
+  const [memoriesError, setMemoriesError] = useState<string | null>(null);
+
+  const reloadMemories = async () => {
+    setMemoriesLoading(true);
+    setMemoriesError(null);
+    try {
+      const list = await memoryBankServiceRef.current!.list({
+        ...(memoryScope === "all" ? {} : { scope: memoryScope }),
+        ...(memoryStatus === "all" ? {} : { status: memoryStatus }),
+      });
+      setMemories(list);
+    } catch (err) {
+      setMemoriesError(err instanceof Error ? err.message : "Failed to load memories.");
+    } finally {
+      setMemoriesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void reloadMemories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memoryScope, memoryStatus]);
+
+  const filteredMemories = useMemo(() => {
+    const q = memoryQuery.trim().toLowerCase();
+    if (!q) return memories;
+    return memories.filter((m) => {
+      const haystack = `${m.text}\n${m.tags.join(" ")}\n${m.scope}\n${m.folderId ?? ""}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [memories, memoryQuery]);
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingMemory, setEditingMemory] = useState<MemoryItem | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editTags, setEditTags] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
+
+  const openEditModal = (item: MemoryItem) => {
+    setEditingMemory(item);
+    setEditText(item.text);
+    setEditTags(item.tags.join(", "));
+    setEditError(null);
+    setEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    if (editBusy) return;
+    setEditModalOpen(false);
+    setEditingMemory(null);
+  };
+
+  const parseTags = (input: string): string[] =>
+    input
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+  const refreshMemoryBlocksInContext = async (updated: MemoryItem) => {
+    if (!currentTree || !contextBox) return;
+    const autoId = buildAutoMemoryBlockId(updated.id);
+    const pinId = buildPinnedMemoryBlockId(updated.id);
+    const hasPin = contextBox.blocks.some((b) => b.kind === "file" && b.id === pinId);
+    const hasAuto = contextBox.blocks.some((b) => b.kind === "file" && b.id === autoId);
+    if (!hasPin && !hasAuto) return;
+
+    if (hasPin && hasAuto) {
+      removeFromContext(autoId);
+    }
+
+    await upsertFileBlock(
+      buildMemoryContextBlock({ item: updated, pinned: hasPin }),
+      currentTree.rootId,
+    );
+  };
+
+  const saveMemoryEdit = async () => {
+    if (!editingMemory || editBusy) return;
+    setEditBusy(true);
+    setEditError(null);
+
+    try {
+      const text = editText.trim();
+      const tags = parseTags(editTags);
+      if (!text || tags.length === 0) {
+        setEditError(t("settings.memory.memories.editor.invalid"));
+        return;
+      }
+
+      const updated = await memoryBankServiceRef.current!.edit({
+        id: editingMemory.id,
+        text,
+        tags,
+      });
+
+      await refreshMemoryBlocksInContext(updated);
+      await reloadMemories();
+      setEditModalOpen(false);
+      setEditingMemory(null);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Failed to save memory.");
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  const deleteMemory = async (item: MemoryItem) => {
+    await memoryBankServiceRef.current!.softDelete(item.id);
+    const autoId = buildAutoMemoryBlockId(item.id);
+    const pinId = buildPinnedMemoryBlockId(item.id);
+    removeFromContext(autoId);
+    removeFromContext(pinId);
+    await reloadMemories();
+  };
+
+  const restoreMemory = async (item: MemoryItem) => {
+    await memoryBankServiceRef.current!.restore(item.id);
+    await reloadMemories();
+  };
+
+  const [reembedBusy, setReembedBusy] = useState(false);
+  const [reembedModalOpen, setReembedModalOpen] = useState(false);
+  const [reembedStatus, setReembedStatus] = useState<string | null>(null);
+
+  const reembedActiveMemories = async () => {
+    const selection = settings.embeddingModel;
+    if (!selection) return;
+
+    setReembedBusy(true);
+    setReembedStatus(null);
+
+    try {
+      const active = await memoryBankServiceRef.current!.list({ status: "active" });
+      if (active.length === 0) {
+        setReembedStatus(t("settings.memory.memories.empty"));
+        return;
+      }
+
+      const chunkSize = 24;
+      for (let i = 0; i < active.length; i += chunkSize) {
+        const chunk = active.slice(i, i + chunkSize);
+        const res = await embeddingServiceRef.current!.embedBatchWithSelection({
+          providers,
+          selection,
+          texts: chunk.map((m) => m.text),
+        });
+        if (!res) {
+          throw new Error(t("errors.missingApiKey"));
+        }
+
+        await Promise.all(
+          chunk.map((m, idx) =>
+            memoryBankServiceRef.current!.updateEmbedding({
+              id: m.id,
+              embedding: res.embeddings[idx]!,
+              embeddingModelKey: res.embeddingModelKey,
+            }),
+          ),
+        );
+      }
+
+      setReembedStatus(t("settings.memory.embedding.reembedAll.done"));
+      await reloadMemories();
+    } catch (err) {
+      setReembedStatus(err instanceof Error ? err.message : "Embedding failed.");
+    } finally {
+      setReembedBusy(false);
+      setReembedModalOpen(false);
+    }
+  };
+
+  return (
+    <PanelShell title={t("settings.memory.title")} description={t("settings.memory.description")}>
+      <div className="space-y-10">
+        <section className="space-y-4">
+          <div className="font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+            {t("settings.memory.core.title")}
+          </div>
+
+          <label className="flex items-start justify-between gap-4 rounded-2xl border border-parchment/20 bg-washi-cream/50 p-5">
+            <div>
+              <div className="font-zen-display text-lg font-light text-ink-black">
+                {t("settings.memory.enabled")}
+              </div>
+              <div className="mt-2 font-zen-body text-xs text-stone-gray font-light">
+                {t("settings.memory.enabledDesc")}
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              className="mt-1 h-5 w-5 accent-matcha-green"
+              checked={settings.enabled}
+              onChange={(e) => setLongTermMemorySettings({ enabled: e.target.checked })}
+            />
+          </label>
+
+          <label className="flex items-start justify-between gap-4 rounded-2xl border border-parchment/20 bg-washi-cream/50 p-5">
+            <div>
+              <div className="font-zen-display text-lg font-light text-ink-black">
+                {t("settings.memory.autoInject")}
+              </div>
+              <div className="mt-2 font-zen-body text-xs text-stone-gray font-light">
+                {t("settings.memory.autoInjectDesc")}
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              className="mt-1 h-5 w-5 accent-matcha-green"
+              checked={settings.autoInjectOnFirstMessage}
+              onChange={(e) =>
+                setLongTermMemorySettings({ autoInjectOnFirstMessage: e.target.checked })
+              }
+            />
+          </label>
+
+          <label className="flex items-start justify-between gap-4 rounded-2xl border border-parchment/20 bg-washi-cream/50 p-5">
+            <div>
+              <div className="font-zen-display text-lg font-light text-ink-black">
+                {t("settings.memory.searchTool")}
+              </div>
+              <div className="mt-2 font-zen-body text-xs text-stone-gray font-light">
+                {t("settings.memory.searchToolDesc")}
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              className="mt-1 h-5 w-5 accent-matcha-green"
+              checked={settings.enableMemorySearchTool}
+              onChange={(e) =>
+                setLongTermMemorySettings({ enableMemorySearchTool: e.target.checked })
+              }
+            />
+          </label>
+        </section>
+
+        <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
+          <div className="mb-5 font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+            {t("settings.memory.models.title")}
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <label className="space-y-2">
+              <div className="font-zen-body text-xs text-stone-gray font-light">
+                {t("settings.memory.writerModel")}
+              </div>
+              <select
+                className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+                value={selectionToValue(settings.memoryWriterModel)}
+                onChange={(e) =>
+                  setLongTermMemorySettings({ memoryWriterModel: valueToSelection(e.target.value) })
+                }
+              >
+                <option value="">{t("settings.memory.model.useDefault")}</option>
+                {enabledModelOptions.map((option) => (
+                  <option key={buildModelSelectionKey(option)} value={buildModelSelectionKey(option)}>
+                    {option.providerName ? `${option.providerName} · ${option.modelId}` : option.modelId}
+                  </option>
+                ))}
+              </select>
+              <div className="font-zen-body text-[0.7rem] text-stone-gray/70 font-light">
+                {t("settings.memory.writerModelDesc")}
+              </div>
+            </label>
+
+            <label className="space-y-2">
+              <div className="font-zen-body text-xs text-stone-gray font-light">
+                {t("settings.memory.embeddingModel")}
+              </div>
+              <select
+                className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+                value={selectionToValue(settings.embeddingModel)}
+                onChange={(e) =>
+                  setLongTermMemorySettings({ embeddingModel: valueToSelection(e.target.value) })
+                }
+              >
+                <option value="">{t("settings.memory.embedding.disabled")}</option>
+                {enabledModelOptions.map((option) => (
+                  <option key={buildModelSelectionKey(option)} value={buildModelSelectionKey(option)}>
+                    {option.providerName ? `${option.providerName} · ${option.modelId}` : option.modelId}
+                  </option>
+                ))}
+              </select>
+              <div className="font-zen-body text-[0.7rem] text-stone-gray/70 font-light">
+                {t("settings.memory.embeddingModelDesc")}
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-parchment/30 bg-shoji-white px-4 py-2 text-sm text-stone-gray transition-all duration-200 hover:border-matcha-green/50 hover:text-matcha-green disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!settings.embeddingModel || reembedBusy}
+                  onClick={() => setReembedModalOpen(true)}
+                >
+                  {reembedBusy
+                    ? t("settings.memory.embedding.reembedAll.running")
+                    : t("settings.memory.embedding.reembedAll")}
+                </button>
+                {reembedStatus ? (
+                  <span className="font-zen-body text-xs text-stone-gray font-light">
+                    {reembedStatus}
+                  </span>
+                ) : null}
+              </div>
+            </label>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
+          <div className="mb-5 font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+            {t("settings.memory.limits.title")}
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <label className="space-y-2">
+              <div className="font-zen-body text-xs text-stone-gray font-light">
+                {t("settings.memory.limits.autoMax")}
+              </div>
+              <input
+                type="number"
+                min={0}
+                max={200}
+                className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+                value={settings.maxAutoMemoriesPerThread}
+                onChange={(e) =>
+                  setLongTermMemorySettings({ maxAutoMemoriesPerThread: Number(e.target.value) })
+                }
+              />
+            </label>
+
+            <label className="space-y-2">
+              <div className="font-zen-body text-xs text-stone-gray font-light">
+                {t("settings.memory.limits.pinnedMax")}
+              </div>
+              <input
+                type="number"
+                min={0}
+                max={200}
+                className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+                value={settings.maxPinnedMemoriesPerThread}
+                onChange={(e) =>
+                  setLongTermMemorySettings({ maxPinnedMemoriesPerThread: Number(e.target.value) })
+                }
+              />
+            </label>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div className="font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+            {t("settings.memory.writer.title")}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="flex items-center justify-between gap-4 rounded-2xl border border-parchment/20 bg-washi-cream/50 p-5">
+              <div className="font-zen-body text-sm text-stone-gray font-light">
+                {t("settings.memory.writer.profile")}
+              </div>
+              <input
+                type="checkbox"
+                className="h-5 w-5 accent-matcha-green"
+                checked={settings.enableProfileUpdates}
+                onChange={(e) =>
+                  setLongTermMemorySettings({ enableProfileUpdates: e.target.checked })
+                }
+              />
+            </label>
+
+            <label className="flex items-center justify-between gap-4 rounded-2xl border border-parchment/20 bg-washi-cream/50 p-5">
+              <div className="font-zen-body text-sm text-stone-gray font-light">
+                {t("settings.memory.writer.folderDoc")}
+              </div>
+              <input
+                type="checkbox"
+                className="h-5 w-5 accent-matcha-green"
+                checked={settings.enableFolderDocUpdates}
+                onChange={(e) =>
+                  setLongTermMemorySettings({ enableFolderDocUpdates: e.target.checked })
+                }
+              />
+            </label>
+
+            <label className="flex items-center justify-between gap-4 rounded-2xl border border-parchment/20 bg-washi-cream/50 p-5">
+              <div className="font-zen-body text-sm text-stone-gray font-light">
+                {t("settings.memory.writer.memories")}
+              </div>
+              <input
+                type="checkbox"
+                className="h-5 w-5 accent-matcha-green"
+                checked={settings.enableMemoryUpdates}
+                onChange={(e) =>
+                  setLongTermMemorySettings({ enableMemoryUpdates: e.target.checked })
+                }
+              />
+            </label>
+
+            <label className="flex items-center justify-between gap-4 rounded-2xl border border-parchment/20 bg-washi-cream/50 p-5">
+              <div className="font-zen-body text-sm text-stone-gray font-light">
+                {t("settings.memory.writer.forceFirstMemory")}
+              </div>
+              <input
+                type="checkbox"
+                className="h-5 w-5 accent-matcha-green"
+                checked={settings.forceFirstMessageMemoryUpsert}
+                onChange={(e) =>
+                  setLongTermMemorySettings({ forceFirstMessageMemoryUpsert: e.target.checked })
+                }
+              />
+            </label>
+
+            <label className="flex items-center justify-between gap-4 rounded-2xl border border-parchment/20 bg-washi-cream/50 p-5 md:col-span-2">
+              <div className="font-zen-body text-sm text-stone-gray font-light">
+                {t("settings.memory.writer.forceFirstFolderDoc")}
+              </div>
+              <input
+                type="checkbox"
+                className="h-5 w-5 accent-matcha-green"
+                checked={settings.forceFirstMessageFolderDocUpsert}
+                onChange={(e) =>
+                  setLongTermMemorySettings({ forceFirstMessageFolderDocUpsert: e.target.checked })
+                }
+              />
+            </label>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div className="font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+              {t("settings.memory.profile.title")}
+            </div>
+            <button
+              type="button"
+              className="rounded-lg bg-matcha-green px-4 py-2 text-sm text-shoji-white transition-all duration-200 hover:bg-matcha-green/90"
+              onClick={saveProfile}
+            >
+              {t("settings.memory.profile.save")}
+            </button>
+          </div>
+
+          {profileError ? (
+            <div className="mb-4 rounded-xl border border-[#e74c3c]/30 bg-[#e74c3c]/10 p-3 font-zen-body text-xs text-[#b1382c]">
+              {profileError}
+            </div>
+          ) : null}
+
+          {profileSavedAt ? (
+            <div className="mb-4 font-zen-body text-xs text-stone-gray/70 font-light">
+              {t("settings.memory.profile.saved")} · {new Date(profileSavedAt).toLocaleString(locale)}
+            </div>
+          ) : null}
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <label className="space-y-2">
+              <div className="font-zen-body text-xs text-stone-gray font-light">
+                {t("settings.memory.profile.json")}
+              </div>
+              <textarea
+                className="h-[320px] w-full resize-none rounded-xl border border-parchment bg-paper px-4 py-3 font-mono text-[0.75rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+                value={profileDraft}
+                onChange={(e) => setProfileDraft(e.target.value)}
+              />
+            </label>
+
+            <div className="space-y-2">
+              <div className="font-zen-body text-xs text-stone-gray font-light">
+                {t("settings.memory.profile.markdown")}
+              </div>
+              <pre className="h-[320px] overflow-auto rounded-xl border border-parchment bg-paper p-4 font-mono text-[0.75rem] text-ink">
+                {profileMarkdown}
+              </pre>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+                {t("settings.memory.memories.title")}
+              </div>
+              <div className="mt-1 font-zen-body text-xs text-stone-gray/70 font-light">
+                {memoriesLoading ? t("common.loading") : `${filteredMemories.length} / ${memories.length}`}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="rounded-lg border border-parchment/30 bg-shoji-white px-4 py-2 text-sm text-stone-gray transition-all duration-200 hover:border-matcha-green/50 hover:text-matcha-green disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={reloadMemories}
+              disabled={memoriesLoading}
+            >
+              {t("common.refresh")}
+            </button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <input
+              className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)] md:col-span-1"
+              value={memoryQuery}
+              placeholder={t("settings.memory.memories.searchPlaceholder")}
+              onChange={(e) => setMemoryQuery(e.target.value)}
+            />
+
+            <select
+              className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+              value={memoryScope}
+              onChange={(e) =>
+                setMemoryScope(
+                  e.target.value === "user" ? "user" : e.target.value === "folder" ? "folder" : "all",
+                )
+              }
+            >
+              <option value="all">{t("settings.memory.memories.scope.all")}</option>
+              <option value="user">{t("settings.memory.memories.scope.user")}</option>
+              <option value="folder">{t("settings.memory.memories.scope.folder")}</option>
+            </select>
+
+            <select
+              className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+              value={memoryStatus}
+              onChange={(e) =>
+                setMemoryStatus(
+                  e.target.value === "deleted"
+                    ? "deleted"
+                    : e.target.value === "superseded"
+                      ? "superseded"
+                      : e.target.value === "active"
+                        ? "active"
+                        : "all",
+                )
+              }
+            >
+              <option value="all">{t("settings.memory.memories.status.all")}</option>
+              <option value="active">{t("settings.memory.memories.status.active")}</option>
+              <option value="deleted">{t("settings.memory.memories.status.deleted")}</option>
+              <option value="superseded">{t("settings.memory.memories.status.superseded")}</option>
+            </select>
+          </div>
+
+          {memoriesError ? (
+            <div className="mt-4 rounded-xl border border-[#e74c3c]/30 bg-[#e74c3c]/10 p-3 font-zen-body text-xs text-[#b1382c]">
+              {memoriesError}
+            </div>
+          ) : null}
+
+          <div className="mt-6 space-y-3">
+            {filteredMemories.length === 0 ? (
+              <div className="rounded-2xl border border-parchment/20 bg-shoji-white p-6 text-sm text-stone-gray">
+                {t("settings.memory.memories.empty")}
+              </div>
+            ) : (
+              filteredMemories.map((m) => (
+                <div
+                  key={m.id}
+                  className="rounded-2xl border border-parchment/20 bg-shoji-white p-5"
+                >
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                    <div className="font-mono text-[0.7rem] text-sand">
+                      {m.scope === "folder"
+                        ? `folder${m.folderId ? `:${m.folderId}` : ""}`
+                        : "user"}{" "}
+                      · {m.status}
+                    </div>
+                    <div className="font-mono text-[0.7rem] text-sand">
+                      {new Date(m.updatedAt).toLocaleString(locale)}
+                    </div>
+                  </div>
+
+                  <div className="mb-3 whitespace-pre-wrap text-[0.9rem] leading-relaxed text-ink">
+                    {m.text}
+                  </div>
+
+                  {m.tags.length > 0 ? (
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      {m.tags.slice(0, 10).map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full border border-parchment bg-paper px-2.5 py-1 font-mono text-[0.65rem] text-sand"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-parchment/30 bg-paper px-4 py-2 text-sm text-stone-gray transition-all duration-200 hover:border-matcha-green/50 hover:text-matcha-green"
+                      onClick={() => openEditModal(m)}
+                    >
+                      {t("settings.memory.memories.edit")}
+                    </button>
+
+                    {m.status === "deleted" ? (
+                      <button
+                        type="button"
+                        className="rounded-lg border border-parchment/30 bg-paper px-4 py-2 text-sm text-stone-gray transition-all duration-200 hover:border-matcha-green/50 hover:text-matcha-green"
+                        onClick={() => void restoreMemory(m)}
+                      >
+                        {t("settings.memory.memories.restore")}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-600 transition-all duration-200 hover:bg-red-100"
+                        onClick={() => void deleteMemory(m)}
+                      >
+                        {t("settings.memory.memories.delete")}
+                      </button>
+                    )}
+
+                    {settings.embeddingModel ? (
+                      <button
+                        type="button"
+                        className="rounded-lg border border-parchment/30 bg-paper px-4 py-2 text-sm text-stone-gray transition-all duration-200 hover:border-matcha-green/50 hover:text-matcha-green"
+                        disabled={reembedBusy}
+                        onClick={async () => {
+                          if (!settings.embeddingModel) return;
+                          setReembedBusy(true);
+                          try {
+                            const res = await embeddingServiceRef.current!.embedWithSelection({
+                              providers,
+                              selection: settings.embeddingModel,
+                              text: m.text,
+                            });
+                            if (!res) {
+                              throw new Error(t("errors.missingApiKey"));
+                            }
+                            await memoryBankServiceRef.current!.updateEmbedding({
+                              id: m.id,
+                              embedding: res.embedding,
+                              embeddingModelKey: res.embeddingModelKey,
+                            });
+                            await reloadMemories();
+                          } catch (err) {
+                            setMemoriesError(err instanceof Error ? err.message : "Embedding failed.");
+                          } finally {
+                            setReembedBusy(false);
+                          }
+                        }}
+                      >
+                        {t("settings.memory.memories.reembed")}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      </div>
+
+      <Modal
+        open={editModalOpen}
+        title={t("settings.memory.memories.editor.title")}
+        onClose={closeEditModal}
+      >
+        <div className="space-y-4">
+          {editError ? (
+            <div className="rounded-xl border border-[#e74c3c]/30 bg-[#e74c3c]/10 p-3 text-sm text-[#b1382c]">
+              {editError}
+            </div>
+          ) : null}
+
+          <label className="space-y-2">
+            <div className="font-zen-body text-xs text-stone-gray font-light">
+              {t("settings.memory.memories.editor.text")}
+            </div>
+            <textarea
+              className="h-[160px] w-full resize-none rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+            />
+          </label>
+
+          <label className="space-y-2">
+            <div className="font-zen-body text-xs text-stone-gray font-light">
+              {t("settings.memory.memories.editor.tags")}
+            </div>
+            <input
+              className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+              value={editTags}
+              onChange={(e) => setEditTags(e.target.value)}
+            />
+          </label>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              className="rounded-lg border border-parchment/30 bg-shoji-white px-4 py-2 text-sm text-stone-gray"
+              onClick={closeEditModal}
+              disabled={editBusy}
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="rounded-lg bg-matcha-green px-4 py-2 text-sm text-shoji-white transition-all duration-200 hover:bg-matcha-green/90 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => void saveMemoryEdit()}
+              disabled={editBusy}
+            >
+              {editBusy ? t("common.loading") : t("common.save")}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={reembedModalOpen}
+        title={t("settings.memory.embedding.reembedAll")}
+        onClose={() => (reembedBusy ? null : setReembedModalOpen(false))}
+      >
+        <div className="text-[0.9rem] leading-relaxed text-clay">
+          {t("settings.memory.embedding.reembedAllDesc")}
+        </div>
+        <div className="mt-6 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            className="rounded-lg border border-parchment/30 bg-shoji-white px-4 py-2 text-sm text-stone-gray"
+            onClick={() => setReembedModalOpen(false)}
+            disabled={reembedBusy}
+          >
+            {t("common.cancel")}
+          </button>
+          <button
+            type="button"
+            className="rounded-lg bg-matcha-green px-4 py-2 text-sm text-shoji-white transition-all duration-200 hover:bg-matcha-green/90 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => void reembedActiveMemories()}
+            disabled={!settings.embeddingModel || reembedBusy}
+          >
+            {reembedBusy
+              ? t("settings.memory.embedding.reembedAll.running")
+              : t("settings.memory.embedding.reembedAll.confirm")}
+          </button>
+        </div>
+      </Modal>
     </PanelShell>
   );
 }

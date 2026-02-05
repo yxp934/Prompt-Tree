@@ -11,12 +11,24 @@ import { Input } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
 import { TrashIcon } from "@/components/common/icons";
 import { useT } from "@/lib/i18n/useT";
+import { EmbeddingService } from "@/lib/services/embeddingService";
+import {
+  buildAutoMemoryBlockId,
+  buildFolderDocContextBlock,
+  buildFolderDocBlockId,
+  buildMemoryContextBlock,
+  buildPinnedMemoryBlockId,
+} from "@/lib/services/longTermMemoryBlocks";
+import { renderFolderDocMarkdown } from "@/lib/services/longTermMemoryMarkdown";
+import { FolderDocService } from "@/lib/services/folderDocService";
+import { MemoryBankService } from "@/lib/services/memoryBankService";
 import {
   buildModelSelectionKey,
   getEnabledModelOptions,
   type EnabledModelOption,
 } from "@/lib/services/providerModelService";
 import { useAppStore } from "@/store/useStore";
+import type { JsonObject, MemoryItem, MemoryStatus } from "@/types";
 import type { ProviderModelSelection } from "@/types/provider";
 
 import { ThreadCanvasPreview } from "./ThreadCanvasPreview";
@@ -69,6 +81,10 @@ function buildSelectionsFromOptions(options: EnabledModelOption[]): ProviderMode
   return options.map((option) => ({ providerId: option.providerId, modelId: option.modelId }));
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export default function FolderView() {
   const t = useT();
   const locale = useAppStore((s) => s.locale);
@@ -85,6 +101,14 @@ export default function FolderView() {
   const updateFolderName = useAppStore((s) => s.updateFolderName);
   const updateFolderSystemPrompt = useAppStore((s) => s.updateFolderSystemPrompt);
   const updateFolderEnabledModels = useAppStore((s) => s.updateFolderEnabledModels);
+  const updateFolderMemoryRag = useAppStore((s) => s.updateFolderMemoryRag);
+
+  const currentTree = useAppStore((s) => s.getCurrentTree());
+  const contextBox = useAppStore((s) => s.contextBox);
+  const upsertFileBlock = useAppStore((s) => s.upsertFileBlock);
+  const removeFromContext = useAppStore((s) => s.removeFromContext);
+
+  const longTermMemorySettings = useAppStore((s) => s.longTermMemorySettings);
 
   const providers = useAppStore((s) => s.providers);
   const enabledModelOptions = useMemo(
@@ -104,9 +128,40 @@ export default function FolderView() {
   const [systemPrompt, setSystemPrompt] = useState("");
   const [systemCollapsed, setSystemCollapsed] = useState(false);
   const [modelsCollapsed, setModelsCollapsed] = useState(false);
+  const [ragCollapsed, setRagCollapsed] = useState(true);
+  const [folderDocCollapsed, setFolderDocCollapsed] = useState(true);
+  const [folderMemoriesCollapsed, setFolderMemoriesCollapsed] = useState(true);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [draftModelKeys, setDraftModelKeys] = useState<Set<string>>(new Set());
   const mountedRef = useRef(true);
+
+  const folderDocServiceRef = useRef<FolderDocService | null>(null);
+  const memoryBankServiceRef = useRef<MemoryBankService | null>(null);
+  const embeddingServiceRef = useRef<EmbeddingService | null>(null);
+  if (!folderDocServiceRef.current) folderDocServiceRef.current = new FolderDocService();
+  if (!memoryBankServiceRef.current) memoryBankServiceRef.current = new MemoryBankService();
+  if (!embeddingServiceRef.current) embeddingServiceRef.current = new EmbeddingService();
+
+  const [ragTopKFolder, setRagTopKFolder] = useState(5);
+  const [ragTopKUser, setRagTopKUser] = useState(5);
+
+  const [folderDocDraft, setFolderDocDraft] = useState("");
+  const [folderDocMarkdown, setFolderDocMarkdown] = useState("");
+  const [folderDocError, setFolderDocError] = useState<string | null>(null);
+  const [folderDocSavedAt, setFolderDocSavedAt] = useState<number | null>(null);
+
+  const [folderMemoryQuery, setFolderMemoryQuery] = useState("");
+  const [folderMemoryStatus, setFolderMemoryStatus] = useState<MemoryStatus | "all">("active");
+  const [folderMemoriesLoading, setFolderMemoriesLoading] = useState(false);
+  const [folderMemories, setFolderMemories] = useState<MemoryItem[]>([]);
+  const [folderMemoriesError, setFolderMemoriesError] = useState<string | null>(null);
+
+  const [editMemoryOpen, setEditMemoryOpen] = useState(false);
+  const [editingMemory, setEditingMemory] = useState<MemoryItem | null>(null);
+  const [editMemoryText, setEditMemoryText] = useState("");
+  const [editMemoryTags, setEditMemoryTags] = useState("");
+  const [editMemoryError, setEditMemoryError] = useState<string | null>(null);
+  const [editMemoryBusy, setEditMemoryBusy] = useState(false);
 
   type DeleteTarget =
     | { kind: "thread"; id: string; title: string }
@@ -126,6 +181,33 @@ export default function FolderView() {
     setName(folder?.name ?? "");
     setSystemPrompt(folder?.systemPrompt ?? "");
   }, [folder?.id, folder?.name, folder?.systemPrompt]);
+
+  useEffect(() => {
+    setRagTopKFolder(folder?.memoryRag?.topKFolder ?? 5);
+    setRagTopKUser(folder?.memoryRag?.topKUser ?? 5);
+  }, [folder?.id, folder?.memoryRag?.topKFolder, folder?.memoryRag?.topKUser]);
+
+  useEffect(() => {
+    if (!folderId) return;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const doc = await folderDocServiceRef.current!.read(folderId);
+        if (cancelled) return;
+        setFolderDocDraft(JSON.stringify(doc.data, null, 2));
+        setFolderDocMarkdown(renderFolderDocMarkdown(doc));
+        setFolderDocError(null);
+      } catch (err) {
+        if (cancelled) return;
+        setFolderDocError(err instanceof Error ? err.message : "Failed to load folder doc.");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [folderId]);
 
   const projectEnabledOptions = useMemo(() => {
     if (!folder) return [];
@@ -162,6 +244,176 @@ export default function FolderView() {
       : deleteTarget && deleteTarget.kind === "thread"
         ? t("sidebar.confirmDeleteThreadBody", { title: deleteTarget.title })
         : null;
+
+  const reloadFolderMemories = async () => {
+    if (!folderId) return;
+    setFolderMemoriesLoading(true);
+    setFolderMemoriesError(null);
+    try {
+      const list = await memoryBankServiceRef.current!.list({
+        scope: "folder",
+        folderId,
+        ...(folderMemoryStatus === "all" ? {} : { status: folderMemoryStatus }),
+      });
+      setFolderMemories(list);
+    } catch (err) {
+      setFolderMemoriesError(err instanceof Error ? err.message : "Failed to load folder memories.");
+    } finally {
+      setFolderMemoriesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void reloadFolderMemories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folderId, folderMemoryStatus]);
+
+  const filteredFolderMemories = useMemo(() => {
+    const q = folderMemoryQuery.trim().toLowerCase();
+    if (!q) return folderMemories;
+    return folderMemories.filter((m) => {
+      const haystack = `${m.text}\n${m.tags.join(" ")}\n${m.status}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [folderMemories, folderMemoryQuery]);
+
+  const openEditMemory = (item: MemoryItem) => {
+    setEditingMemory(item);
+    setEditMemoryText(item.text);
+    setEditMemoryTags(item.tags.join(", "));
+    setEditMemoryError(null);
+    setEditMemoryOpen(true);
+  };
+
+  const closeEditMemory = () => {
+    if (editMemoryBusy) return;
+    setEditMemoryOpen(false);
+    setEditingMemory(null);
+  };
+
+  const parseTags = (input: string): string[] =>
+    input
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+
+  const refreshMemoryBlocksInContext = async (updated: MemoryItem) => {
+    if (!currentTree || !contextBox) return;
+    const autoId = buildAutoMemoryBlockId(updated.id);
+    const pinId = buildPinnedMemoryBlockId(updated.id);
+    const hasPin = contextBox.blocks.some((b) => b.kind === "file" && b.id === pinId);
+    const hasAuto = contextBox.blocks.some((b) => b.kind === "file" && b.id === autoId);
+    if (!hasPin && !hasAuto) return;
+    if (hasPin && hasAuto) removeFromContext(autoId);
+    await upsertFileBlock(
+      buildMemoryContextBlock({ item: updated, pinned: hasPin }),
+      currentTree.rootId,
+    );
+  };
+
+  const saveEditedMemory = async () => {
+    if (!editingMemory || editMemoryBusy) return;
+    setEditMemoryBusy(true);
+    setEditMemoryError(null);
+    try {
+      const text = editMemoryText.trim();
+      const tags = parseTags(editMemoryTags);
+      if (!text || tags.length === 0) {
+        setEditMemoryError(t("settings.memory.memories.editor.invalid"));
+        return;
+      }
+      const updated = await memoryBankServiceRef.current!.edit({
+        id: editingMemory.id,
+        text,
+        tags,
+      });
+      await refreshMemoryBlocksInContext(updated);
+      await reloadFolderMemories();
+      setEditMemoryOpen(false);
+      setEditingMemory(null);
+    } catch (err) {
+      setEditMemoryError(err instanceof Error ? err.message : "Failed to save memory.");
+    } finally {
+      setEditMemoryBusy(false);
+    }
+  };
+
+  const deleteFolderMemory = async (item: MemoryItem) => {
+    try {
+      await memoryBankServiceRef.current!.softDelete(item.id);
+      removeFromContext(buildAutoMemoryBlockId(item.id));
+      removeFromContext(buildPinnedMemoryBlockId(item.id));
+      await reloadFolderMemories();
+    } catch (err) {
+      setFolderMemoriesError(err instanceof Error ? err.message : "Failed to delete memory.");
+    }
+  };
+
+  const restoreFolderMemory = async (item: MemoryItem) => {
+    try {
+      await memoryBankServiceRef.current!.restore(item.id);
+      await reloadFolderMemories();
+    } catch (err) {
+      setFolderMemoriesError(err instanceof Error ? err.message : "Failed to restore memory.");
+    }
+  };
+
+  const [reembedBusy, setReembedBusy] = useState(false);
+  const reembedMemory = async (item: MemoryItem) => {
+    const selection = longTermMemorySettings.embeddingModel;
+    if (!selection) return;
+    setReembedBusy(true);
+    try {
+      const res = await embeddingServiceRef.current!.embedWithSelection({
+        providers,
+        selection,
+        text: item.text,
+      });
+      if (!res) throw new Error(t("errors.missingApiKey"));
+      await memoryBankServiceRef.current!.updateEmbedding({
+        id: item.id,
+        embedding: res.embedding,
+        embeddingModelKey: res.embeddingModelKey,
+      });
+      await reloadFolderMemories();
+      setFolderMemoriesError(null);
+    } catch (err) {
+      setFolderMemoriesError(err instanceof Error ? err.message : "Embedding failed.");
+    } finally {
+      setReembedBusy(false);
+    }
+  };
+
+  const saveFolderDoc = async () => {
+    if (!folderId) return;
+    setFolderDocError(null);
+
+    try {
+      const raw = JSON.parse(folderDocDraft) as unknown;
+      if (!isRecord(raw)) {
+        setFolderDocError(t("folder.folderDoc.invalidJson"));
+        return;
+      }
+
+      const updated = await folderDocServiceRef.current!.replaceData(folderId, raw as JsonObject);
+      setFolderDocDraft(JSON.stringify(updated.data, null, 2));
+      const markdown = renderFolderDocMarkdown(updated);
+      setFolderDocMarkdown(markdown);
+      setFolderDocSavedAt(Date.now());
+
+      const folderBlockId = buildFolderDocBlockId(folderId);
+      const hasBlock =
+        contextBox?.blocks.some((b) => b.kind === "file" && b.id === folderBlockId) ?? false;
+      if (currentTree && currentTree.folderId === folderId && hasBlock) {
+        await upsertFileBlock(
+          buildFolderDocContextBlock({ folderId, markdown }),
+          currentTree.rootId,
+        );
+      }
+    } catch (err) {
+      setFolderDocError(err instanceof Error ? err.message : t("folder.folderDoc.invalidJson"));
+    }
+  };
 
   const openModelPicker = () => {
     if (!folder) return;
@@ -243,10 +495,10 @@ export default function FolderView() {
               <div className="min-w-[220px] flex-1">
                 <Input
                   value={name}
-                  placeholder={t("folder.namePlaceholder", { count: 6 })}
+                  placeholder={t("folder.namePlaceholder", { count: 20 })}
                   className="h-[46px] py-0"
                   onChange={(event) => {
-                    setName(truncateChars(event.target.value, 6));
+                    setName(truncateChars(event.target.value, 20));
                   }}
                   onBlur={() => {
                     if (!folder) return;
@@ -283,7 +535,7 @@ export default function FolderView() {
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+	          <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-2xl border border-parchment bg-cream p-4 shadow-[0_10px_28px_rgba(26,24,22,0.06)]">
               <button
                 type="button"
@@ -407,10 +659,316 @@ export default function FolderView() {
                   )}
                 </div>
               ) : null}
-            </div>
-          </div>
-        </div>
-      </div>
+	            </div>
+	          </div>
+
+	          <div className="grid gap-4 lg:grid-cols-2">
+	            <div className="rounded-2xl border border-parchment bg-cream p-4 shadow-[0_10px_28px_rgba(26,24,22,0.06)]">
+	              <button
+	                type="button"
+	                className="flex w-full items-center justify-between gap-3 text-left"
+	                onClick={() => setRagCollapsed((prev) => !prev)}
+	              >
+	                <div>
+	                  <div className="font-mono text-[0.65rem] uppercase tracking-[0.15em] text-sand">
+	                    {t("folder.memoryRag.title")}
+	                  </div>
+	                  {ragCollapsed ? (
+	                    <div className="mt-1 text-[0.85rem] text-clay">
+	                      {t("folder.memoryRag.summary", {
+	                        folder: ragTopKFolder,
+	                        user: ragTopKUser,
+	                      })}
+	                    </div>
+	                  ) : null}
+	                </div>
+	                <div className="text-sand">
+	                  <ChevronIcon open={!ragCollapsed} />
+	                </div>
+	              </button>
+
+	              {!ragCollapsed ? (
+	                <div className="mt-4 space-y-4">
+	                  <div className="grid gap-4 md:grid-cols-2">
+	                    <label className="space-y-2">
+	                      <div className="font-mono text-[0.7rem] text-sand">
+	                        {t("folder.memoryRag.topKFolder")}
+	                      </div>
+	                      <input
+	                        type="number"
+	                        min={0}
+	                        max={20}
+	                        className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+	                        value={ragTopKFolder}
+	                        onChange={(e) => setRagTopKFolder(Number(e.target.value))}
+	                        onBlur={() => {
+	                          if (!folder) return;
+	                          const nextFolder = Math.max(0, Math.min(20, Math.round(ragTopKFolder || 0)));
+	                          const nextUser = Math.max(0, Math.min(20, Math.round(ragTopKUser || 0)));
+	                          setRagTopKFolder(nextFolder);
+	                          setRagTopKUser(nextUser);
+	                          const currentFolder = folder.memoryRag?.topKFolder ?? 5;
+	                          const currentUser = folder.memoryRag?.topKUser ?? 5;
+	                          if (nextFolder === currentFolder && nextUser === currentUser) return;
+	                          void updateFolderMemoryRag(folder.id, { topKFolder: nextFolder, topKUser: nextUser });
+	                        }}
+	                      />
+	                    </label>
+
+	                    <label className="space-y-2">
+	                      <div className="font-mono text-[0.7rem] text-sand">
+	                        {t("folder.memoryRag.topKUser")}
+	                      </div>
+	                      <input
+	                        type="number"
+	                        min={0}
+	                        max={20}
+	                        className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+	                        value={ragTopKUser}
+	                        onChange={(e) => setRagTopKUser(Number(e.target.value))}
+	                        onBlur={() => {
+	                          if (!folder) return;
+	                          const nextFolder = Math.max(0, Math.min(20, Math.round(ragTopKFolder || 0)));
+	                          const nextUser = Math.max(0, Math.min(20, Math.round(ragTopKUser || 0)));
+	                          setRagTopKFolder(nextFolder);
+	                          setRagTopKUser(nextUser);
+	                          const currentFolder = folder.memoryRag?.topKFolder ?? 5;
+	                          const currentUser = folder.memoryRag?.topKUser ?? 5;
+	                          if (nextFolder === currentFolder && nextUser === currentUser) return;
+	                          void updateFolderMemoryRag(folder.id, { topKFolder: nextFolder, topKUser: nextUser });
+	                        }}
+	                      />
+	                    </label>
+	                  </div>
+
+	                  <div className="font-mono text-[0.7rem] text-sand">
+	                    {t("folder.memoryRag.note")}
+	                  </div>
+	                </div>
+	              ) : null}
+	            </div>
+
+	            <div className="rounded-2xl border border-parchment bg-cream p-4 shadow-[0_10px_28px_rgba(26,24,22,0.06)]">
+	              <button
+	                type="button"
+	                className="flex w-full items-center justify-between gap-3 text-left"
+	                onClick={() => setFolderDocCollapsed((prev) => !prev)}
+	              >
+	                <div>
+	                  <div className="font-mono text-[0.65rem] uppercase tracking-[0.15em] text-sand">
+	                    {t("folder.folderDoc.title")}
+	                  </div>
+	                  {folderDocCollapsed ? (
+	                    <div className="mt-1 line-clamp-1 text-[0.85rem] text-clay">
+	                      {folderDocMarkdown.trim() ? folderDocMarkdown.split("\n")[0] : "…"}
+	                    </div>
+	                  ) : null}
+	                </div>
+	                <div className="text-sand">
+	                  <ChevronIcon open={!folderDocCollapsed} />
+	                </div>
+	              </button>
+
+	              {!folderDocCollapsed ? (
+	                <div className="mt-4 space-y-4">
+	                  <div className="flex flex-wrap items-center justify-between gap-3">
+	                    <div className="font-mono text-[0.7rem] text-sand">
+	                      {folderDocSavedAt ? new Date(folderDocSavedAt).toLocaleString(locale) : ""}
+	                    </div>
+	                    <button
+	                      type="button"
+	                      className="rounded-lg bg-matcha-green px-4 py-2 text-sm text-shoji-white transition-all duration-200 hover:bg-matcha-green/90"
+	                      onClick={() => void saveFolderDoc()}
+	                    >
+	                      {t("folder.folderDoc.save")}
+	                    </button>
+	                  </div>
+
+	                  {folderDocError ? (
+	                    <div className="rounded-xl border border-[#e74c3c]/30 bg-[#e74c3c]/10 p-3 text-sm text-[#b1382c]">
+	                      {folderDocError}
+	                    </div>
+	                  ) : null}
+
+	                  <div className="grid gap-4 md:grid-cols-2">
+	                    <label className="space-y-2">
+	                      <div className="font-mono text-[0.7rem] text-sand">
+	                        {t("folder.folderDoc.json")}
+	                      </div>
+	                      <textarea
+	                        value={folderDocDraft}
+	                        onChange={(e) => setFolderDocDraft(e.target.value)}
+	                        className="min-h-[220px] w-full resize-none rounded-xl border border-parchment bg-paper px-4 py-3 font-mono text-[0.75rem] leading-relaxed text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+	                      />
+	                    </label>
+
+	                    <div className="space-y-2">
+	                      <div className="font-mono text-[0.7rem] text-sand">
+	                        {t("folder.folderDoc.markdown")}
+	                      </div>
+	                      <pre className="min-h-[220px] overflow-auto rounded-xl border border-parchment bg-paper p-4 font-mono text-[0.75rem] text-ink">
+	                        {folderDocMarkdown}
+	                      </pre>
+	                    </div>
+	                  </div>
+	                </div>
+	              ) : null}
+	            </div>
+	          </div>
+
+	          <div className="rounded-2xl border border-parchment bg-cream p-4 shadow-[0_10px_28px_rgba(26,24,22,0.06)]">
+	            <button
+	              type="button"
+	              className="flex w-full items-center justify-between gap-3 text-left"
+	              onClick={() => setFolderMemoriesCollapsed((prev) => !prev)}
+	            >
+	              <div>
+	                <div className="font-mono text-[0.65rem] uppercase tracking-[0.15em] text-sand">
+	                  {t("folder.folderMemories.title")}
+	                </div>
+	                {folderMemoriesCollapsed ? (
+	                  <div className="mt-1 text-[0.85rem] text-clay">
+	                    {folderMemoriesLoading
+	                      ? t("common.loading")
+	                      : t("folder.folderMemories.summary", {
+	                          count: filteredFolderMemories.length,
+	                          total: folderMemories.length,
+	                        })}
+	                  </div>
+	                ) : null}
+	              </div>
+	              <div className="text-sand">
+	                <ChevronIcon open={!folderMemoriesCollapsed} />
+	              </div>
+	            </button>
+
+	            {!folderMemoriesCollapsed ? (
+	              <div className="mt-4 space-y-4">
+	                <div className="grid gap-4 md:grid-cols-3">
+	                  <input
+	                    className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)] md:col-span-1"
+	                    value={folderMemoryQuery}
+	                    placeholder={t("folder.folderMemories.searchPlaceholder")}
+	                    onChange={(e) => setFolderMemoryQuery(e.target.value)}
+	                  />
+
+	                  <select
+	                    className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+	                    value={folderMemoryStatus}
+	                    onChange={(e) =>
+	                      setFolderMemoryStatus(
+	                        e.target.value === "deleted"
+	                          ? "deleted"
+	                          : e.target.value === "superseded"
+	                            ? "superseded"
+	                            : e.target.value === "active"
+	                              ? "active"
+	                              : "all",
+	                      )
+	                    }
+	                  >
+	                    <option value="all">{t("settings.memory.memories.status.all")}</option>
+	                    <option value="active">{t("settings.memory.memories.status.active")}</option>
+	                    <option value="deleted">{t("settings.memory.memories.status.deleted")}</option>
+	                    <option value="superseded">{t("settings.memory.memories.status.superseded")}</option>
+	                  </select>
+
+	                  <button
+	                    type="button"
+	                    className="rounded-lg border border-parchment bg-paper px-3 py-2 text-[0.85rem] text-ink transition-all duration-150 hover:border-copper hover:bg-copper-glow disabled:cursor-not-allowed disabled:opacity-50"
+	                    onClick={() => void reloadFolderMemories()}
+	                    disabled={folderMemoriesLoading}
+	                  >
+	                    {t("common.refresh")}
+	                  </button>
+	                </div>
+
+	                {folderMemoriesError ? (
+	                  <div className="rounded-xl border border-[#e74c3c]/30 bg-[#e74c3c]/10 p-3 text-sm text-[#b1382c]">
+	                    {folderMemoriesError}
+	                  </div>
+	                ) : null}
+
+	                {filteredFolderMemories.length === 0 ? (
+	                  <div className="rounded-xl border border-parchment bg-paper p-4 text-[0.85rem] text-clay">
+	                    {t("folder.folderMemories.empty")}
+	                  </div>
+	                ) : (
+	                  <div className="space-y-3">
+	                    {filteredFolderMemories.map((m) => (
+	                      <div
+	                        key={m.id}
+	                        className="rounded-2xl border border-parchment bg-paper p-4"
+	                      >
+	                        <div className="mb-2 flex flex-wrap items-center justify-between gap-3 font-mono text-[0.7rem] text-sand">
+	                          <span>{m.status}</span>
+	                          <span>{new Date(m.updatedAt).toLocaleString(locale)}</span>
+	                        </div>
+
+	                        <div className="line-clamp-3 whitespace-pre-wrap text-[0.9rem] leading-relaxed text-ink">
+	                          {m.text}
+	                        </div>
+
+	                        {m.tags.length ? (
+	                          <div className="mt-3 flex flex-wrap gap-2">
+	                            {m.tags.slice(0, 8).map((tag) => (
+	                              <span
+	                                key={tag}
+	                                className="rounded-full border border-parchment bg-cream px-3 py-1 font-mono text-[0.65rem] text-ink"
+	                              >
+	                                {tag}
+	                              </span>
+	                            ))}
+	                          </div>
+	                        ) : null}
+
+	                        <div className="mt-4 flex flex-wrap items-center gap-2">
+	                          <button
+	                            type="button"
+	                            className="rounded-lg border border-parchment bg-cream px-3 py-2 text-[0.8rem] text-ink transition-all duration-150 hover:border-copper hover:bg-copper-glow"
+	                            onClick={() => openEditMemory(m)}
+	                          >
+	                            {t("common.edit")}
+	                          </button>
+
+	                          {m.status === "deleted" ? (
+	                            <button
+	                              type="button"
+	                              className="rounded-lg border border-parchment bg-cream px-3 py-2 text-[0.8rem] text-ink transition-all duration-150 hover:border-copper hover:bg-copper-glow"
+	                              onClick={() => void restoreFolderMemory(m)}
+	                            >
+	                              {t("settings.memory.memories.restore")}
+	                            </button>
+	                          ) : (
+	                            <button
+	                              type="button"
+	                              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[0.8rem] text-red-600 transition-all duration-150 hover:bg-red-100"
+	                              onClick={() => void deleteFolderMemory(m)}
+	                            >
+	                              {t("settings.memory.memories.delete")}
+	                            </button>
+	                          )}
+
+	                          {longTermMemorySettings.embeddingModel ? (
+	                            <button
+	                              type="button"
+	                              className="rounded-lg border border-parchment bg-cream px-3 py-2 text-[0.8rem] text-ink transition-all duration-150 hover:border-copper hover:bg-copper-glow disabled:cursor-not-allowed disabled:opacity-50"
+	                              disabled={reembedBusy}
+	                              onClick={() => void reembedMemory(m)}
+	                            >
+	                              {t("settings.memory.memories.reembed")}
+	                            </button>
+	                          ) : null}
+	                        </div>
+	                      </div>
+	                    ))}
+	                  </div>
+	                )}
+	              </div>
+	            ) : null}
+	          </div>
+	        </div>
+	      </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="border-b border-parchment bg-paper/50 px-6 py-3 lg:px-8">
@@ -574,11 +1132,56 @@ export default function FolderView() {
             </div>
           </div>
         </div>
-      </Modal>
+	      </Modal>
 
-      <ConfirmModal
-        open={deleteTarget != null}
-        title={deleteTitle}
+	      <Modal
+	        open={editMemoryOpen}
+	        title={t("settings.memory.memories.editor.title")}
+	        onClose={closeEditMemory}
+	      >
+	        <div className="space-y-4">
+	          {editMemoryError ? (
+	            <div className="rounded-xl border border-[#e74c3c]/30 bg-[#e74c3c]/10 p-3 text-sm text-[#b1382c]">
+	              {editMemoryError}
+	            </div>
+	          ) : null}
+
+	          <label className="space-y-2">
+	            <div className="font-mono text-[0.7rem] text-sand">
+	              {t("settings.memory.memories.editor.text")}
+	            </div>
+	            <textarea
+	              value={editMemoryText}
+	              onChange={(e) => setEditMemoryText(e.target.value)}
+	              className="min-h-[160px] w-full resize-none rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] leading-relaxed text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+	            />
+	          </label>
+
+	          <label className="space-y-2">
+	            <div className="font-mono text-[0.7rem] text-sand">
+	              {t("settings.memory.memories.editor.tags")}
+	            </div>
+	            <input
+	              value={editMemoryTags}
+	              onChange={(e) => setEditMemoryTags(e.target.value)}
+	              className="w-full rounded-xl border border-parchment bg-paper px-4 py-3 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+	            />
+	          </label>
+
+	          <div className="flex items-center justify-end gap-2 pt-2">
+	            <Button variant="secondary" onClick={closeEditMemory} disabled={editMemoryBusy}>
+	              {t("common.cancel")}
+	            </Button>
+	            <Button onClick={() => void saveEditedMemory()} disabled={editMemoryBusy}>
+	              {editMemoryBusy ? t("common.loading") : t("common.save")}
+	            </Button>
+	          </div>
+	        </div>
+	      </Modal>
+
+	      <ConfirmModal
+	        open={deleteTarget != null}
+	        title={deleteTitle}
         description={deleteDescription}
         confirmText={t("common.delete")}
         cancelText={t("common.cancel")}

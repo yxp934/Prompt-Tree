@@ -9,18 +9,15 @@ import type {
   ModelConfig,
   ProviderHealthCheck,
   ModelSelectorState,
-  SettingsState,
   ApiKey,
 } from "@/types/provider";
 import {
   createDefaultProvider,
   createApiKey,
-  createModelConfig,
   getPrimaryApiKey,
 } from "@/types/provider";
 import {
   getStoredProviders,
-  setStoredProviders,
   upsertProvider,
   deleteProvider as deleteProviderFromStorage,
   getStoredHealthChecks,
@@ -77,6 +74,7 @@ export interface ProviderSlice {
 export function createProviderSlice(
   deps: AppStoreDeps,
 ): StateCreator<AppStoreState, [], [], ProviderSlice> {
+  void deps;
   return (set, get) => ({
     // ========== 初始状态 ==========
     providers: [],
@@ -250,6 +248,10 @@ export function createProviderSlice(
 
     // ========== 模型操作 ==========
     addModel: (providerId: string, model: ModelConfig) => {
+      const existingProvider = get().providers.find((p) => p.id === providerId);
+      if (!existingProvider) return;
+      if (existingProvider.models.some((m) => m.id === model.id)) return;
+
       set((state) => {
         const providers = state.providers.map((p) =>
           p.id === providerId

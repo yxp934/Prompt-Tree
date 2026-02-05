@@ -1,6 +1,6 @@
 export const DB_CONFIG = {
   name: "AIChatClientDB",
-  version: 2,
+  version: 3,
   stores: {
     nodes: {
       name: "nodes",
@@ -33,6 +33,34 @@ export const DB_CONFIG = {
       keyPath: "id",
       indexes: {
         createdAt: { keyPath: "createdAt", options: { unique: false } },
+      },
+    },
+    userProfiles: {
+      name: "userProfiles",
+      keyPath: "id",
+      indexes: {
+        updatedAt: { keyPath: "updatedAt", options: { unique: false } },
+        version: { keyPath: "version", options: { unique: false } },
+      },
+    },
+    folderDocs: {
+      name: "folderDocs",
+      keyPath: "folderId",
+      indexes: {
+        updatedAt: { keyPath: "updatedAt", options: { unique: false } },
+        version: { keyPath: "version", options: { unique: false } },
+      },
+    },
+    memoryItems: {
+      name: "memoryItems",
+      keyPath: "id",
+      indexes: {
+        scope: { keyPath: "scope", options: { unique: false } },
+        folderId: { keyPath: "folderId", options: { unique: false } },
+        status: { keyPath: "status", options: { unique: false } },
+        createdAt: { keyPath: "createdAt", options: { unique: false } },
+        updatedAt: { keyPath: "updatedAt", options: { unique: false } },
+        tags: { keyPath: "tags", options: { unique: false, multiEntry: true } },
       },
     },
   },

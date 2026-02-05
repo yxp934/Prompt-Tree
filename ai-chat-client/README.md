@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-0.4.0-7A8B6E?style=flat-square" alt="Version 0.4.0" />
+  <img src="https://img.shields.io/badge/Version-0.5.0-7A8B6E?style=flat-square" alt="Version 0.5.0" />
   <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript 5" />
@@ -29,6 +29,14 @@ Prompt Tree turns a conversation into a **canvas** you can branch, compress, and
 - **Conversation DAG (tree + branches)**: continue from any node and compare outcomes.
 - **Canvas + chat in one place**: visualize the thread while you talk.
 - **Context Box**: drag nodes into a curated context, reorder, preview, and track tokens.
+- **Long-term memory (3-layer)**:
+  - **User Profile (JSON → derived Markdown)**: persistent preferences/identity, fully visible & editable in Settings.
+  - **Memory Bank (items)**: atomic memories with tags, status, confidence, and sources; supports user/folder scope.
+  - **Folder Doc (JSON → derived Markdown)**: per-folder long-term doc, visible & editable in the folder page.
+  - **First-message auto-RAG injection (only once per thread)**: inject `topK(folder) + topK(user)` memories + docs into the Context Box; folder ratio is configurable.
+  - **Async memory writer**: runs on every user message; reads system prompt + all USER messages + the message’s context memories snapshot; can patch Profile/Folder Doc and upsert memories (first message can be forced to write at least 1 memory).
+  - **`search_memory` tool + pin**: the model can search the full memory library during the tool loop; retrieved memories are added into the Context Box and can be pinned; per-thread caps are enforced (pinned wins over auto).
+  - **Embeddings (optional)**: embedding model is configurable; lexical fallback is used when embeddings are disabled/unavailable.
 - **Multi-model branching**: select multiple models and send once to get parallel branches.
 - **Compression**: compress a selected chain (or the Context Box) into a compact node; decompress when needed.
 - **Tools (optional)**: Web Search (Tavily/Exa), MCP servers, local Python execution.
@@ -147,7 +155,18 @@ In `Settings → Default Model`:
 - Reorder items, preview the compiled context, and track token usage.
 - Compress either the whole context or a selected chain (must be a single continuous path).
 
-### 7) Tools (Web Search / MCP / Python)
+### 7) Long-term memory (Profile / Memory Bank / Folder Doc)
+
+- Configure in `Settings → Memory`:
+  - Toggle long-term memory, auto-inject on first message, and the `search_memory` tool.
+  - Pick **Memory Writer model** and (optional) **Embedding model**.
+  - Edit/view **User Profile JSON** and its derived Markdown.
+  - Browse/edit/delete/restore memories; optionally re-embed memories when you change embedding model.
+- In folder threads:
+  - Configure the **first-message RAG ratio** (`topKFolder/topKUser`) in the folder page.
+  - Edit/view **Folder Doc JSON** and manage **folder-scoped memories**.
+
+### 8) Tools (Web Search / MCP / Python)
 
 In `Settings → Tools`, configure:
 
@@ -160,8 +179,10 @@ In `Settings → Tools`, configure:
 ## Privacy & Data (based on current code)
 
 - **Conversations** are stored locally in your browser’s IndexedDB database: `AIChatClientDB`.
+- **Long-term memory artifacts** (User Profile / Folder Docs / Memory Bank + optional embeddings) are stored locally in the same IndexedDB database.
 - **Providers, API keys, and tool settings** are stored locally in `localStorage` (keys prefixed with `prompt-tree.*`).
 - The app runs locally; when you generate responses or use tools, requests are sent only to the model/tool endpoints you configure (this repo contains no built-in analytics/telemetry code).
+- If you enable **Memory Writer** or **Embeddings**, the app will call the configured model endpoints for those operations.
 - If you enable the **Python tool**, it executes code by spawning a local Python process on your machine—enable it only if you understand the risk.
 
 ## Development

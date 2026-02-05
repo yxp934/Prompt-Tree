@@ -209,8 +209,8 @@ export function InputArea({
       </div>
 
       <div className="mt-2 flex max-w-[680px] items-center gap-3 px-1 font-mono text-[0.7rem] text-sand">
-        <div className="flex items-center gap-3">
-          <span>
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="h-[32px] min-w-0 flex-1 overflow-y-auto whitespace-normal break-words pr-1 leading-[1.25]">
             {modelLabel
               ? t("chat.input.modelMeta", {
                   model: modelLabel,
@@ -219,25 +219,30 @@ export function InputArea({
                     : "",
                 })
               : t("chat.input.modelMetaNone")}
-          </span>
+          </div>
           {modelOptions.length > 0 && onSelectedModelsChange ? (
-            <div ref={menuRef} className="relative">
+            <div ref={menuRef} className="relative shrink-0">
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-[10px] border border-parchment bg-paper px-3 py-1.5 text-[0.7rem] text-sand transition-all duration-150 hover:border-copper hover:text-ink"
+                className="flex w-[118px] items-center justify-between rounded-[10px] border border-parchment bg-paper px-3 py-1.5 text-[0.7rem] text-sand transition-all duration-150 hover:border-copper hover:text-ink"
                 onClick={() => setModelMenuOpen((prev) => !prev)}
                 disabled={disabled}
               >
                 <span>{t("chat.input.models")}</span>
                 <span className="rounded-full bg-cream px-2 py-0.5 font-mono text-[0.65rem] text-clay">
-                  {selectedModels.length}
+                  {selectedModels.length}/{modelOptions.length}
                 </span>
               </button>
 
               {modelMenuOpen && (
                 <div className="absolute bottom-full left-0 mb-2 w-[260px] rounded-xl border border-parchment bg-paper p-3 shadow-[0_16px_40px_rgba(35,31,28,0.18)]">
                   <div className="mb-2 flex items-center justify-between text-[0.65rem] uppercase tracking-[0.12em] text-sand">
-                    <span>{t("chat.input.enabledModels")}</span>
+                    <div className="flex items-center gap-2">
+                      <span>{t("chat.input.enabledModels")}</span>
+                      <span className="rounded-full bg-cream px-2 py-0.5 font-mono text-[0.65rem] text-clay">
+                        {selectedModels.length}/{modelOptions.length}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -304,10 +309,10 @@ export function InputArea({
             </div>
           ) : null}
           {onSelectedToolsChange ? (
-            <div ref={toolMenuRef} className="relative">
+            <div ref={toolMenuRef} className="relative shrink-0">
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-[10px] border border-parchment bg-paper px-3 py-1.5 text-[0.7rem] text-sand transition-all duration-150 hover:border-copper hover:text-ink"
+                className="flex w-[118px] items-center justify-between rounded-[10px] border border-parchment bg-paper px-3 py-1.5 text-[0.7rem] text-sand transition-all duration-150 hover:border-copper hover:text-ink"
                 onClick={() => setToolMenuOpen((prev) => !prev)}
                 disabled={disabled}
               >
@@ -338,7 +343,7 @@ export function InputArea({
                       </button>
                     </div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="max-h-[240px] space-y-2 overflow-y-auto pr-1">
                     {toolOptions.map((tool) => {
                       const isSelected = selectedToolsSet.has(tool.id);
                       return (
@@ -378,7 +383,7 @@ export function InputArea({
             </div>
           ) : null}
         </div>
-        <span className="ml-auto">{tokenLabel ?? ""}</span>
+        <span className="shrink-0 whitespace-nowrap">{tokenLabel ?? ""}</span>
       </div>
     </div>
   );

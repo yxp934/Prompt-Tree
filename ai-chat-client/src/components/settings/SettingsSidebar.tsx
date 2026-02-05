@@ -26,6 +26,7 @@ const configurationItems: NavItem[] = [
   { id: "providers", labelKey: "settings.nav.providers", icon: <CloudIcon /> },
   { id: "models", labelKey: "settings.nav.defaultModel", icon: <CpuIcon /> },
   { id: "tools", labelKey: "settings.nav.tools", icon: <WrenchIcon /> },
+  { id: "memory", labelKey: "settings.nav.memory", icon: <DatabaseIcon /> },
   { id: "general", labelKey: "settings.nav.general", icon: <MonitorIcon /> },
   { id: "display", labelKey: "settings.nav.display", icon: <PaletteIcon /> },
 ];

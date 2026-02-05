@@ -19,6 +19,7 @@ export interface FolderSlice {
   updateFolderName: (id: string, name: string) => Promise<void>;
   updateFolderSystemPrompt: (id: string, systemPrompt: string) => Promise<void>;
   updateFolderEnabledModels: (id: string, enabledModels: ProviderModelSelection[] | null) => Promise<void>;
+  updateFolderMemoryRag: (id: string, memoryRag: ConversationFolder["memoryRag"]) => Promise<void>;
   deleteFolder: (id: string) => Promise<void>;
 }
 
@@ -150,6 +151,25 @@ export function createFolderSlice(
         set({
           error:
             err instanceof Error ? err.message : "Failed to update folder enabled models",
+        });
+      } finally {
+        set({ isLoading: false });
+      }
+    },
+
+    updateFolderMemoryRag: async (id, memoryRag) => {
+      set({ isLoading: true, error: null });
+      try {
+        const folder = await deps.folderService.updateMemoryRag(id, memoryRag);
+        set((state) => {
+          const folders = new Map(state.folders);
+          folders.set(folder.id, folder);
+          return { folders };
+        });
+      } catch (err) {
+        set({
+          error:
+            err instanceof Error ? err.message : "Failed to update folder memory RAG settings",
         });
       } finally {
         set({ isLoading: false });

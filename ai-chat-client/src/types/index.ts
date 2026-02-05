@@ -11,6 +11,22 @@ export type {
 } from "./context";
 export type { ConversationFolder } from "./folder";
 export type { ConversationTree } from "./tree";
+export type { AgentMessage, AgentContentPart } from "./agent";
+export type {
+  FolderDoc,
+  JsonObject,
+  JsonPatchOp,
+  JsonValue,
+  LongTermMemorySettings,
+  MemoryConfidence,
+  MemoryItem,
+  MemoryScope,
+  MemorySourceRef,
+  MemoryStatus,
+  MemoryUpsertInput,
+  MemoryWriterPlan,
+  UserProfileDoc,
+} from "./memory";
 export type {
   Node,
   NodeMetadata,

@@ -11,8 +11,8 @@ export default function StoreHydration() {
     state.hydrateToolsFromStorage();
     state.loadProviders();
     state.hydrateLLMSettingsFromStorage();
+    state.hydrateLongTermMemorySettingsFromStorage();
   }, []);
 
   return null;
 }
-

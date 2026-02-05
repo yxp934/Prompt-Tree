@@ -22,6 +22,7 @@ import {
   DefaultModelPanel,
   DisplaySettingsPanel,
   GeneralSettingsPanel,
+  LongTermMemoryPanel,
   ToolSettingsPanel,
 } from "./SettingsPanels";
 
@@ -94,6 +95,10 @@ export function SettingsPage() {
 
     if (activeSection === "tools") {
       return <ToolSettingsPanel />;
+    }
+
+    if (activeSection === "memory") {
+      return <LongTermMemoryPanel />;
     }
 
     if (activeSection === "data") {

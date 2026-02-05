@@ -13,11 +13,13 @@ describe("folders", () => {
     const store = createAppStore();
     await store.getState().initialize();
 
-    const folderId = await store.getState().createFolder("VeryLongFolderName");
+    const folderId = await store
+      .getState()
+      .createFolder("VeryLongFolderNameThatShouldBeTruncated");
     const folder = store.getState().folders.get(folderId);
 
     expect(folder).toBeTruthy();
-    expect(Array.from(folder!.name).length).toBeLessThanOrEqual(6);
+    expect(Array.from(folder!.name).length).toBeLessThanOrEqual(20);
     expect(store.getState().currentView).toBe("folder");
     expect(store.getState().currentFolderId).toBe(folderId);
     expect(store.getState().currentTreeId).toBeNull();

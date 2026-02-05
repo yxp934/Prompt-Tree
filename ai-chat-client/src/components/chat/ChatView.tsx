@@ -122,9 +122,8 @@ export function ChatView() {
       const option = optionMap.get(buildModelSelectionKey(selection));
       return option?.modelId ?? selection.modelId;
     });
-    if (labels.length <= 2) return labels.join(", ");
-    return t("chat.modelLabel.count", { count: labels.length });
-  }, [selectedModels, enabledModelOptions, model, t]);
+    return labels.join(", ");
+  }, [selectedModels, enabledModelOptions, model]);
 
   const toolTokens = useMemo(() => {
     const blocks = buildToolInstructionBlocks(draftToolUses, toolSettings);

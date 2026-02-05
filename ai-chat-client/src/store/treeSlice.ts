@@ -18,14 +18,6 @@ function computeLatestNodeId(nodes: Node[], fallback: string): string {
   return latest;
 }
 
-function computeTotalTokens(nodeIds: string[], nodes: Map<string, Node>): number {
-  let total = 0;
-  for (const id of nodeIds) {
-    total += nodes.get(id)?.tokenCount ?? 0;
-  }
-  return total;
-}
-
 function computeTotalTokensFromBlocks(blocks: ContextBlock[], nodes: Map<string, Node>): number {
   let total = 0;
   for (const block of blocks) {

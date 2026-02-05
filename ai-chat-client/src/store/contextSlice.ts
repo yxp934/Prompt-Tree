@@ -7,7 +7,8 @@ import {
   buildPinnedMemoryBlockId,
   isLongTermMemoryBlockId,
 } from "@/lib/services/longTermMemoryBlocks";
-import { buildToolInstructionBlocks } from "@/lib/services/tools/toolInstructions";
+import { fileBlockToChatMessage, nodeToChatMessage, renderChatMessagesPreview } from "@/lib/services/chatMessageService";
+import { injectToolInstructionMessages } from "@/lib/services/tools/toolInstructions";
 import { NodeType, type ContextBlock, type ContextBox, type Node } from "@/types";
 
 import type { AppStoreDeps, AppStoreState } from "./useStore";
@@ -411,66 +412,22 @@ export function createContextSlice(
         const box = get().contextBox;
         if (!box) return "";
 
-        const toolBlocks = buildToolInstructionBlocks(
+        const baseMessages = box.blocks
+          .map((block) => {
+            if (block.kind === "file") return fileBlockToChatMessage(block);
+            const node = get().nodes.get(block.nodeId);
+            if (!node) return null;
+            return nodeToChatMessage(node);
+          })
+          .filter((message): message is NonNullable<typeof message> => Boolean(message));
+
+        const withTools = injectToolInstructionMessages(
+          baseMessages,
           get().draftToolUses ?? [],
           get().toolSettings,
         );
-        let insertedToolBlocks = false;
 
-        const chunks: string[] = [];
-        for (const block of box.blocks) {
-          if (block.kind === "file") {
-            if (block.fileKind === "image") {
-              chunks.push(`User: [Image: ${block.filename}]`);
-              continue;
-            }
-
-            const truncatedNote = block.truncated ? "\n\n[Truncated]" : "";
-            chunks.push(
-              [
-                `User: [File: ${block.filename} (${block.fileKind})]`,
-                "```",
-                block.content,
-                "```" + truncatedNote,
-              ].join("\n"),
-            );
-            continue;
-          }
-
-          const node = get().nodes.get(block.nodeId);
-          if (!node) continue;
-
-          if (!insertedToolBlocks && node.type === NodeType.SYSTEM) {
-            chunks.push(`System: ${node.content}`);
-            insertedToolBlocks = true;
-            for (const toolBlock of toolBlocks) {
-              chunks.push(`System: ${toolBlock.content}`);
-            }
-            continue;
-          }
-
-          if (node.type === NodeType.COMPRESSED) {
-            chunks.push(`[Compressed Context: ${node.summary ?? ""}]`);
-            continue;
-          }
-
-          const role =
-            node.type === NodeType.USER
-              ? "User"
-              : node.type === NodeType.ASSISTANT
-                ? "Assistant"
-                : "System";
-
-          chunks.push(`${role}: ${node.content}`);
-        }
-
-        if (!insertedToolBlocks) {
-          for (const block of toolBlocks) {
-            chunks.unshift(`System: ${block.content}`);
-          }
-        }
-
-        return chunks.join("\n\n");
+        return renderChatMessagesPreview(withTools);
       },
     };
   };

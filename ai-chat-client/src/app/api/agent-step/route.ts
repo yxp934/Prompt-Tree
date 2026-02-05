@@ -96,12 +96,11 @@ function parseToolArgs(raw: string): unknown {
 function buildTools(params: {
   toolUses: ToolUseId[];
   toolSettings: ToolSettings;
-  enableMemoryTool: boolean;
 }): OpenAIToolDefinition[] {
   const set = new Set(params.toolUses);
   const tools: OpenAIToolDefinition[] = [];
 
-  if (params.enableMemoryTool) {
+  if (set.has("search_memory")) {
     tools.push({
       type: "function",
       function: {
@@ -233,7 +232,7 @@ function parseToolUses(value: unknown): ToolUseId[] {
     if (!id) continue;
 
     const normalized: ToolUseId | null =
-      id === "web_search" || id === "python" || id === "mcp"
+      id === "web_search" || id === "python" || id === "search_memory" || id === "mcp"
         ? (id as ToolUseId)
         : id.startsWith("mcp:") && id.slice("mcp:".length).trim()
           ? (`mcp:${id.slice("mcp:".length).trim()}` as ToolUseId)
@@ -246,7 +245,9 @@ function parseToolUses(value: unknown): ToolUseId[] {
   }
 
   if (unique.includes("mcp")) {
-    return unique.filter((id) => id === "web_search" || id === "python" || id === "mcp");
+    return unique.filter(
+      (id) => id === "web_search" || id === "python" || id === "search_memory" || id === "mcp",
+    );
   }
 
   return unique;
@@ -507,7 +508,6 @@ export async function POST(request: Request) {
   const timeoutMs = typeof body.timeout === "number" ? body.timeout : 30000;
   const headers = normalizeHeaders(body.headers);
   const stream = typeof body.stream === "boolean" ? body.stream : true;
-  const enableMemoryTool = typeof body.enableMemoryTool === "boolean" ? body.enableMemoryTool : false;
 
   const toolUses = parseToolUses(body.toolUses);
   const toolSettings = parseToolSettings(body.toolSettings);
@@ -515,7 +515,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid toolSettings." }, { status: 400 });
   }
 
-  const tools = buildTools({ toolUses, toolSettings, enableMemoryTool });
+  const tools = buildTools({ toolUses, toolSettings });
 
   const encoder = new TextEncoder();
   const streamBody = new ReadableStream<Uint8Array>({
@@ -581,4 +581,3 @@ export async function POST(request: Request) {
     },
   });
 }
-

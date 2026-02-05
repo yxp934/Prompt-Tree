@@ -159,6 +159,7 @@ pnpm dlx --package @yxp934/prompt-tree tree
 
 - 在 `Settings → Memory` 中配置：
   - 开关长期记忆、首条消息自动注入、以及 `search_memory` 工具。
+  - 在输入框旁的 `Tools` 菜单中，可对每次发送勾选/取消 `search_memory`（新安装默认勾选）；勾选后会在 Context Box 的 **Tool Blocks** 中可见，并且会出现在 **Context 预览**里。
   - 选择 **Memory Writer 模型** 与（可选）**Embedding 模型**。
   - 可视化/编辑 **用户 Profile JSON** 与派生 Markdown。
   - 浏览/编辑/删除/恢复记忆条目；更换 embedding 模型后可选择重算 embedding。

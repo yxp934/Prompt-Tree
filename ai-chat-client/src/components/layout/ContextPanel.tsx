@@ -215,7 +215,9 @@ function getIconBgClass(type: ContextType) {
 }
 
 function isToolUseId(value: string): value is ToolUseId {
-  if (value === "web_search" || value === "python" || value === "mcp") return true;
+  if (value === "web_search" || value === "python" || value === "search_memory" || value === "mcp") {
+    return true;
+  }
   if (value.startsWith("mcp:")) return Boolean(value.slice("mcp:".length).trim());
   return false;
 }

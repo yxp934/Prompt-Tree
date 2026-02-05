@@ -75,6 +75,7 @@ export function ChatView() {
   const draftToolUses = useAppStore((s) => s.draftToolUses);
   const setDraftToolUses = useAppStore((s) => s.setDraftToolUses);
   const addFilesToContext = useAppStore((s) => s.addFilesToContext);
+  const longTermMemorySettings = useAppStore((s) => s.longTermMemorySettings);
 
   const sendMessage = useAppStore((s) => s.sendMessage);
 
@@ -166,6 +167,9 @@ export function ChatView() {
         selectedTools={draftToolUses}
         onSelectedToolsChange={setDraftToolUses}
         toolSettings={toolSettings}
+        includeMemoryTool={
+          longTermMemorySettings.enabled && longTermMemorySettings.enableMemorySearchTool
+        }
       />
     </div>
   );

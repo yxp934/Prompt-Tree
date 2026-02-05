@@ -35,7 +35,7 @@ function normalizeToolUses(value: ToolUseId[]): ToolUseId[] {
     if (!id) continue;
 
     const normalized: ToolUseId | null =
-      id === "web_search" || id === "python" || id === "mcp"
+      id === "web_search" || id === "python" || id === "search_memory" || id === "mcp"
         ? (id as ToolUseId)
         : id.startsWith("mcp:") && id.slice("mcp:".length).trim()
           ? (`mcp:${id.slice("mcp:".length).trim()}` as ToolUseId)
@@ -49,7 +49,9 @@ function normalizeToolUses(value: ToolUseId[]): ToolUseId[] {
 
   // Legacy aggregate MCP selection: prefer explicit server toggles.
   if (unique.includes("mcp")) {
-    return unique.filter((id) => id === "web_search" || id === "python" || id === "mcp");
+    return unique.filter(
+      (id) => id === "web_search" || id === "python" || id === "search_memory" || id === "mcp",
+    );
   }
 
   return unique;
@@ -66,7 +68,9 @@ function expandLegacyMcpToolUses(toolUses: ToolUseId[], settings: ToolSettings):
 function pruneToolUses(toolUses: ToolUseId[], settings: ToolSettings): ToolUseId[] {
   const serverIds = new Set(settings.mcp.servers.map((s) => s.id));
   return toolUses.filter((id) => {
-    if (id === "web_search" || id === "python" || id === "mcp") return true;
+    if (id === "web_search" || id === "python" || id === "search_memory" || id === "mcp") {
+      return true;
+    }
     if (!id.startsWith("mcp:")) return false;
     const serverId = id.slice("mcp:".length).trim();
     return Boolean(serverId && serverIds.has(serverId));
@@ -105,8 +109,13 @@ export function createToolSlice(): StateCreator<AppStoreState, [], [], ToolSlice
         expandLegacyMcpToolUses(normalizeToolUses(toolUses), settings),
         settings,
       );
-      setStoredDraftToolUses(normalized);
-      set({ draftToolUses: normalized });
+      const memoryToolAllowed =
+        get().longTermMemorySettings.enabled && get().longTermMemorySettings.enableMemorySearchTool;
+      const gated = memoryToolAllowed
+        ? normalized
+        : normalized.filter((id) => id !== "search_memory");
+      setStoredDraftToolUses(gated);
+      set({ draftToolUses: gated });
     },
 
     toggleDraftToolUse: (toolUse) => {

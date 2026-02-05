@@ -51,6 +51,7 @@ export interface InputAreaProps {
   selectedTools?: ToolUseId[];
   onSelectedToolsChange?: (tools: ToolUseId[]) => void;
   toolSettings?: ToolSettings;
+  includeMemoryTool?: boolean;
 }
 
 export function InputArea({
@@ -66,6 +67,7 @@ export function InputArea({
   selectedTools = [],
   onSelectedToolsChange,
   toolSettings,
+  includeMemoryTool = true,
 }: InputAreaProps) {
   const t = useT();
   const [value, setValue] = useState("");
@@ -98,6 +100,15 @@ export function InputArea({
 
   const toolOptions = useMemo(() => {
     const base: Array<{ id: ToolUseId; title: string; subtitle: string }> = [
+      ...(includeMemoryTool
+        ? [
+            {
+              id: "search_memory" as ToolUseId,
+              title: t("chat.input.tool.memory"),
+              subtitle: t("chat.input.tool.memorySubtitle"),
+            },
+          ]
+        : []),
       { id: "web_search", title: t("chat.input.tool.webSearch"), subtitle: "Exa / Tavily" },
       { id: "python", title: t("chat.input.tool.python"), subtitle: t("chat.input.tool.pythonSubtitle") },
     ];
@@ -110,7 +121,7 @@ export function InputArea({
     }));
 
     return [...base, ...mcp];
-  }, [t, toolSettings?.mcp.servers]);
+  }, [includeMemoryTool, t, toolSettings?.mcp.servers]);
 
   const selectAllTools = () => {
     if (!onSelectedToolsChange) return;

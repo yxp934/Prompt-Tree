@@ -1,4 +1,4 @@
-export type { ChatMessage, ChatRole } from "./chat";
+export type { ChatContentPart, ChatMessage, ChatMessageContent, ChatRole } from "./chat";
 export type {
   ContextBlock,
   ContextBox,

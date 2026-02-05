@@ -22,13 +22,21 @@ export function createLongTermMemorySlice(): StateCreator<
   [],
   LongTermMemorySlice
 > {
-  return (set) => ({
+  return (set, get) => ({
     longTermMemorySettings: DEFAULT_LONG_TERM_MEMORY_SETTINGS,
 
     hydrateLongTermMemorySettingsFromStorage: () => {
       const stored = getStoredLongTermMemorySettings();
       if (!stored) return;
       set({ longTermMemorySettings: stored });
+
+      const memoryToolAllowed = stored.enabled && stored.enableMemorySearchTool;
+      if (!memoryToolAllowed) {
+        const next = (get().draftToolUses ?? []).filter((id) => id !== "search_memory");
+        if (next.length !== (get().draftToolUses ?? []).length) {
+          get().setDraftToolUses(next);
+        }
+      }
     },
 
     setLongTermMemorySettings: (updates) => {
@@ -40,6 +48,18 @@ export function createLongTermMemorySlice(): StateCreator<
         setStoredLongTermMemorySettings(next);
         return { longTermMemorySettings: next };
       });
+
+      const nextSettings = normalizeLongTermMemorySettings(
+        { ...get().longTermMemorySettings, ...updates },
+        DEFAULT_LONG_TERM_MEMORY_SETTINGS,
+      );
+      const memoryToolAllowed = nextSettings.enabled && nextSettings.enableMemorySearchTool;
+      if (!memoryToolAllowed) {
+        const current = get().draftToolUses ?? [];
+        if (current.includes("search_memory")) {
+          get().setDraftToolUses(current.filter((id) => id !== "search_memory"));
+        }
+      }
     },
   });
 }

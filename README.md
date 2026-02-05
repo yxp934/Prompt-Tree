@@ -159,6 +159,7 @@ In `Settings → Default Model`:
 
 - Configure in `Settings → Memory`:
   - Toggle long-term memory, auto-inject on first message, and the `search_memory` tool.
+  - In the chat composer `Tools` menu, you can toggle `search_memory` per message (default enabled on new installs). When enabled, it appears in the Context Box as a **Tool Block** and is included in **Context Preview**.
   - Pick **Memory Writer model** and (optional) **Embedding model**.
   - Edit/view **User Profile JSON** and its derived Markdown.
   - Browse/edit/delete/restore memories; optionally re-embed memories when you change embedding model.

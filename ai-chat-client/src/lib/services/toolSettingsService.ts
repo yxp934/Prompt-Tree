@@ -163,7 +163,9 @@ export function getStoredDraftToolUses(): ToolUseId[] {
       if (!Array.isArray(parsed)) return [];
       return parsed.filter((id): id is ToolUseId => {
         if (typeof id !== "string") return false;
-        if (id === "web_search" || id === "python" || id === "mcp") return true;
+        if (id === "web_search" || id === "python" || id === "search_memory" || id === "mcp") {
+          return true;
+        }
         if (id.startsWith("mcp:")) return Boolean(id.slice("mcp:".length).trim());
         return false;
       });
@@ -180,7 +182,9 @@ export function getStoredDraftToolUses(): ToolUseId[] {
       if (!Array.isArray(parsed)) continue;
       const normalized = parsed.filter((id): id is ToolUseId => {
         if (typeof id !== "string") return false;
-        if (id === "web_search" || id === "python" || id === "mcp") return true;
+        if (id === "web_search" || id === "python" || id === "search_memory" || id === "mcp") {
+          return true;
+        }
         if (id.startsWith("mcp:")) return Boolean(id.slice("mcp:".length).trim());
         return false;
       });
@@ -192,7 +196,8 @@ export function getStoredDraftToolUses(): ToolUseId[] {
     }
   }
 
-  return [];
+  // Default: enable search_memory for new installs (can be toggled off per message).
+  return ["search_memory"];
 }
 
 export function setStoredDraftToolUses(toolUses: ToolUseId[]): void {

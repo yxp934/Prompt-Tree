@@ -4,7 +4,12 @@
  * Note: "mcp" is a legacy aggregate toggle kept for backwards compatibility.
  * New selections use `mcp:${serverId}` per MCP server.
  */
-export type ToolUseId = "web_search" | "python" | "mcp" | `mcp:${string}`;
+export type ToolUseId =
+  | "web_search"
+  | "python"
+  | "search_memory"
+  | "mcp"
+  | `mcp:${string}`;
 
 export type SearchProvider = "tavily" | "exa";
 

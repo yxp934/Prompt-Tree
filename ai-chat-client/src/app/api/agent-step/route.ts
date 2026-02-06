@@ -115,6 +115,16 @@ function buildTools(params: {
             scope: { type: "string", enum: ["user", "folder", "both"] },
             tagsAny: { type: "array", items: { type: "string" } },
             folderId: { type: "string", description: "Optional folder id when scope includes folder." },
+            timeFrom: {
+              type: "string",
+              description:
+                "Optional inclusive lower bound for memory updatedAt (ISO-8601 datetime string or unix ms as a string).",
+            },
+            timeTo: {
+              type: "string",
+              description:
+                "Optional inclusive upper bound for memory updatedAt (ISO-8601 datetime string or unix ms as a string).",
+            },
           },
           required: ["query"],
           additionalProperties: true,

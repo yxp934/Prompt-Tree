@@ -79,7 +79,9 @@ export function buildMemoryContextBlock(params: {
     item.scope === "folder"
       ? `Scope: folder(${item.folderId ?? "unknown"})`
       : "Scope: user";
-  const body = [header, scopeLine, tagLine, "", item.text.trim()].join("\n");
+  const createdLine = `Created: ${new Date(item.createdAt).toISOString()}`;
+  const updatedLine = `Updated: ${new Date(item.updatedAt).toISOString()}`;
+  const body = [header, scopeLine, tagLine, createdLine, updatedLine, "", item.text.trim()].join("\n");
   const id = pinned ? buildPinnedMemoryBlockId(item.id) : buildAutoMemoryBlockId(item.id);
   return {
     id,
@@ -93,4 +95,3 @@ export function buildMemoryContextBlock(params: {
     truncated: false,
   };
 }
-

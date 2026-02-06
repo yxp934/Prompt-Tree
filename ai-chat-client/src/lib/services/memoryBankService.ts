@@ -79,6 +79,8 @@ export interface MemorySearchParams {
   tagsAny?: string[];
   queryEmbedding?: number[] | null;
   embeddingModelKey?: string | null;
+  timeFrom?: number | null;
+  timeTo?: number | null;
 }
 
 export class MemoryBankService {
@@ -256,6 +258,15 @@ export class MemoryBankService {
     const query = params.query.trim();
     if (!query) return [];
 
+    let timeFrom =
+      typeof params.timeFrom === "number" && Number.isFinite(params.timeFrom) ? params.timeFrom : null;
+    let timeTo = typeof params.timeTo === "number" && Number.isFinite(params.timeTo) ? params.timeTo : null;
+    if (timeFrom != null && timeTo != null && timeFrom > timeTo) {
+      const tmp = timeFrom;
+      timeFrom = timeTo;
+      timeTo = tmp;
+    }
+
     const candidates = await this.list({
       ...(scope === "both" ? {} : { scope }),
       ...(scope === "folder" ? { folderId } : {}),
@@ -279,6 +290,11 @@ export class MemoryBankService {
           if (item.scope === "user") return true;
           return (item.folderId ?? null) === folderId;
         }
+        return true;
+      })
+      .filter((item) => {
+        if (timeFrom != null && item.updatedAt < timeFrom) return false;
+        if (timeTo != null && item.updatedAt > timeTo) return false;
         return true;
       })
       .map((item) => {

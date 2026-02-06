@@ -548,6 +548,24 @@ export function createLLMSlice(
             const tagsAny = isRecord(args) && Array.isArray(args.tagsAny)
               ? args.tagsAny.filter((t) => typeof t === "string").map((t) => t.trim()).filter(Boolean)
               : [];
+            const normalizeTimeMs = (value: unknown): number | null => {
+              const num = normalizeNumber(value);
+              if (num != null) {
+                return num > 0 && num < 1e12 ? Math.round(num * 1000) : Math.round(num);
+              }
+              if (typeof value !== "string") return null;
+              const s = value.trim();
+              if (!s) return null;
+              const asNum = Number(s);
+              if (Number.isFinite(asNum) && /^[0-9]+(\.[0-9]+)?$/.test(s)) {
+                return asNum > 0 && asNum < 1e12 ? Math.round(asNum * 1000) : Math.round(asNum);
+              }
+              const parsed = Date.parse(s);
+              if (!Number.isFinite(parsed)) return null;
+              return parsed;
+            };
+            const timeFrom = isRecord(args) ? normalizeTimeMs(args.timeFrom) : null;
+            const timeTo = isRecord(args) ? normalizeTimeMs(args.timeTo) : null;
 
             const currentTree = get().getCurrentTree();
             const currentFolderId = currentTree?.folderId ?? null;
@@ -578,6 +596,8 @@ export function createLLMSlice(
               tagsAny,
               queryEmbedding,
               embeddingModelKey,
+              timeFrom,
+              timeTo,
             });
 
             const anchorNodeId = currentTree?.rootId ?? null;
@@ -611,6 +631,8 @@ export function createLLMSlice(
               topK,
               scope,
               folderId,
+              timeFrom,
+              timeTo,
               hits: hits.map((h) => ({
                 id: h.id,
                 text: h.text,
@@ -619,6 +641,7 @@ export function createLLMSlice(
                 folderId: h.folderId ?? null,
                 confidence: h.confidence,
                 score: h.score,
+                createdAt: h.createdAt,
                 updatedAt: h.updatedAt,
               })),
             };

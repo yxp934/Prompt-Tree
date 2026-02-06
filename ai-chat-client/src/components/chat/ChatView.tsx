@@ -78,6 +78,7 @@ export function ChatView() {
   const longTermMemorySettings = useAppStore((s) => s.longTermMemorySettings);
 
   const sendMessage = useAppStore((s) => s.sendMessage);
+  const optimizePrompt = useAppStore((s) => s.optimizePrompt);
 
   const messages = useMemo(() => {
     const conversation = buildConversation(nodes, activeNodeId);
@@ -154,6 +155,9 @@ export function ChatView() {
         onSend={async (content) => {
           await sendMessage(content);
         }}
+        onOptimizePrompt={async (content, signal) =>
+          optimizePrompt(content, { signal })
+        }
         onAttachFiles={async (files) => {
           await addFilesToContext(files);
         }}

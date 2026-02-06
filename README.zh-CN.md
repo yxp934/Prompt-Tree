@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-0.6.3-7A8B6E?style=flat-square" alt="Version 0.6.3" />
+  <img src="https://img.shields.io/badge/Version-0.6.6-7A8B6E?style=flat-square" alt="Version 0.6.6" />
   <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript 5" />
@@ -216,6 +216,18 @@ npm run typecheck
 - 路线图：[`ROADMAP.md`](./ai-chat-client/docs/ROADMAP.md)
 
 ## 更新日志
+
+### 0.6.6（2026-02-06）
+
+- Default Model 设置：新增可调整的“提示词优化模型”选择器。
+- 提示词优化请求路由：优先使用已配置的优化模型；未配置时依次回退到已选聊天模型与聊天默认模型。
+
+### 0.6.5（2026-02-06）
+
+- 输入框：新增一键“优化提示词”，支持加载态、取消、替换后撤销、空输入禁用和并发防重入。
+- 设置：新增可直接编辑的优化提示词（纯文本，无变量插槽）与“智能记忆”开关。
+- 智能记忆：开启后，优化请求会同时附带 user profile、folder profile（若在 folder）、RAG Top 10 原子记忆和 context 快照。
+- 默认优化提示词：改为英文版本，并要求根据输入语言决定输出语言，同时保留必要的英文术语/代码。
 
 ### 0.6.4（2026-02-06）
 

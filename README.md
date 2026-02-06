@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-0.6.3-7A8B6E?style=flat-square" alt="Version 0.6.3" />
+  <img src="https://img.shields.io/badge/Version-0.6.6-7A8B6E?style=flat-square" alt="Version 0.6.6" />
   <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript 5" />
@@ -216,6 +216,18 @@ npm run typecheck
 - Roadmap: [ROADMAP](./ai-chat-client/docs/ROADMAP.md)
 
 ## Changelog
+
+### 0.6.6 (2026-02-06)
+
+- Default Model settings: add an adjustable **Prompt optimizer model** selector.
+- Prompt optimization request routing: now prioritizes the configured optimizer model; falls back to selected chat model, then chat default model.
+
+### 0.6.5 (2026-02-06)
+
+- Chat input: add one-click prompt optimization with loading state, cancel, undo replace, empty-input disable, and anti-concurrency guard.
+- Settings: add editable optimizer prompt (plain text, no variable placeholders) and a Smart Memory toggle.
+- Smart Memory for optimizer: when enabled, optimization requests include user profile, folder profile (if in folder), top 10 RAG atomic memories, and context snapshot.
+- Prompt optimizer default prompt: switch to English and enforce output language based on input language while keeping technical terms/code as needed.
 
 ### 0.6.4 (2026-02-06)
 

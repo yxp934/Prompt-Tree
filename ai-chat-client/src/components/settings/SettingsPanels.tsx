@@ -9,6 +9,7 @@ import { setOpenAIBaseUrl } from "@/lib/services/apiUrlService";
 import { EmbeddingService } from "@/lib/services/embeddingService";
 import {
   DEFAULT_LLM_SETTINGS,
+  DEFAULT_PROMPT_OPTIMIZER_PROMPT,
   type LLMSettings,
 } from "@/lib/services/llmSettingsService";
 import {
@@ -97,6 +98,7 @@ export function DefaultModelPanel() {
   const providers = useAppStore((s) => s.providers);
   const compressionModel = useAppStore((s) => s.compressionModel);
   const summaryModel = useAppStore((s) => s.summaryModel);
+  const promptOptimizerModel = useAppStore((s) => s.promptOptimizerModel);
   const setLLMSettings = useAppStore((s) => s.setLLMSettings);
   const selectedModels = useAppStore((s) => s.selectedModels);
   const setSelectedModels = useAppStore((s) => s.setSelectedModels);
@@ -156,7 +158,13 @@ export function DefaultModelPanel() {
     if (summaryKey && !availableKeys.has(summaryKey)) {
       setLLMSettings({ summaryModel: null });
     }
-  }, [compressionModel, enabledOptions, setLLMSettings, summaryModel]);
+    const optimizerKey = promptOptimizerModel
+      ? buildModelSelectionKey(promptOptimizerModel)
+      : null;
+    if (optimizerKey && !availableKeys.has(optimizerKey)) {
+      setLLMSettings({ promptOptimizerModel: null });
+    }
+  }, [compressionModel, enabledOptions, promptOptimizerModel, setLLMSettings, summaryModel]);
 
   const toSelection = (option: EnabledModelOption): ProviderModelSelection => ({
     providerId: option.providerId,
@@ -234,6 +242,9 @@ export function DefaultModelPanel() {
     ? buildModelSelectionKey(compressionModel)
     : "";
   const summaryKey = summaryModel ? buildModelSelectionKey(summaryModel) : "";
+  const promptOptimizerKey = promptOptimizerModel
+    ? buildModelSelectionKey(promptOptimizerModel)
+    : "";
 
   const handleCompressionChange = (value: string) => {
     const option = enabledOptions.find(
@@ -250,6 +261,13 @@ export function DefaultModelPanel() {
       (item) => buildModelSelectionKey(item) === value,
     );
     setLLMSettings({ summaryModel: option ? toSelection(option) : null });
+  };
+
+  const handlePromptOptimizerChange = (value: string) => {
+    const option = enabledOptions.find(
+      (item) => buildModelSelectionKey(item) === value,
+    );
+    setLLMSettings({ promptOptimizerModel: option ? toSelection(option) : null });
   };
 
   return (
@@ -394,6 +412,31 @@ export function DefaultModelPanel() {
         </section>
 
         <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
+          <div className="mb-3 font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+            {t("settings.defaultModel.promptOptimizerModel.title")}
+          </div>
+          <select
+            value={promptOptimizerKey}
+            onChange={(event) => handlePromptOptimizerChange(event.target.value)}
+            disabled={enabledOptions.length === 0}
+            className="w-full rounded-xl border border-parchment/20 bg-shoji-white px-5 py-4 font-mono text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50 disabled:opacity-60"
+          >
+            <option value="">{t("settings.defaultModel.promptOptimizerModel.placeholder")}</option>
+            {enabledOptions.map((option) => (
+              <option
+                key={`${option.providerId}-${option.modelId}`}
+                value={buildModelSelectionKey(option)}
+              >
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-3 font-zen-body text-xs text-stone-gray font-light">
+            {t("settings.defaultModel.promptOptimizerModel.description")}
+          </p>
+        </section>
+
+        <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
@@ -443,6 +486,8 @@ export function GeneralSettingsPanel() {
   const t = useT();
   const temperature = useAppStore((s) => s.temperature);
   const maxTokens = useAppStore((s) => s.maxTokens);
+  const promptOptimizerPrompt = useAppStore((s) => s.promptOptimizerPrompt);
+  const promptOptimizerSmartMemory = useAppStore((s) => s.promptOptimizerSmartMemory);
   const setLLMSettings = useAppStore((s) => s.setLLMSettings);
   const defaultThreadSystemPrompt = useAppStore((s) => s.defaultThreadSystemPrompt);
   const setDefaultThreadSystemPrompt = useAppStore((s) => s.setDefaultThreadSystemPrompt);
@@ -451,6 +496,10 @@ export function GeneralSettingsPanel() {
   const [temperatureValue, setTemperatureValue] = useState(temperature.toString());
   const [maxTokensValue, setMaxTokensValue] = useState(maxTokens.toString());
   const [systemPromptValue, setSystemPromptValue] = useState(defaultThreadSystemPrompt);
+  const [optimizerPromptValue, setOptimizerPromptValue] = useState(promptOptimizerPrompt);
+  const [optimizerSmartMemoryValue, setOptimizerSmartMemoryValue] = useState(
+    promptOptimizerSmartMemory,
+  );
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -465,12 +514,22 @@ export function GeneralSettingsPanel() {
     setSystemPromptValue(defaultThreadSystemPrompt);
   }, [defaultThreadSystemPrompt]);
 
+  useEffect(() => {
+    setOptimizerPromptValue(promptOptimizerPrompt);
+  }, [promptOptimizerPrompt]);
+
+  useEffect(() => {
+    setOptimizerSmartMemoryValue(promptOptimizerSmartMemory);
+  }, [promptOptimizerSmartMemory]);
+
   const handleSave = () => {
     const parsedTemperature = Number.parseFloat(temperatureValue);
     const parsedMaxTokens = Number.parseInt(maxTokensValue, 10);
     const nextSettings: Partial<LLMSettings> = {
       temperature: Number.isFinite(parsedTemperature) ? parsedTemperature : temperature,
       maxTokens: Number.isFinite(parsedMaxTokens) ? parsedMaxTokens : maxTokens,
+      promptOptimizerPrompt: optimizerPromptValue,
+      promptOptimizerSmartMemory: optimizerSmartMemoryValue,
     };
 
     setLLMSettings(nextSettings);
@@ -484,6 +543,10 @@ export function GeneralSettingsPanel() {
     resetDefaultThreadSystemPrompt();
     setSaveMessage(t("settings.general.saved"));
     setTimeout(() => setSaveMessage(null), 2000);
+  };
+
+  const handleResetOptimizerPrompt = () => {
+    setOptimizerPromptValue(DEFAULT_PROMPT_OPTIMIZER_PROMPT);
   };
 
   return (
@@ -552,6 +615,59 @@ export function GeneralSettingsPanel() {
                 onClick={handleResetSystemPrompt}
               >
                 {t("settings.general.systemPrompt.resetButton")}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
+          <div className="mb-2 font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+            {t("settings.general.promptOptimizer.title")}
+          </div>
+          <p className="mb-4 max-w-2xl font-zen-body text-xs text-stone-gray/80 font-light">
+            {t("settings.general.promptOptimizer.description")}
+          </p>
+          <div className="mb-4 rounded-xl border border-parchment/20 bg-shoji-white/80 p-4">
+            <label className="flex items-start justify-between gap-4">
+              <div>
+                <div className="font-zen-body text-sm text-ink-black">
+                  {t("settings.general.promptOptimizer.smartMemory")}
+                </div>
+                <div className="mt-1 font-zen-body text-xs text-stone-gray/80 font-light">
+                  {t("settings.general.promptOptimizer.smartMemoryDesc")}
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                className="mt-1 h-5 w-5 accent-matcha-green"
+                checked={optimizerSmartMemoryValue}
+                onChange={(event) => setOptimizerSmartMemoryValue(event.target.checked)}
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <label className="block font-zen-body text-xs text-stone-gray font-light">
+              {t("settings.general.promptOptimizer.label")}
+            </label>
+            <textarea
+              value={optimizerPromptValue}
+              onChange={(event) => setOptimizerPromptValue(event.target.value)}
+              spellCheck={false}
+              className="min-h-[280px] w-full resize-y rounded-xl border border-parchment/20 bg-shoji-white px-5 py-4 font-zen-body text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="font-zen-body text-[0.65rem] text-stone-gray/70 font-light">
+                {t("settings.general.promptOptimizer.charCount", {
+                  count: optimizerPromptValue.trim().length.toLocaleString(),
+                })}
+              </div>
+              <button
+                type="button"
+                className="rounded-lg border border-parchment/30 bg-shoji-white px-4 py-2 font-zen-body text-xs text-stone-gray transition-all duration-200 hover:bg-washi-cream/60"
+                onClick={handleResetOptimizerPrompt}
+              >
+                {t("settings.general.promptOptimizer.resetButton")}
               </button>
             </div>
           </div>

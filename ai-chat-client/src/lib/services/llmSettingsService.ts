@@ -7,7 +7,26 @@ export interface LLMSettings {
   selectedModels: ProviderModelSelection[];
   compressionModel: ProviderModelSelection | null;
   summaryModel: ProviderModelSelection | null;
+  promptOptimizerModel: ProviderModelSelection | null;
+  promptOptimizerPrompt: string;
+  promptOptimizerSmartMemory: boolean;
 }
+
+export const DEFAULT_PROMPT_OPTIMIZER_PROMPT = [
+  "You are my prompt ghostwriter and optimizer.",
+  "",
+  "Your task is to rewrite my draft prompt into a clearer, more specific, and more actionable final prompt that I can use directly with an LLM.",
+  "",
+  "Hard requirements:",
+  "1. Write entirely from my perspective using first-person voice (\"I\").",
+  "2. Preserve the original intent, goals, and constraints. Do not change the task itself.",
+  "3. Remove ambiguity, fix logic and wording issues, and convert vague or negative constraints into explicit positive requirements whenever possible.",
+  "4. If memory and context are provided, use them to improve accuracy and consistency with my preferences. Never invent, complete, or assume missing memory entries.",
+  "5. If the draft includes code in triple backticks (```), keep the code blocks unchanged.",
+  "6. Determine the output language from the draft input language. Keep product names, API names, technical terms, code, and file paths in English when appropriate.",
+  "7. Do not mention where information came from, and do not refer to any conversation source.",
+  "8. Output only the optimized prompt text. No explanations, no headers, no extra notes.",
+].join("\n");
 
 export const DEFAULT_LLM_SETTINGS: LLMSettings = {
   model: "gpt-4o-mini",
@@ -16,6 +35,9 @@ export const DEFAULT_LLM_SETTINGS: LLMSettings = {
   selectedModels: [],
   compressionModel: null,
   summaryModel: null,
+  promptOptimizerModel: null,
+  promptOptimizerPrompt: DEFAULT_PROMPT_OPTIMIZER_PROMPT,
+  promptOptimizerSmartMemory: false,
 };
 
 const LLM_SETTINGS_STORAGE_KEY = "prompt-tree.llm_settings.v1";
@@ -90,6 +112,20 @@ export function normalizeLLMSettings(
   const summaryModel = Object.prototype.hasOwnProperty.call(settings, "summaryModel")
     ? normalizeModelSelection(settings.summaryModel)
     : fallback.summaryModel;
+  const promptOptimizerModel = Object.prototype.hasOwnProperty.call(
+    settings,
+    "promptOptimizerModel",
+  )
+    ? normalizeModelSelection(settings.promptOptimizerModel)
+    : fallback.promptOptimizerModel;
+  const promptOptimizerPrompt =
+    typeof settings.promptOptimizerPrompt === "string" && settings.promptOptimizerPrompt.trim()
+      ? settings.promptOptimizerPrompt.trim()
+      : fallback.promptOptimizerPrompt;
+  const promptOptimizerSmartMemory =
+    typeof settings.promptOptimizerSmartMemory === "boolean"
+      ? settings.promptOptimizerSmartMemory
+      : fallback.promptOptimizerSmartMemory;
 
   return {
     model,
@@ -98,6 +134,9 @@ export function normalizeLLMSettings(
     selectedModels,
     compressionModel,
     summaryModel,
+    promptOptimizerModel,
+    promptOptimizerPrompt,
+    promptOptimizerSmartMemory,
   };
 }
 

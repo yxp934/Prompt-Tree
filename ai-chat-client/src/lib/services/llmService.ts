@@ -13,6 +13,7 @@ export interface ChatParams {
   responseFormat?: unknown;
   stream?: boolean;
   onToken?: (chunk: string) => void;
+  signal?: AbortSignal;
 }
 
 export interface ILLMService {
@@ -30,6 +31,7 @@ export class LLMService implements ILLMService {
       baseUrl: baseUrlOverride,
       onToken,
       stream,
+      signal,
       ...rest
     } = params;
     const apiKey = apiKeyOverride ?? getOpenAIApiKey();
@@ -42,6 +44,7 @@ export class LLMService implements ILLMService {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ apiKey, baseUrl, ...rest, stream: Boolean(stream) }),
+      signal,
     });
 
     if (!response.ok) {

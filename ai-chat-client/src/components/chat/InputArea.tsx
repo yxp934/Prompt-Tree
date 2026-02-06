@@ -38,8 +38,28 @@ function SendIcon() {
   );
 }
 
+function OptimizeIcon() {
+  return (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="h-full w-full">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" d="M5 16l.8 1.8L7.6 19l-1.8.8L5 21l-.8-1.8L2.4 19l1.8-.8L5 16z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z" />
+    </svg>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-full w-full animate-spin">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" fill="none" opacity="0.2" />
+      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
+
 export interface InputAreaProps {
   onSend: (content: string) => Promise<void>;
+  onOptimizePrompt?: (content: string, signal: AbortSignal) => Promise<string>;
   onAttachFiles?: (files: File[]) => Promise<void> | void;
   disabled?: boolean;
   modelLabel?: string;
@@ -56,6 +76,7 @@ export interface InputAreaProps {
 
 export function InputArea({
   onSend,
+  onOptimizePrompt,
   onAttachFiles,
   disabled,
   modelLabel,
@@ -71,12 +92,16 @@ export function InputArea({
 }: InputAreaProps) {
   const t = useT();
   const [value, setValue] = useState("");
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizeError, setOptimizeError] = useState<string | null>(null);
+  const [undoValue, setUndoValue] = useState<string | null>(null);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [toolMenuOpen, setToolMenuOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const toolMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const optimizeAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!textareaRef.current) return;
@@ -88,7 +113,46 @@ export function InputArea({
     const trimmed = value.trim();
     if (!trimmed) return;
     await onSend(trimmed);
+    setUndoValue(null);
+    setOptimizeError(null);
     setValue("");
+  };
+
+  const handleOptimize = async () => {
+    if (!onOptimizePrompt) return;
+    if (isOptimizing) {
+      optimizeAbortRef.current?.abort();
+      return;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) return;
+
+    const previous = value;
+    const controller = new AbortController();
+    optimizeAbortRef.current = controller;
+    setIsOptimizing(true);
+    setOptimizeError(null);
+
+    try {
+      const optimized = await onOptimizePrompt(trimmed, controller.signal);
+      if (controller.signal.aborted) return;
+      setUndoValue(previous);
+      setValue(optimized);
+    } catch (err) {
+      if (
+        (typeof DOMException !== "undefined" && err instanceof DOMException && err.name === "AbortError") ||
+        (err instanceof Error && err.name === "AbortError")
+      ) {
+        return;
+      }
+      setOptimizeError(err instanceof Error ? err.message : t("chat.input.optimizeFailed"));
+    } finally {
+      if (optimizeAbortRef.current === controller) {
+        optimizeAbortRef.current = null;
+      }
+      setIsOptimizing(false);
+    }
   };
 
   const selectedKeys = useMemo(
@@ -151,6 +215,13 @@ export function InputArea({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [modelMenuOpen, toolMenuOpen]);
 
+  useEffect(
+    () => () => {
+      optimizeAbortRef.current?.abort();
+    },
+    [],
+  );
+
   const handleToggleTool = (tool: ToolUseId) => {
     if (!onSelectedToolsChange) return;
     const exists = selectedToolsSet.has(tool);
@@ -163,7 +234,7 @@ export function InputArea({
       <div className="relative max-w-[680px]">
         <textarea
           ref={textareaRef}
-          className="min-h-[60px] max-h-[180px] w-full resize-none rounded-2xl border border-parchment bg-paper px-6 py-4 pr-[120px] font-body text-[0.95rem] text-ink outline-none transition-all duration-200 placeholder:text-sand focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
+          className="min-h-[60px] max-h-[180px] w-full resize-none rounded-2xl border border-parchment bg-paper px-6 py-4 pr-[166px] font-body text-[0.95rem] text-ink outline-none transition-all duration-200 placeholder:text-sand focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)]"
           placeholder={t("chat.input.placeholder")}
           rows={1}
           value={value}
@@ -172,6 +243,7 @@ export function InputArea({
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
+              if (isOptimizing) return;
               void submit();
             }
           }}
@@ -205,10 +277,28 @@ export function InputArea({
             }}
           />
 
+          {onOptimizePrompt ? (
+            <button
+              type="button"
+              className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all duration-150 disabled:opacity-50 ${
+                isOptimizing
+                  ? "bg-copper/15 text-copper hover:bg-copper/20"
+                  : "bg-transparent text-sand hover:bg-cream hover:text-ink"
+              }`}
+              disabled={disabled || (!isOptimizing && !value.trim())}
+              aria-label={isOptimizing ? t("chat.input.optimizeCancel") : t("chat.input.optimize")}
+              onClick={() => void handleOptimize()}
+            >
+              <div className="h-[18px] w-[18px]">
+                {isOptimizing ? <SpinnerIcon /> : <OptimizeIcon />}
+              </div>
+            </button>
+          ) : null}
+
           <Button
             variant="primary"
             className="h-10 w-10 rounded-[10px] px-0 hover:scale-105"
-            disabled={disabled || !value.trim()}
+            disabled={disabled || isOptimizing || !value.trim()}
             aria-label={t("chat.input.send")}
             onClick={() => void submit()}
           >
@@ -396,6 +486,27 @@ export function InputArea({
         </div>
         <span className="shrink-0 whitespace-nowrap">{tokenLabel ?? ""}</span>
       </div>
+
+      {isOptimizing || optimizeError || undoValue ? (
+        <div className="mt-2 flex max-w-[680px] items-center justify-between gap-3 px-1 font-zen-body text-[0.7rem] text-stone-gray">
+          <div className="min-h-[16px]">
+            {isOptimizing ? t("chat.input.optimizing") : optimizeError ?? ""}
+          </div>
+          {undoValue ? (
+            <button
+              type="button"
+              className="rounded-md border border-parchment/30 bg-paper px-2 py-1 text-[0.65rem] text-clay transition-all duration-150 hover:border-copper hover:text-ink"
+              onClick={() => {
+                setValue(undoValue);
+                setUndoValue(null);
+                setOptimizeError(null);
+              }}
+            >
+              {t("chat.input.undoOptimization")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

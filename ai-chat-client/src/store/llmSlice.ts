@@ -49,17 +49,23 @@ import type { AppStoreDeps, AppStoreState } from "./useStore";
 export interface LLMSlice {
   isSending: boolean;
   llmError: string | null;
+  isOptimizingPrompt: boolean;
+  promptOptimizerError: string | null;
   isCompressing: boolean;
   compressionError: string | null;
   model: string;
   temperature: number;
   maxTokens: number;
+  promptOptimizerModel: ProviderModelSelection | null;
+  promptOptimizerPrompt: string;
+  promptOptimizerSmartMemory: boolean;
   selectedModels: ProviderModelSelection[];
   compressionModel: ProviderModelSelection | null;
   summaryModel: ProviderModelSelection | null;
   hydrateLLMSettingsFromStorage: () => void;
   setLLMSettings: (settings: Partial<LLMSettings>) => void;
   setSelectedModels: (models: ProviderModelSelection[]) => void;
+  optimizePrompt: (draft: string, options?: { signal?: AbortSignal }) => Promise<string>;
   sendMessage: (content: string, contextNodeIds?: string[]) => Promise<Node>;
   retryAssistant: (nodeId: string) => Promise<Node>;
   compressNodes: (
@@ -292,9 +298,200 @@ export function createLLMSlice(
         if (seen.has(hit.id)) continue;
         seen.add(hit.id);
         const { score: _score, ...item } = hit;
+        void _score;
         combined.push(item);
       }
       return combined;
+    };
+
+    const buildPromptOptimizerContextSnapshot = async (): Promise<string> => {
+      const blocks = get().contextBox?.blocks ?? [];
+      if (blocks.length === 0) return "";
+
+      const sections: string[] = [];
+      for (const [index, block] of blocks.entries()) {
+        if (block.kind === "file") {
+          if (block.fileKind === "image") {
+            sections.push(
+              [
+                `## Context File ${index + 1}: ${block.filename}`,
+                "",
+                "(Image content omitted. Keep this visual context in mind if it is relevant.)",
+              ].join("\n"),
+            );
+            continue;
+          }
+
+          sections.push(
+            [
+              `## Context File ${index + 1}: ${block.filename}`,
+              "",
+              block.content.trim(),
+            ].join("\n"),
+          );
+          continue;
+        }
+
+        const node = get().nodes.get(block.nodeId) ?? (await deps.nodeService.read(block.nodeId));
+        if (!node) continue;
+        sections.push(
+          [
+            `## Context Node ${index + 1}: ${node.type}`,
+            "",
+            node.content.trim(),
+          ].join("\n"),
+        );
+      }
+
+      return sections.join("\n\n---\n\n").trim();
+    };
+
+    const searchPromptOptimizerMemories = async (params: {
+      query: string;
+      folderId: string | null;
+    }): Promise<Array<MemoryItem & { score: number }>> => {
+      const query = params.query.trim();
+      if (!query) return [];
+
+      const embeddingSelection = get().longTermMemorySettings.embeddingModel;
+      const embeddingRes =
+        embeddingSelection && query
+          ? await deps.embeddingService.embedWithSelection({
+              providers: get().providers,
+              selection: embeddingSelection,
+              text: query,
+            })
+          : null;
+      const queryEmbedding = embeddingRes?.embedding ?? null;
+      const embeddingModelKey = embeddingRes?.embeddingModelKey ?? null;
+
+      return deps.memoryBankService.search({
+        query,
+        topK: 10,
+        scope: params.folderId ? "both" : "user",
+        folderId: params.folderId,
+        queryEmbedding,
+        embeddingModelKey,
+      });
+    };
+
+    const buildPromptOptimizerMemoryBundle = async (draft: string): Promise<string> => {
+      const tree = get().getCurrentTree();
+      const folderId = tree?.folderId ?? null;
+
+      const profile = await deps.userProfileService.read();
+      const profileMarkdown = renderUserProfileMarkdown(profile);
+
+      const folderMarkdown = folderId
+        ? renderFolderDocMarkdown(await deps.folderDocService.read(folderId))
+        : "";
+
+      const memories = await searchPromptOptimizerMemories({ query: draft, folderId });
+      const memoryMarkdown = memories.length
+        ? memories
+            .map((item, index) => {
+              const scope = item.scope === "folder" ? `folder(${item.folderId ?? "unknown"})` : "user";
+              const tags = item.tags.length > 0 ? item.tags.join(", ") : "(none)";
+              return [
+                `## Atomic Memory ${index + 1}`,
+                `- Scope: ${scope}`,
+                `- Confidence: ${item.confidence}`,
+                `- Tags: ${tags}`,
+                `- Updated: ${new Date(item.updatedAt).toISOString()}`,
+                `- Score: ${item.score.toFixed(4)}`,
+                "",
+                item.text.trim(),
+              ].join("\n");
+            })
+            .join("\n\n")
+        : "_(no relevant memories)_";
+
+      const contextSnapshot = await buildPromptOptimizerContextSnapshot();
+
+      const sections: string[] = [];
+      sections.push("## User Profile");
+      sections.push(profileMarkdown || "_(empty)_");
+      if (folderId) {
+        sections.push("");
+        sections.push("## Folder Profile");
+        sections.push(folderMarkdown || "_(empty)_");
+      }
+      sections.push("");
+      sections.push("## RAG Atomic Memories (Top 10)");
+      sections.push(memoryMarkdown);
+      sections.push("");
+      sections.push("## Context Snapshot");
+      sections.push(contextSnapshot || "_(empty)_");
+
+      return sections.join("\n").trim();
+    };
+
+    const optimizePrompt = async (
+      draft: string,
+      options?: { signal?: AbortSignal },
+    ): Promise<string> => {
+      const trimmed = draft.trim();
+      if (!trimmed) {
+        throw new Error("Prompt is empty.");
+      }
+      if (get().isOptimizingPrompt) {
+        throw new Error("Prompt optimization is already running.");
+      }
+
+      set({ isOptimizingPrompt: true, promptOptimizerError: null });
+      try {
+        const preferredSelection =
+          get().promptOptimizerModel ?? get().selectedModels[0] ?? null;
+        const preferredRequest = preferredSelection ? buildRequestFromSelection(preferredSelection) : null;
+        const request = preferredRequest ?? {
+          modelId: get().model,
+          modelName: get().model,
+        };
+
+        const userSections = [
+          "Optimize the prompt below and return only the final optimized prompt text.",
+          "",
+          "<<<DRAFT",
+          trimmed,
+          "DRAFT>>>",
+        ];
+
+        if (get().promptOptimizerSmartMemory) {
+          const memoryBundle = await buildPromptOptimizerMemoryBundle(trimmed);
+          userSections.push("", "<<<SMART_MEMORY", memoryBundle, "SMART_MEMORY>>>");
+        }
+
+        const content = await deps.llmService.chat({
+          messages: [
+            { role: "system", content: get().promptOptimizerPrompt },
+            { role: "user", content: userSections.join("\n") },
+          ],
+          model: request.modelId,
+          temperature: 0.2,
+          maxTokens: 1800,
+          apiKey: request.apiKey,
+          baseUrl: request.baseUrl,
+          signal: options?.signal,
+        });
+
+        const optimized = content.trim();
+        if (!optimized) {
+          throw new Error("Prompt optimizer returned an empty result.");
+        }
+        return optimized;
+      } catch (err) {
+        if (
+          (typeof DOMException !== "undefined" && err instanceof DOMException && err.name === "AbortError") ||
+          (err instanceof Error && err.name === "AbortError")
+        ) {
+          throw err;
+        }
+        const message = err instanceof Error ? err.message : "Prompt optimization failed.";
+        set({ promptOptimizerError: message });
+        throw err;
+      } finally {
+        set({ isOptimizingPrompt: false });
+      }
     };
 
     const buildLiveMemoryWriterSnapshotMarkdown = async (params: {
@@ -1218,6 +1415,8 @@ export function createLLMSlice(
     return {
       isSending: false,
       llmError: null,
+      isOptimizingPrompt: false,
+      promptOptimizerError: null,
       isCompressing: false,
       compressionError: null,
       model: initialSettings.model,
@@ -1226,6 +1425,9 @@ export function createLLMSlice(
       selectedModels: initialSettings.selectedModels,
       compressionModel: initialSettings.compressionModel,
       summaryModel: initialSettings.summaryModel,
+      promptOptimizerModel: initialSettings.promptOptimizerModel,
+      promptOptimizerPrompt: initialSettings.promptOptimizerPrompt,
+      promptOptimizerSmartMemory: initialSettings.promptOptimizerSmartMemory,
       hydrateLLMSettingsFromStorage: () => {
         const stored = getStoredLLMSettings();
         if (!stored) return;
@@ -1236,6 +1438,9 @@ export function createLLMSlice(
           selectedModels: stored.selectedModels,
           compressionModel: stored.compressionModel,
           summaryModel: stored.summaryModel,
+          promptOptimizerModel: stored.promptOptimizerModel,
+          promptOptimizerPrompt: stored.promptOptimizerPrompt,
+          promptOptimizerSmartMemory: stored.promptOptimizerSmartMemory,
         });
       },
       setLLMSettings: (settings) =>
@@ -1269,6 +1474,24 @@ export function createLLMSlice(
               )
                 ? settings.summaryModel
                 : state.summaryModel,
+              promptOptimizerModel: Object.prototype.hasOwnProperty.call(
+                settings,
+                "promptOptimizerModel",
+              )
+                ? settings.promptOptimizerModel
+                : state.promptOptimizerModel,
+              promptOptimizerPrompt: Object.prototype.hasOwnProperty.call(
+                settings,
+                "promptOptimizerPrompt",
+              )
+                ? settings.promptOptimizerPrompt
+                : state.promptOptimizerPrompt,
+              promptOptimizerSmartMemory: Object.prototype.hasOwnProperty.call(
+                settings,
+                "promptOptimizerSmartMemory",
+              )
+                ? settings.promptOptimizerSmartMemory
+                : state.promptOptimizerSmartMemory,
             },
             DEFAULT_LLM_SETTINGS,
           );
@@ -1285,12 +1508,16 @@ export function createLLMSlice(
               selectedModels: models,
               compressionModel: state.compressionModel,
               summaryModel: state.summaryModel,
+              promptOptimizerModel: state.promptOptimizerModel,
+              promptOptimizerPrompt: state.promptOptimizerPrompt,
+              promptOptimizerSmartMemory: state.promptOptimizerSmartMemory,
             },
             DEFAULT_LLM_SETTINGS,
           );
           setStoredLLMSettings(next);
           return { selectedModels: next.selectedModels };
         }),
+      optimizePrompt,
     sendMessage: async (content: string, contextNodeIds?: string[]) => {
       const trimmed = content.trim();
       if (!trimmed) throw new Error("Message is empty.");

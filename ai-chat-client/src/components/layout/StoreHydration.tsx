@@ -12,6 +12,7 @@ export default function StoreHydration() {
     state.loadProviders();
     state.hydrateLLMSettingsFromStorage();
     state.hydrateLongTermMemorySettingsFromStorage();
+    state.hydrateDefaultThreadSystemPromptFromStorage();
   }, []);
 
   return null;

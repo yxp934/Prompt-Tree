@@ -59,7 +59,10 @@ export function createTreeSlice(
     createTree: async (title) => {
       set({ isLoading: true, error: null });
       try {
-        const tree = await deps.treeService.create({ title });
+        const tree = await deps.treeService.create({
+          title,
+          systemPrompt: get().defaultThreadSystemPrompt,
+        });
 
         set((state) => {
           const trees = new Map(state.trees);
@@ -189,7 +192,9 @@ export function createTreeSlice(
           return;
         }
 
-        const tree = await deps.treeService.create();
+        const tree = await deps.treeService.create({
+          systemPrompt: get().defaultThreadSystemPrompt,
+        });
         const trees = new Map(nextTrees);
         trees.set(tree.id, tree);
         set({ trees });

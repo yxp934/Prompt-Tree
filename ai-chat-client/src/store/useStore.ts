@@ -24,6 +24,7 @@ import { createUISlice, type UISlice } from "./uiSlice";
 import { createProviderSlice, type ProviderSlice } from "./providerSlice";
 import { createToolSlice, type ToolSlice } from "./toolSlice";
 import { createLongTermMemorySlice, type LongTermMemorySlice } from "./longTermMemorySlice";
+import { createSystemPromptSlice, type SystemPromptSlice } from "./systemPromptSlice";
 
 export interface AppStoreDeps {
   nodeService: NodeService;
@@ -55,7 +56,8 @@ export type AppStoreState = BaseSlice &
   LLMSlice &
   ProviderSlice &
   ToolSlice &
-  LongTermMemorySlice;
+  LongTermMemorySlice &
+  SystemPromptSlice;
 
 export function createAppStore(
   deps?: Partial<AppStoreDeps>,
@@ -81,6 +83,8 @@ export function createAppStore(
     initialize: async () => {
       if (get().initialized) return;
 
+      get().hydrateDefaultThreadSystemPromptFromStorage();
+
       set({ isLoading: true, error: null });
       try {
         const [folders, initialTrees] = await Promise.all([
@@ -89,7 +93,9 @@ export function createAppStore(
         ]);
         let trees = initialTrees;
         if (trees.length === 0) {
-          const tree = await services.treeService.create();
+          const tree = await services.treeService.create({
+            systemPrompt: get().defaultThreadSystemPrompt,
+          });
           trees = [tree];
         }
 
@@ -119,6 +125,7 @@ export function createAppStore(
     ...createProviderSlice(services)(set, get, ...api),
     ...createToolSlice()(set, get, ...api),
     ...createLongTermMemorySlice()(set, get, ...api),
+    ...createSystemPromptSlice()(set, get, ...api),
   }));
 }
 

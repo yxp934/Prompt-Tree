@@ -444,9 +444,13 @@ export function GeneralSettingsPanel() {
   const temperature = useAppStore((s) => s.temperature);
   const maxTokens = useAppStore((s) => s.maxTokens);
   const setLLMSettings = useAppStore((s) => s.setLLMSettings);
+  const defaultThreadSystemPrompt = useAppStore((s) => s.defaultThreadSystemPrompt);
+  const setDefaultThreadSystemPrompt = useAppStore((s) => s.setDefaultThreadSystemPrompt);
+  const resetDefaultThreadSystemPrompt = useAppStore((s) => s.resetDefaultThreadSystemPrompt);
 
   const [temperatureValue, setTemperatureValue] = useState(temperature.toString());
   const [maxTokensValue, setMaxTokensValue] = useState(maxTokens.toString());
+  const [systemPromptValue, setSystemPromptValue] = useState(defaultThreadSystemPrompt);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -457,6 +461,10 @@ export function GeneralSettingsPanel() {
     setMaxTokensValue(maxTokens.toString());
   }, [maxTokens]);
 
+  useEffect(() => {
+    setSystemPromptValue(defaultThreadSystemPrompt);
+  }, [defaultThreadSystemPrompt]);
+
   const handleSave = () => {
     const parsedTemperature = Number.parseFloat(temperatureValue);
     const parsedMaxTokens = Number.parseInt(maxTokensValue, 10);
@@ -466,7 +474,14 @@ export function GeneralSettingsPanel() {
     };
 
     setLLMSettings(nextSettings);
+    setDefaultThreadSystemPrompt(systemPromptValue);
 
+    setSaveMessage(t("settings.general.saved"));
+    setTimeout(() => setSaveMessage(null), 2000);
+  };
+
+  const handleResetSystemPrompt = () => {
+    resetDefaultThreadSystemPrompt();
     setSaveMessage(t("settings.general.saved"));
     setTimeout(() => setSaveMessage(null), 2000);
   };
@@ -504,6 +519,40 @@ export function GeneralSettingsPanel() {
                 onChange={(event) => setMaxTokensValue(event.target.value)}
                 className="w-full rounded-xl border border-parchment/20 bg-shoji-white px-5 py-4 font-zen-body text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
               />
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-parchment/20 bg-washi-cream/50 p-6">
+          <div className="mb-2 font-zen-body text-[0.7rem] uppercase tracking-[0.15em] text-stone-gray font-light">
+            {t("settings.general.systemPrompt.title")}
+          </div>
+          <p className="mb-4 max-w-2xl font-zen-body text-xs text-stone-gray/80 font-light">
+            {t("settings.general.systemPrompt.description")}
+          </p>
+          <div className="flex flex-col gap-3">
+            <label className="block font-zen-body text-xs text-stone-gray font-light">
+              {t("settings.general.systemPrompt.label")}
+            </label>
+            <textarea
+              value={systemPromptValue}
+              onChange={(event) => setSystemPromptValue(event.target.value)}
+              spellCheck={false}
+              className="min-h-[260px] w-full resize-y rounded-xl border border-parchment/20 bg-shoji-white px-5 py-4 font-zen-body text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="font-zen-body text-[0.65rem] text-stone-gray/70 font-light">
+                {t("settings.general.systemPrompt.charCount", {
+                  count: systemPromptValue.trim().length.toLocaleString(),
+                })}
+              </div>
+              <button
+                type="button"
+                className="rounded-lg border border-parchment/30 bg-shoji-white px-4 py-2 font-zen-body text-xs text-stone-gray transition-all duration-200 hover:bg-washi-cream/60"
+                onClick={handleResetSystemPrompt}
+              >
+                {t("settings.general.systemPrompt.resetButton")}
+              </button>
             </div>
           </div>
         </section>

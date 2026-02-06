@@ -5,9 +5,10 @@ import { generateUUID } from "@/lib/utils/uuid";
 import { NodeType, type ContextBox, type ConversationTree, type Node } from "@/types";
 
 import { NodeService } from "./nodeService";
+import { DEFAULT_THREAD_SYSTEM_PROMPT_V1 } from "./defaultThreadSystemPromptService";
 
 const DEFAULT_MAX_TOKENS = 8192;
-const DEFAULT_SYSTEM_PROMPT = "You are Prompt Tree, a helpful assistant.";
+const DEFAULT_SYSTEM_PROMPT = DEFAULT_THREAD_SYSTEM_PROMPT_V1;
 
 export interface CreateTreeParams {
   title?: string;

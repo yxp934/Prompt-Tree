@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-0.5.0-7A8B6E?style=flat-square" alt="Version 0.5.0" />
+  <img src="https://img.shields.io/badge/Version-0.6.3-7A8B6E?style=flat-square" alt="Version 0.6.3" />
   <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript 5" />
@@ -33,8 +33,9 @@ Prompt Tree 把对话变成一张**可视化画布**：可以分叉、对比、�
   - **用户 Profile（JSON → 派生 Markdown）**：持久化的偏好/身份信息，在设置里完全可视化与可编辑。
   - **记忆库（Memory Bank 条目）**：原子记忆条目，包含 tags / 状态 / 置信度 / 来源；支持 user / folder 两种作用域。
   - **Folder Doc（JSON → 派生 Markdown）**：按 Folder 维护的长期文档，在 Folder 页面可视化与可编辑。
-  - **首条消息自动注入（每个 thread 只注入一次）**：将 `topK(folder) + topK(user)` 相关记忆 + 文档加入 Context Box；Folder 内比例可配置。
-  - **异步记忆写入器（Memory Writer LLM）**：每次用户发送消息都会异步触发；读取系统提示词 + 当前 thread 全部用户消息 + 本次发送携带的 Context 记忆快照；可更新 Profile / Folder Doc 并写入记忆（首条消息可强制至少写入 1 条）。
+  - **首条基础注入 + 每轮记忆刷新**：在 thread 首条用户消息注入 Profile/Folder Doc 与初始 `topK(folder) + topK(user)`；之后每次用户消息都会刷新 Context Box 的自动记忆命中。
+  - **最近消息连贯性（可选）**：每个 thread 的首条用户消息时，将同一 Folder（或非 Folder）最近一个 thread 的最后 N 条消息复制到 Context Box。
+  - **异步记忆写入器（Memory Writer LLM）**：每次用户发送消息都会异步触发；读取系统提示词 + 当前 thread 全部用户消息 + 执行时实时解析的记忆快照；可更新 Profile / Folder Doc 并写入记忆（首条消息可强制至少写入 1 条）。
   - **`search_memory` 工具 + Pin**：模型可在工具循环中搜索全量记忆库；命中记忆会加入 Context Box 并可 Pin；单 thread 自动/Pin 上限受控（Pin 优先于自动）。
   - **Embedding（可选）**：Embedding 模型可配置；未启用/不可用时自动退化为词法匹配。
 - **多模型并行分支**：选择多个模型，一次发送生成多条分支回复。
@@ -158,7 +159,8 @@ pnpm dlx --package @yxp934/prompt-tree tree
 ### 7）长期记忆（Profile / 记忆库 / Folder Doc）
 
 - 在 `Settings → Memory` 中配置：
-  - 开关长期记忆、首条消息自动注入、以及 `search_memory` 工具。
+  - 开关长期记忆、首条消息自动注入、**首条消息自动加入最近消息（最后 N 条）**、以及 `search_memory` 工具。
+  - 开启“首条消息自动加入最近消息”后，新 thread 的首条用户消息会将同一 Folder（或非 Folder）最近一个 thread 的最后 N 条消息加入 Context Box。
   - 在输入框旁的 `Tools` 菜单中，可对每次发送勾选/取消 `search_memory`（新安装默认勾选）；勾选后会在 Context Box 的 **Tool Blocks** 中可见，并且会出现在 **Context 预览**里。
   - 选择 **Memory Writer 模型** 与（可选）**Embedding 模型**。
   - 可视化/编辑 **用户 Profile JSON** 与派生 Markdown。
@@ -212,6 +214,17 @@ npm run typecheck
 - 技术设计：[`TECHNICAL_DESIGN.md`](./ai-chat-client/docs/TECHNICAL_DESIGN.md)
 - API 设计：[`API_DESIGN.md`](./ai-chat-client/docs/API_DESIGN.md)
 - 路线图：[`ROADMAP.md`](./ai-chat-client/docs/ROADMAP.md)
+
+## 更新日志
+
+### 0.6.3（2026-02-06）
+
+- 记忆：自动记忆 RAG 改为每条用户消息刷新，不再仅限首条注入。
+- Memory Writer：记忆快照改为在异步任务执行时基于最新记忆库生成，减少重复/冲突写入。
+
+### 0.6.2（2026-02-06）
+
+- 记忆：新增“首条消息自动加入最近消息（最后 N 条）”开关，用于跨 thread 保持连续性，并可与长期记忆注入并行使用。
 
 ## 联系方式
 

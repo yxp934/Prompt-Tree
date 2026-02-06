@@ -32,6 +32,7 @@ export interface ContextSlice {
   addToContext: (nodeId: string, insertIndex?: number) => Promise<void>;
   addFilesToContext: (files: File[], insertIndex?: number) => Promise<void>;
   upsertFileBlock: (block: ContextBlock, anchorNodeId?: string) => Promise<void>;
+  replaceAutoMemoryBlocks: (blocks: ContextBlock[], anchorNodeId?: string) => Promise<void>;
   removeFromContext: (blockId: string) => void;
   clearContext: () => void;
   reorderContext: (blockIds: string[]) => void;
@@ -217,6 +218,45 @@ export function createContextSlice(
         blocks = enforceLongTermMemoryPolicy(blocks);
         const totalTokens = computeTotalTokens(blocks, get().nodes);
         const next: ContextBox = { ...box, blocks, totalTokens };
+        set({ contextBox: next });
+        await deps.contextBoxService.put(next);
+      },
+
+      replaceAutoMemoryBlocks: async (blocks, anchorNodeId) => {
+        const box = get().contextBox;
+        if (!box) return;
+
+        const incoming = blocks.filter(
+          (block): block is ContextBlock =>
+            block.kind === "file" && block.id.startsWith(AUTO_MEM_PREFIX),
+        );
+        const uniqueIncoming = Array.from(new Map(incoming.map((block) => [block.id, block])).values());
+
+        let nextBlocks = box.blocks.filter(
+          (block) => !(block.kind === "file" && block.id.startsWith(AUTO_MEM_PREFIX)),
+        );
+
+        const anchorIndex = anchorNodeId
+          ? nextBlocks.findIndex((block) => block.kind === "node" && block.nodeId === anchorNodeId)
+          : -1;
+
+        const insertIndex = (() => {
+          if (anchorIndex === -1) return nextBlocks.length;
+          let index = anchorIndex + 1;
+          while (
+            index < nextBlocks.length &&
+            nextBlocks[index]?.kind === "file" &&
+            isLongTermMemoryBlockId(nextBlocks[index]!.id)
+          ) {
+            index += 1;
+          }
+          return index;
+        })();
+
+        nextBlocks.splice(insertIndex, 0, ...uniqueIncoming);
+        nextBlocks = enforceLongTermMemoryPolicy(nextBlocks);
+        const totalTokens = computeTotalTokens(nextBlocks, get().nodes);
+        const next: ContextBox = { ...box, blocks: nextBlocks, totalTokens };
         set({ contextBox: next });
         await deps.contextBoxService.put(next);
       },

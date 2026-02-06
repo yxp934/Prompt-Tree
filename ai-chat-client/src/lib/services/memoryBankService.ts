@@ -123,6 +123,26 @@ export class MemoryBankService {
     return filtered;
   }
 
+  async getByIds(ids: string[]): Promise<MemoryItem[]> {
+    const normalized = uniqueStrings(ids);
+    if (normalized.length === 0) return [];
+
+    const db = await getDB();
+    const tx = db.transaction([DB_CONFIG.stores.memoryItems.name], "readonly");
+    const store = tx.objectStore(DB_CONFIG.stores.memoryItems.name);
+
+    const items: MemoryItem[] = [];
+    for (const id of normalized) {
+      const raw = await requestToPromise<MemoryItem | undefined>(
+        store.get(id) as IDBRequest<MemoryItem | undefined>,
+      );
+      if (raw) items.push(raw);
+    }
+
+    await transactionToPromise(tx);
+    return items;
+  }
+
   async upsert(input: {
     item: MemoryUpsertInput;
     source?: MemorySourceRef;

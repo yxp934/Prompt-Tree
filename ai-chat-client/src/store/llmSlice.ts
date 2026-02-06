@@ -5,6 +5,7 @@ import {
   type ChatMessage,
   type ContextBlock,
   type ContextTextFileBlock,
+  type MemoryItem,
   type Node,
   type NodeMetaInstructions,
 } from "@/types";
@@ -29,7 +30,9 @@ import {
   buildPinnedMemoryBlockId,
   buildProfileContextBlock,
   isLongTermMemoryBlockId,
+  parsePinnedMemoryBlockId,
 } from "@/lib/services/longTermMemoryBlocks";
+import { buildRecentMessagesContextBlock } from "@/lib/services/recentMessagesBlocks";
 import {
   renderFolderDocMarkdown,
   renderUserProfileMarkdown,
@@ -237,6 +240,123 @@ export function createLLMSlice(
         .join("\n\n---\n\n");
     };
 
+    const searchRelevantMemories = async (params: {
+      query: string;
+      folderId: string | null;
+    }): Promise<MemoryItem[]> => {
+      const query = params.query.trim();
+      if (!query) return [];
+
+      const settings = get().longTermMemorySettings;
+      const embeddingSelection = settings.embeddingModel;
+      const embeddingRes =
+        embeddingSelection && query
+          ? await deps.embeddingService.embedWithSelection({
+              providers: get().providers,
+              selection: embeddingSelection,
+              text: query,
+            })
+          : null;
+      const queryEmbedding = embeddingRes?.embedding ?? null;
+      const embeddingModelKey = embeddingRes?.embeddingModelKey ?? null;
+
+      const folder = params.folderId ? get().folders.get(params.folderId) ?? null : null;
+      const topKFolder = folder?.memoryRag?.topKFolder ?? 5;
+      const topKUser = params.folderId ? (folder?.memoryRag?.topKUser ?? 5) : 10;
+
+      const folderHits =
+        params.folderId && topKFolder > 0
+          ? await deps.memoryBankService.search({
+              query,
+              topK: topKFolder,
+              scope: "folder",
+              folderId: params.folderId,
+              queryEmbedding,
+              embeddingModelKey,
+            })
+          : [];
+      const userHits =
+        topKUser > 0
+          ? await deps.memoryBankService.search({
+              query,
+              topK: topKUser,
+              scope: "user",
+              queryEmbedding,
+              embeddingModelKey,
+            })
+          : [];
+
+      const combined: MemoryItem[] = [];
+      const seen = new Set<string>();
+      for (const hit of [...folderHits, ...userHits]) {
+        if (seen.has(hit.id)) continue;
+        seen.add(hit.id);
+        const { score: _score, ...item } = hit;
+        combined.push(item);
+      }
+      return combined;
+    };
+
+    const buildLiveMemoryWriterSnapshotMarkdown = async (params: {
+      treeId: string;
+      folderId: string | null;
+      latestUserText: string;
+    }): Promise<string> => {
+      const persistedBox = await deps.contextBoxService.read(params.treeId);
+      const fallbackBlocks =
+        get().currentTreeId === params.treeId ? (get().contextBox?.blocks ?? []) : [];
+      const contextBlocks = persistedBox?.blocks ?? fallbackBlocks;
+
+      const ltmTextBlocks = contextBlocks.filter(
+        (block): block is ContextTextFileBlock =>
+          block.kind === "file" && block.fileKind !== "image" && isLongTermMemoryBlockId(block.id),
+      );
+
+      const nonMemoryBlocks: ContextTextFileBlock[] = [];
+      const memoryMeta = new Map<string, { pinned: boolean; createdAt: number }>();
+
+      for (const block of ltmTextBlocks) {
+        const parsed = parsePinnedMemoryBlockId(block.id);
+        if (!parsed) {
+          nonMemoryBlocks.push(block);
+          continue;
+        }
+        const existing = memoryMeta.get(parsed.memoryId);
+        if (!existing) {
+          memoryMeta.set(parsed.memoryId, { pinned: parsed.pinned, createdAt: block.createdAt });
+          continue;
+        }
+        memoryMeta.set(parsed.memoryId, {
+          pinned: existing.pinned || parsed.pinned,
+          createdAt: Math.max(existing.createdAt, block.createdAt),
+        });
+      }
+
+      const searched = await searchRelevantMemories({
+        query: params.latestUserText,
+        folderId: params.folderId,
+      });
+      const merged = new Map<string, MemoryItem>(searched.map((item) => [item.id, item]));
+      const missingFromContext = Array.from(memoryMeta.keys()).filter((id) => !merged.has(id));
+      if (missingFromContext.length > 0) {
+        const contextItems = await deps.memoryBankService.getByIds(missingFromContext);
+        for (const item of contextItems) {
+          merged.set(item.id, item);
+        }
+      }
+
+      const refreshedMemoryBlocks = Array.from(merged.values()).map((item) => {
+        const meta = memoryMeta.get(item.id);
+        return buildMemoryContextBlock({
+          item,
+          pinned: meta?.pinned ?? false,
+          createdAt: meta?.createdAt,
+        });
+      });
+
+      return buildContextMemorySnapshotMarkdown([...nonMemoryBlocks, ...refreshedMemoryBlocks]);
+    };
+
     const runMemoryWriterJob = async (params: {
       treeId: string;
       folderId: string | null;
@@ -244,7 +364,6 @@ export function createLLMSlice(
       latestUserCreatedAt: number;
       latestUserText: string;
       isFirstUserMessageInThread: boolean;
-      contextMemorySnapshotMarkdown: string;
     }) => {
       const settings = get().longTermMemorySettings;
       if (!settings.enabled) return;
@@ -259,6 +378,11 @@ export function createLLMSlice(
 
       const folderId = params.folderId ?? null;
       const isFolderThread = Boolean(folderId);
+      const contextMemorySnapshotMarkdown = await buildLiveMemoryWriterSnapshotMarkdown({
+        treeId: params.treeId,
+        folderId,
+        latestUserText: params.latestUserText,
+      });
 
       const systemPrompt = buildMemoryWriterSystemPrompt({
         isFirstUserMessageInThread: params.isFirstUserMessageInThread,
@@ -269,7 +393,7 @@ export function createLLMSlice(
         enableProfileUpdates: settings.enableProfileUpdates,
         enableFolderDocUpdates: settings.enableFolderDocUpdates,
         enableMemoryUpdates: settings.enableMemoryUpdates,
-        contextMemorySnapshotMarkdown: params.contextMemorySnapshotMarkdown,
+        contextMemorySnapshotMarkdown,
       });
 
       const { nodes } = await deps.treeService.loadTreeNodes(params.treeId);
@@ -1180,7 +1304,47 @@ export function createLLMSlice(
           (n) => n.type === NodeType.USER,
         );
 
-        const ensureLongTermMemoryInjected = async () => {
+        const ensureRecentMessagesInjected = async () => {
+          const settings = get().longTermMemorySettings;
+          if (!settings.enabled || !settings.autoInjectRecentMessagesOnFirstMessage) return;
+          if (settings.autoInjectRecentMessagesCount <= 0) return;
+
+          if (hadPriorUserMessages) return;
+
+          const box = get().contextBox;
+          if (!box) return;
+
+          const folderId = tree.folderId ?? null;
+          const sourceTree = Array.from(get().trees.values())
+            .filter((candidate) => candidate.id !== tree.id)
+            .filter((candidate) => (candidate.folderId ?? null) === folderId)
+            .slice()
+            .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+          if (!sourceTree) return;
+
+          const { nodes } = await deps.treeService.loadTreeNodes(sourceTree.id);
+          const messages = nodes
+            .filter((n) => n.type === NodeType.USER || n.type === NodeType.ASSISTANT)
+            .slice()
+            .sort((a, b) => a.createdAt - b.createdAt);
+          if (messages.length === 0) return;
+
+          const count = Math.min(50, Math.max(0, Math.round(settings.autoInjectRecentMessagesCount)));
+          if (count === 0) return;
+
+          const selected = messages.slice(-count);
+          const anchorNodeId = tree.rootId;
+          await get().upsertFileBlock(
+            buildRecentMessagesContextBlock({
+              sourceTitle: sourceTree.title,
+              sourceTreeId: sourceTree.id,
+              messageNodes: selected,
+            }),
+            anchorNodeId,
+          );
+        };
+
+        const ensureLongTermMemoryBaseInjected = async () => {
           const settings = get().longTermMemorySettings;
           if (!settings.enabled || !settings.autoInjectOnFirstMessage) return;
 
@@ -1204,61 +1368,30 @@ export function createLLMSlice(
               anchorNodeId,
             );
           }
-
-          const embeddingSelection = settings.embeddingModel;
-          const embeddingRes = embeddingSelection
-            ? await deps.embeddingService.embedWithSelection({
-                providers: get().providers,
-                selection: embeddingSelection,
-                text: trimmed,
-              })
-            : null;
-
-          const queryEmbedding = embeddingRes?.embedding ?? null;
-          const embeddingModelKey = embeddingRes?.embeddingModelKey ?? null;
-
-          const folder = folderId ? get().folders.get(folderId) ?? null : null;
-          const topKFolder = folder?.memoryRag?.topKFolder ?? 5;
-          const topKUser = folderId ? (folder?.memoryRag?.topKUser ?? 5) : 10;
-
-          const folderHits =
-            folderId && topKFolder > 0
-              ? await deps.memoryBankService.search({
-                  query: trimmed,
-                  topK: topKFolder,
-                  scope: "folder",
-                  folderId,
-                  queryEmbedding,
-                  embeddingModelKey,
-                })
-              : [];
-          const userHits =
-            topKUser > 0
-              ? await deps.memoryBankService.search({
-                  query: trimmed,
-                  topK: topKUser,
-                  scope: "user",
-                  queryEmbedding,
-                  embeddingModelKey,
-                })
-              : [];
-
-          const seen = new Set<string>();
-          const combined = [...folderHits, ...userHits].filter((m) => {
-            if (seen.has(m.id)) return false;
-            seen.add(m.id);
-            return true;
-          });
-
-          for (const item of combined) {
-            await get().upsertFileBlock(
-              buildMemoryContextBlock({ item, pinned: false }),
-              anchorNodeId,
-            );
-          }
         };
 
-        await ensureLongTermMemoryInjected();
+        const refreshLongTermMemoryRag = async () => {
+          const settings = get().longTermMemorySettings;
+          if (!settings.enabled || !settings.autoInjectOnFirstMessage) return;
+
+          const box = get().contextBox;
+          if (!box) return;
+
+          const folderId = tree.folderId ?? null;
+          const anchorNodeId = tree.rootId;
+          const memories = await searchRelevantMemories({
+            query: trimmed,
+            folderId,
+          });
+          const autoBlocks = memories.map((item) =>
+            buildMemoryContextBlock({ item, pinned: false }),
+          );
+          await get().replaceAutoMemoryBlocks(autoBlocks, anchorNodeId);
+        };
+
+        await ensureRecentMessagesInjected();
+        await ensureLongTermMemoryBaseInjected();
+        await refreshLongTermMemoryRag();
 
         const allowMemoryTool =
           get().longTermMemorySettings.enabled &&
@@ -1276,8 +1409,6 @@ export function createLLMSlice(
           if (!contextNodeIds?.length) return blocks;
           return contextNodeIds.map((id) => byId.get(id) ?? ({ id, kind: "node", nodeId: id } as ContextBlock));
         })();
-
-        const contextMemorySnapshotMarkdown = buildContextMemorySnapshotMarkdown(contextBlocks);
 
         const hasImages = contextBlocks.some(
           (block) => block.kind === "file" && block.fileKind === "image",
@@ -1358,7 +1489,6 @@ export function createLLMSlice(
             latestUserCreatedAt: userNode.createdAt,
             latestUserText: trimmed,
             isFirstUserMessageInThread: !hadPriorUserMessages,
-            contextMemorySnapshotMarkdown,
           }),
         );
 

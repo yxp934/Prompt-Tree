@@ -53,4 +53,17 @@ describe("MemoryBankService", () => {
     });
     expect(swapped.map((m) => m.id)).toEqual([m2.id, m1.id]);
   });
+
+  it("loads existing memory items by id", async () => {
+    const service = new MemoryBankService();
+    const m1 = await service.upsert({
+      item: { text: "memory one", tags: ["one"], scope: "user" },
+    });
+    const m2 = await service.upsert({
+      item: { text: "memory two", tags: ["two"], scope: "user" },
+    });
+
+    const list = await service.getByIds([m2.id, "missing-id", m1.id, m2.id]);
+    expect(list.map((item) => item.id)).toEqual([m2.id, m1.id]);
+  });
 });

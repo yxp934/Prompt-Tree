@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-0.5.0-7A8B6E?style=flat-square" alt="Version 0.5.0" />
+  <img src="https://img.shields.io/badge/Version-0.6.3-7A8B6E?style=flat-square" alt="Version 0.6.3" />
   <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript 5" />
@@ -33,8 +33,9 @@ Prompt Tree turns a conversation into a **canvas** you can branch, compress, and
   - **User Profile (JSON → derived Markdown)**: persistent preferences/identity, fully visible & editable in Settings.
   - **Memory Bank (items)**: atomic memories with tags, status, confidence, and sources; supports user/folder scope.
   - **Folder Doc (JSON → derived Markdown)**: per-folder long-term doc, visible & editable in the folder page.
-  - **First-message auto-RAG injection (only once per thread)**: inject `topK(folder) + topK(user)` memories + docs into the Context Box; folder ratio is configurable.
-  - **Async memory writer**: runs on every user message; reads system prompt + all USER messages + the message’s context memories snapshot; can patch Profile/Folder Doc and upsert memories (first message can be forced to write at least 1 memory).
+  - **First-message base injection + per-message memory refresh**: on a thread’s first user message, inject Profile/Folder Doc + initial `topK(folder) + topK(user)` memories; on every user message, refresh auto memory hits in the Context Box.
+  - **Recent messages continuity (optional)**: on a thread’s first user message, copy the last N messages from your most recent thread (same folder) into the Context Box.
+  - **Async memory writer**: runs on every user message; reads system prompt + all USER messages + a live memory snapshot resolved at execution time; can patch Profile/Folder Doc and upsert memories (first message can be forced to write at least 1 memory).
   - **`search_memory` tool + pin**: the model can search the full memory library during the tool loop; retrieved memories are added into the Context Box and can be pinned; per-thread caps are enforced (pinned wins over auto).
   - **Embeddings (optional)**: embedding model is configurable; lexical fallback is used when embeddings are disabled/unavailable.
 - **Multi-model branching**: select multiple models and send once to get parallel branches.
@@ -158,7 +159,8 @@ In `Settings → Default Model`:
 ### 7) Long-term memory (Profile / Memory Bank / Folder Doc)
 
 - Configure in `Settings → Memory`:
-  - Toggle long-term memory, auto-inject on first message, and the `search_memory` tool.
+  - Toggle long-term memory, auto-inject on first message, **auto-add recent messages (last N)**, and the `search_memory` tool.
+  - When auto-add recent messages is enabled, a new thread’s first user message will copy the last N messages from your most recent thread (same folder) into the Context Box.
   - In the chat composer `Tools` menu, you can toggle `search_memory` per message (default enabled on new installs). When enabled, it appears in the Context Box as a **Tool Block** and is included in **Context Preview**.
   - Pick **Memory Writer model** and (optional) **Embedding model**.
   - Edit/view **User Profile JSON** and its derived Markdown.
@@ -212,6 +214,17 @@ npm run typecheck
 - Technical design: [TECHNICAL_DESIGN](./ai-chat-client/docs/TECHNICAL_DESIGN.md)
 - API design: [API_DESIGN](./ai-chat-client/docs/API_DESIGN.md)
 - Roadmap: [ROADMAP](./ai-chat-client/docs/ROADMAP.md)
+
+## Changelog
+
+### 0.6.3 (2026-02-06)
+
+- Memory: refresh auto memory RAG blocks on every user message instead of first-message-only injection.
+- Memory Writer: build memory snapshot at job execution time from latest memory state to reduce duplicate/conflicting writes.
+
+### 0.6.2 (2026-02-06)
+
+- Memory: add “Auto-add recent messages” (last N) on a thread’s first user message to keep continuity across threads (in parallel with long-term memory injection).
 
 ## Contact
 

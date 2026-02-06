@@ -216,6 +216,10 @@ npm run typecheck
 
 ## Changelog
 
+### 0.6.4 (2026-02-06)
+
+- Provider settings: fix Base URL input behavior so `/` is no longer removed while typing; normalization now happens on blur/submit checks.
+
 ### 0.6.3 (2026-02-06)
 
 - Memory: refresh auto memory RAG blocks on every user message instead of first-message-only injection.

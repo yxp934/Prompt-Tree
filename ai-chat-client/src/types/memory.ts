@@ -68,6 +68,8 @@ export interface MemoryWriterPlan {
 export interface LongTermMemorySettings {
   enabled: boolean;
   autoInjectOnFirstMessage: boolean;
+  autoInjectRecentMessagesOnFirstMessage: boolean;
+  autoInjectRecentMessagesCount: number;
   enableMemorySearchTool: boolean;
 
   memoryWriterModel: ProviderModelSelection | null;
@@ -83,4 +85,3 @@ export interface LongTermMemorySettings {
   forceFirstMessageMemoryUpsert: boolean;
   forceFirstMessageFolderDocUpsert: boolean;
 }
-

@@ -386,17 +386,32 @@ export function ProviderConfig() {
   const handleUpdateBaseUrl = (url: string) => {
     setBaseUrl(url);
     if (selectedProvider) {
-      updateProvider(selectedProvider.id, { baseUrl: normalizeBaseUrl(url) });
+      // Keep raw input while typing so characters like "/" are not stripped.
+      updateProvider(selectedProvider.id, { baseUrl: url });
     }
   };
 
-  const handleAddApiKey = () => {
+  const handleBaseUrlBlur = () => {
     if (!selectedProvider) return;
-    setShowAddKeyDialog(true);
+    const normalized = normalizeBaseUrl(baseUrl);
+    if (normalized === baseUrl) return;
+    setBaseUrl(normalized);
+    updateProvider(selectedProvider.id, { baseUrl: normalized });
+  };
+
+  const handleBaseUrlKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.currentTarget.blur();
   };
 
   const handleCheckConnection = async () => {
     if (!selectedProvider) return;
+
+    const normalized = normalizeBaseUrl(baseUrl);
+    if (normalized !== baseUrl) {
+      setBaseUrl(normalized);
+      updateProvider(selectedProvider.id, { baseUrl: normalized });
+    }
     setIsChecking(true);
     setCheckError(null);
     try {
@@ -406,6 +421,11 @@ export function ProviderConfig() {
     } finally {
       setIsChecking(false);
     }
+  };
+
+  const handleAddApiKey = () => {
+    if (!selectedProvider) return;
+    setShowAddKeyDialog(true);
   };
 
   const handleConfirmAddKey = (value: string, name?: string) => {
@@ -536,6 +556,8 @@ export function ProviderConfig() {
                   type="text"
                   value={baseUrl}
                   onChange={(e) => handleUpdateBaseUrl(e.target.value)}
+                  onBlur={handleBaseUrlBlur}
+                  onKeyDown={handleBaseUrlKeyDown}
                   placeholder="https://api.openai.com/v1"
                   className="w-full rounded-xl border border-parchment/20 bg-washi-cream px-5 py-4 font-mono text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"
                 />

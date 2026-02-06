@@ -998,6 +998,49 @@ export function LongTermMemoryPanel() {
           <label className="flex items-start justify-between gap-4 rounded-2xl border border-parchment/20 bg-washi-cream/50 p-5">
             <div>
               <div className="font-zen-display text-lg font-light text-ink-black">
+                {t("settings.memory.recentMessagesAutoInject")}
+              </div>
+              <div className="mt-2 font-zen-body text-xs text-stone-gray font-light">
+                {t("settings.memory.recentMessagesAutoInjectDesc")}
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              className="mt-1 h-5 w-5 accent-matcha-green"
+              checked={settings.autoInjectRecentMessagesOnFirstMessage}
+              onChange={(e) =>
+                setLongTermMemorySettings({
+                  autoInjectRecentMessagesOnFirstMessage: e.target.checked,
+                })
+              }
+            />
+          </label>
+
+          <label className="flex items-start justify-between gap-4 rounded-2xl border border-parchment/20 bg-washi-cream/50 p-5">
+            <div>
+              <div className="font-zen-display text-lg font-light text-ink-black">
+                {t("settings.memory.recentMessagesCount")}
+              </div>
+              <div className="mt-2 font-zen-body text-xs text-stone-gray font-light">
+                {t("settings.memory.recentMessagesCountDesc")}
+              </div>
+            </div>
+            <input
+              type="number"
+              min={0}
+              max={50}
+              className="mt-1 w-24 rounded-xl border border-parchment bg-paper px-3 py-2 font-body text-[0.9rem] text-ink outline-none transition-all duration-200 focus:border-copper focus:shadow-[0_0_0_3px_var(--copper-glow)] disabled:cursor-not-allowed disabled:opacity-50"
+              value={settings.autoInjectRecentMessagesCount}
+              disabled={!settings.autoInjectRecentMessagesOnFirstMessage}
+              onChange={(e) =>
+                setLongTermMemorySettings({ autoInjectRecentMessagesCount: Number(e.target.value) })
+              }
+            />
+          </label>
+
+          <label className="flex items-start justify-between gap-4 rounded-2xl border border-parchment/20 bg-washi-cream/50 p-5">
+            <div>
+              <div className="font-zen-display text-lg font-light text-ink-black">
                 {t("settings.memory.searchTool")}
               </div>
               <div className="mt-2 font-zen-body text-xs text-stone-gray font-light">

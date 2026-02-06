@@ -4,6 +4,8 @@ import type { ProviderModelSelection } from "@/types/provider";
 export const DEFAULT_LONG_TERM_MEMORY_SETTINGS: LongTermMemorySettings = {
   enabled: true,
   autoInjectOnFirstMessage: true,
+  autoInjectRecentMessagesOnFirstMessage: false,
+  autoInjectRecentMessagesCount: 8,
   enableMemorySearchTool: true,
 
   memoryWriterModel: null,
@@ -54,6 +56,22 @@ export function normalizeLongTermMemorySettings(
     autoInjectOnFirstMessage: normalizeBoolean(
       value.autoInjectOnFirstMessage,
       fallback.autoInjectOnFirstMessage,
+    ),
+    autoInjectRecentMessagesOnFirstMessage: normalizeBoolean(
+      value.autoInjectRecentMessagesOnFirstMessage,
+      fallback.autoInjectRecentMessagesOnFirstMessage,
+    ),
+    autoInjectRecentMessagesCount: Math.min(
+      50,
+      Math.max(
+        0,
+        Math.round(
+          normalizeNumber(
+            value.autoInjectRecentMessagesCount,
+            fallback.autoInjectRecentMessagesCount,
+          ),
+        ),
+      ),
     ),
     enableMemorySearchTool: normalizeBoolean(
       value.enableMemorySearchTool,
@@ -124,4 +142,3 @@ export function setStoredLongTermMemorySettings(settings: LongTermMemorySettings
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   for (const key of LEGACY_KEYS) localStorage.removeItem(key);
 }
-

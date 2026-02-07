@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-0.6.6-7A8B6E?style=flat-square" alt="Version 0.6.6" />
+  <img src="https://img.shields.io/badge/Version-0.6.7-7A8B6E?style=flat-square" alt="Version 0.6.7" />
   <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript 5" />
@@ -215,6 +215,12 @@ npm run typecheck
 - Roadmap: [ROADMAP](./docs/ROADMAP.md)
 
 ## Changelog
+
+### 0.6.7 (2026-02-06)
+
+- Settings: **Max Tokens** now supports empty value persistence; leaving it blank no longer resets to `1024` after saving.
+- Defaults: for new settings, chat **Max Tokens** is now unset by default.
+- Request pipeline: when **Max Tokens** is unset, chat and agent routes omit `max_tokens` instead of applying a fixed fallback.
 
 ### 0.6.6 (2026-02-06)
 

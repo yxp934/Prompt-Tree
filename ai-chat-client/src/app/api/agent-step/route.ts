@@ -355,7 +355,7 @@ async function callChatCompletion(params: {
   timeoutMs: number;
   model: string;
   temperature: number;
-  maxTokens: number;
+  maxTokens?: number;
   messages: OpenAIMessage[];
   tools: OpenAIToolDefinition[];
   stream: boolean;
@@ -514,7 +514,7 @@ export async function POST(request: Request) {
   }
 
   const temperature = typeof body.temperature === "number" ? body.temperature : 0.7;
-  const maxTokens = typeof body.maxTokens === "number" ? body.maxTokens : 2000;
+  const maxTokens = typeof body.maxTokens === "number" ? body.maxTokens : undefined;
   const timeoutMs = typeof body.timeout === "number" ? body.timeout : 30000;
   const headers = normalizeHeaders(body.headers);
   const stream = typeof body.stream === "boolean" ? body.stream : true;

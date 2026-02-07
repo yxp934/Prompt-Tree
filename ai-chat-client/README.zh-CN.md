@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-0.6.6-7A8B6E?style=flat-square" alt="Version 0.6.6" />
+  <img src="https://img.shields.io/badge/Version-0.6.7-7A8B6E?style=flat-square" alt="Version 0.6.7" />
   <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript 5" />
@@ -215,6 +215,12 @@ npm run typecheck
 - 路线图：[`ROADMAP.md`](./docs/ROADMAP.md)
 
 ## 更新日志
+
+### 0.6.7（2026-02-06）
+
+- 设置：`Max Tokens` 支持空值持久化，留空保存后不再被重置为 `1024`。
+- 默认值：新设置下聊天 `Max Tokens` 默认改为“不设置”。
+- 请求链路：当 `Max Tokens` 未设置时，chat 与 agent 路由都会省略 `max_tokens`，不再使用固定兜底上限。
 
 ### 0.6.6（2026-02-06）
 

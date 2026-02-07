@@ -3,7 +3,7 @@ import type { ProviderModelSelection } from "@/types/provider";
 export interface LLMSettings {
   model: string;
   temperature: number;
-  maxTokens: number;
+  maxTokens: number | null;
   selectedModels: ProviderModelSelection[];
   compressionModel: ProviderModelSelection | null;
   summaryModel: ProviderModelSelection | null;
@@ -31,7 +31,7 @@ export const DEFAULT_PROMPT_OPTIMIZER_PROMPT = [
 export const DEFAULT_LLM_SETTINGS: LLMSettings = {
   model: "gpt-4o-mini",
   temperature: 0.7,
-  maxTokens: 1024,
+  maxTokens: null,
   selectedModels: [],
   compressionModel: null,
   summaryModel: null,
@@ -81,6 +81,15 @@ function normalizeModelSelection(value: unknown): ProviderModelSelection | null 
   return { providerId, modelId };
 }
 
+function normalizeOptionalMaxTokens(
+  value: unknown,
+  fallback: number | null,
+): number | null {
+  if (value === null) return null;
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.max(1, Math.round(value));
+}
+
 export function normalizeLLMSettings(
   settings: Partial<LLMSettings>,
   fallback: LLMSettings = DEFAULT_LLM_SETTINGS,
@@ -93,10 +102,7 @@ export function normalizeLLMSettings(
     typeof settings.temperature === "number" && Number.isFinite(settings.temperature)
       ? clamp(settings.temperature, 0, 2)
       : fallback.temperature;
-  const maxTokens =
-    typeof settings.maxTokens === "number" && Number.isFinite(settings.maxTokens)
-      ? Math.max(1, Math.round(settings.maxTokens))
-      : fallback.maxTokens;
+  const maxTokens = normalizeOptionalMaxTokens(settings.maxTokens, fallback.maxTokens);
 
   const selectedModels = normalizeSelectedModels(
     settings.selectedModels,

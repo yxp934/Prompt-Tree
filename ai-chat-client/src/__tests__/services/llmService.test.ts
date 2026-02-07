@@ -60,10 +60,33 @@ describe("LLMService", () => {
       apiKey?: string;
       baseUrl?: string;
       model?: string;
+      maxTokens?: number;
     };
     expect(body.apiKey).toBe("sk-test");
     expect(body.baseUrl).toBe("https://example.com/openai/v1");
     expect(body.model).toBe("gpt-test");
+    expect(body.maxTokens).toBe(123);
+  });
+
+  it("omits maxTokens from request body when not provided", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ content: "ok" }),
+      text: async () => "",
+    });
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
+
+    const service = new LLMService();
+    await service.chat({
+      messages: [{ role: "user", content: "hi" }],
+      model: "gpt-test",
+    });
+
+    const args = fetchMock.mock.calls[0];
+    const init = args?.[1] as { body?: string };
+    const body = JSON.parse(init.body ?? "{}") as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(body, "maxTokens")).toBe(false);
   });
 
   it("throws when api key is missing", async () => {

@@ -55,7 +55,7 @@ export interface LLMSlice {
   compressionError: string | null;
   model: string;
   temperature: number;
-  maxTokens: number;
+  maxTokens: number | null;
   promptOptimizerModel: ProviderModelSelection | null;
   promptOptimizerPrompt: string;
   promptOptimizerSmartMemory: boolean;
@@ -1108,7 +1108,7 @@ export function createLLMSlice(
                 timeout: request.timeout,
                 model: request.modelId,
                 temperature: get().temperature,
-                maxTokens: get().maxTokens,
+                maxTokens: get().maxTokens ?? undefined,
                 messages: conversation,
                 toolUses: normalizedToolUses,
                 toolSettings,
@@ -1332,7 +1332,7 @@ export function createLLMSlice(
             messages: injectToolInstructionMessages(messages, toolUses, toolSettings),
             model: request.modelId,
             temperature: get().temperature,
-            maxTokens: get().maxTokens,
+            maxTokens: get().maxTokens ?? undefined,
             apiKey: request.apiKey,
             baseUrl: request.baseUrl,
             stream: true,
@@ -1389,7 +1389,7 @@ export function createLLMSlice(
           messages: injectToolInstructionMessages(messages, toolUses, toolSettings),
           model: request.modelId,
           temperature: get().temperature,
-          maxTokens: get().maxTokens,
+          maxTokens: get().maxTokens ?? undefined,
           apiKey: request.apiKey,
           baseUrl: request.baseUrl,
         });

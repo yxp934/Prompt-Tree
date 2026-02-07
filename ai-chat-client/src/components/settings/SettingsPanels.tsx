@@ -493,8 +493,11 @@ export function GeneralSettingsPanel() {
   const setDefaultThreadSystemPrompt = useAppStore((s) => s.setDefaultThreadSystemPrompt);
   const resetDefaultThreadSystemPrompt = useAppStore((s) => s.resetDefaultThreadSystemPrompt);
 
+  const formatMaxTokensInput = (value: number | null): string =>
+    value === null ? "" : value.toString();
+
   const [temperatureValue, setTemperatureValue] = useState(temperature.toString());
-  const [maxTokensValue, setMaxTokensValue] = useState(maxTokens.toString());
+  const [maxTokensValue, setMaxTokensValue] = useState(formatMaxTokensInput(maxTokens));
   const [systemPromptValue, setSystemPromptValue] = useState(defaultThreadSystemPrompt);
   const [optimizerPromptValue, setOptimizerPromptValue] = useState(promptOptimizerPrompt);
   const [optimizerSmartMemoryValue, setOptimizerSmartMemoryValue] = useState(
@@ -507,7 +510,7 @@ export function GeneralSettingsPanel() {
   }, [temperature]);
 
   useEffect(() => {
-    setMaxTokensValue(maxTokens.toString());
+    setMaxTokensValue(formatMaxTokensInput(maxTokens));
   }, [maxTokens]);
 
   useEffect(() => {
@@ -524,10 +527,17 @@ export function GeneralSettingsPanel() {
 
   const handleSave = () => {
     const parsedTemperature = Number.parseFloat(temperatureValue);
-    const parsedMaxTokens = Number.parseInt(maxTokensValue, 10);
+    const maxTokensInput = maxTokensValue.trim();
+    const parsedMaxTokens = Number.parseInt(maxTokensInput, 10);
+    const nextMaxTokens =
+      maxTokensInput.length === 0
+        ? null
+        : Number.isFinite(parsedMaxTokens) && parsedMaxTokens >= 1
+          ? parsedMaxTokens
+          : maxTokens;
     const nextSettings: Partial<LLMSettings> = {
       temperature: Number.isFinite(parsedTemperature) ? parsedTemperature : temperature,
-      maxTokens: Number.isFinite(parsedMaxTokens) ? parsedMaxTokens : maxTokens,
+      maxTokens: nextMaxTokens,
       promptOptimizerPrompt: optimizerPromptValue,
       promptOptimizerSmartMemory: optimizerSmartMemoryValue,
     };
@@ -578,6 +588,7 @@ export function GeneralSettingsPanel() {
               <input
                 type="number"
                 min="1"
+                placeholder="Auto"
                 value={maxTokensValue}
                 onChange={(event) => setMaxTokensValue(event.target.value)}
                 className="w-full rounded-xl border border-parchment/20 bg-shoji-white px-5 py-4 font-zen-body text-sm text-ink-black outline-none transition-all duration-300 focus:border-matcha-green/50"

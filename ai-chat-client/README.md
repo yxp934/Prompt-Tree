@@ -216,6 +216,12 @@ npm run typecheck
 
 ## Changelog
 
+### 0.6.8 (2026-02-09)
+
+- Markdown rendering: added `remark-math` + `rehype-katex` + `katex` to support inline (`$...$`) and block (`$$...$$`) formulas.
+- Typography: added explicit `h1`-`h6` styles under `.prose-prompt-tree` so heading levels render with distinct sizes.
+- Formula display: improved `.katex-display` overflow handling to keep long equations readable in chat messages.
+
 ### 0.6.7 (2026-02-06)
 
 - Settings: **Max Tokens** now supports empty value persistence; leaving it blank no longer resets to `1024` after saving.

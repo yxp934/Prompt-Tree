@@ -306,6 +306,65 @@ body {
 }
 
 /* ========== Code Block Styles ========== */
+.prose-prompt-tree h1,
+.prose-prompt-tree h2,
+.prose-prompt-tree h3,
+.prose-prompt-tree h4,
+.prose-prompt-tree h5,
+.prose-prompt-tree h6 {
+  font-family: var(--font-display);
+  color: var(--ink);
+}
+
+.prose-prompt-tree h1 {
+  font-size: 1.9rem;
+  line-height: 1.2;
+  margin: 1.3rem 0 0.75rem;
+}
+
+.prose-prompt-tree h2 {
+  font-size: 1.6rem;
+  line-height: 1.25;
+  margin: 1.2rem 0 0.7rem;
+}
+
+.prose-prompt-tree h3 {
+  font-size: 1.35rem;
+  line-height: 1.3;
+  margin: 1.05rem 0 0.6rem;
+}
+
+.prose-prompt-tree h4 {
+  font-size: 1.15rem;
+  line-height: 1.35;
+  margin: 0.95rem 0 0.55rem;
+}
+
+.prose-prompt-tree h5 {
+  font-size: 1rem;
+  line-height: 1.4;
+  margin: 0.85rem 0 0.5rem;
+  font-weight: 600;
+}
+
+.prose-prompt-tree h6 {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin: 0.8rem 0 0.45rem;
+  font-weight: 600;
+  color: var(--clay);
+}
+
+.prose-prompt-tree .katex {
+  font-size: 1.02em;
+}
+
+.prose-prompt-tree .katex-display {
+  margin: 0.9rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 .prose-prompt-tree code {
   font-family: var(--font-mono);
   font-size: 0.85em;

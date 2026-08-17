@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-0.6.7-7A8B6E?style=flat-square" alt="Version 0.6.7" />
+  <img src="https://img.shields.io/badge/Version-0.7.0-7A8B6E?style=flat-square" alt="Version 0.7.0" />
   <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript 5" />
@@ -78,7 +78,7 @@ pnpm rm -g @yxp934/prompt-tree
 Start the app:
 
 ```bash
-tree
+prompt-tree
 ```
 
 Open: `http://localhost:1666`
@@ -86,24 +86,24 @@ Open: `http://localhost:1666`
 ### Change the port
 
 ```bash
-tree --port 7777
+prompt-tree --port 7777
 ```
 
 ### CLI help / version
 
 ```bash
-tree --help
-tree --version
+prompt-tree --help
+prompt-tree --version
 ```
 
 ### Run without installing globally (optional)
 
-Useful if your system already has a `tree` command:
+Useful for a one-off run without changing your global installation:
 
 ```bash
-npx -y --package @yxp934/prompt-tree tree
+npx -y --package @yxp934/prompt-tree prompt-tree
 # or
-pnpm dlx --package @yxp934/prompt-tree tree
+pnpm dlx --package @yxp934/prompt-tree prompt-tree
 ```
 
 ## Usage Guide
@@ -217,8 +217,10 @@ npm run typecheck
 
 ## Changelog
 
-### 0.6.8 (2026-02-09)
+### 0.7.0 (2026-08-17)
 
+- CLI (breaking): renamed the global executable from `tree` to `prompt-tree` to avoid conflicts with operating-system commands, especially Windows `tree.com`; the old `tree` alias has been removed.
+- Packaging and docs: updated the npm bin metadata, launcher help, and npm/pnpm examples to use `prompt-tree`.
 - Markdown rendering: added `remark-math` + `rehype-katex` + `katex` to support inline (`$...$`) and block (`$$...$$`) formulas.
 - Typography: added explicit `h1`-`h6` styles under `.prose-prompt-tree` so heading levels render with distinct sizes.
 - Formula display: improved `.katex-display` overflow handling to keep long equations readable in chat messages.

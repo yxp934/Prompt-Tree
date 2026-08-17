@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-0.6.7-7A8B6E?style=flat-square" alt="Version 0.6.7" />
+  <img src="https://img.shields.io/badge/Version-0.7.0-7A8B6E?style=flat-square" alt="Version 0.7.0" />
   <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript 5" />
@@ -78,7 +78,7 @@ pnpm rm -g @yxp934/prompt-tree
 启动应用：
 
 ```bash
-tree
+prompt-tree
 ```
 
 打开：`http://localhost:1666`
@@ -86,24 +86,24 @@ tree
 ### 更改端口
 
 ```bash
-tree --port 7777
+prompt-tree --port 7777
 ```
 
 ### 查看帮助 / 版本
 
 ```bash
-tree --help
-tree --version
+prompt-tree --help
+prompt-tree --version
 ```
 
 ### 不做全局安装（可选）
 
-如果你的系统里已经有 `tree` 命令（或希望一次性运行）：
+适合不更改全局安装的一次性运行：
 
 ```bash
-npx -y --package @yxp934/prompt-tree tree
+npx -y --package @yxp934/prompt-tree prompt-tree
 # 或
-pnpm dlx --package @yxp934/prompt-tree tree
+pnpm dlx --package @yxp934/prompt-tree prompt-tree
 ```
 
 ## 功能用法（详细）
@@ -216,8 +216,10 @@ npm run typecheck
 
 ## 更新日志
 
-### 0.6.8（2026-02-09）
+### 0.7.0（2026-08-17）
 
+- CLI（破坏性变更）：全局命令由 `tree` 改为 `prompt-tree`，避免与操作系统命令冲突，尤其是 Windows 的 `tree.com`；旧 `tree` 别名已移除。
+- 打包与文档：npm bin 元数据、启动器帮助以及 npm/pnpm 示例已统一使用 `prompt-tree`。
 - Markdown 渲染：新增 `remark-math` + `rehype-katex` + `katex`，支持行内（`$...$`）与块级（`$$...$$`）公式。
 - 排版：在 `.prose-prompt-tree` 下补充 `h1`-`h6` 显式样式，确保不同标题级别显示不同字号。
 - 公式显示：优化 `.katex-display` 溢出处理，长公式在聊天消息中可横向滚动查看。

@@ -6,14 +6,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_PORT = "1666";
+const CLI_NAME = "prompt-tree";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function printHelp() {
-  // Avoid printing the real package name here (it may change before publishing).
   console.log(`Usage:
-  tree [--port <port>]
+  ${CLI_NAME} [--port <port>]
 
 Options:
   -p, --port     Port to listen on (default: ${DEFAULT_PORT})
@@ -121,7 +121,7 @@ function main() {
     process.getuid() !== 0
   ) {
     console.warn(
-      `Warning: port ${portNumber} is a privileged port (<1024) on macOS/Linux and may require elevated permissions. Try \`tree --port 1666\` if you see EPERM/EACCES.`,
+      `Warning: port ${portNumber} is a privileged port (<1024) on macOS/Linux and may require elevated permissions. Try \`${CLI_NAME} --port 1666\` if you see EPERM/EACCES.`,
     );
   }
 

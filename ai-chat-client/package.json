@@ -1,13 +1,13 @@
 {
   "name": "@yxp934/prompt-tree",
-  "version": "0.6.8",
-  "description": "Node-based DAG AI chat client with a tree CLI launcher (Next.js standalone).",
+  "version": "0.7.0",
+  "description": "Node-based DAG AI chat client with a prompt-tree CLI launcher (Next.js standalone).",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
   "bin": {
-    "tree": "bin/tree.mjs"
+    "prompt-tree": "bin/prompt-tree.mjs"
   },
   "files": [
     "bin/",
@@ -20,6 +20,7 @@
     "prepack": "npm run build && node scripts/prepare-standalone.mjs",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:cli": "vitest run src/__tests__/cli/launcher.test.ts",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
